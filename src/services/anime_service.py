@@ -453,7 +453,7 @@ class AnimeService:
         category: str
     ) -> str:
         """Get original file folder path."""
-        base_path = config.qbittorrent.base_download_path.rstrip('/')
+        base_path = config.qbittorrent.base_download_path.rstrip('/\\')
         sanitized_title = self._sanitize_title(anime_title)
 
         # Select folder based on media type
@@ -468,7 +468,7 @@ class AnimeService:
         else:
             type_folder = config.qbittorrent.tv_folder_name
 
-        return f'{base_path}/{media_folder}/{type_folder}/{sanitized_title}'
+        return os.path.join(base_path, media_folder, type_folder, sanitized_title)
 
     def _get_hardlink_folder_path(
         self,
@@ -492,7 +492,7 @@ class AnimeService:
             else:
                 target_base = config.link_target_path
 
-        return f'{target_base}/{sanitized_title}'
+        return os.path.join(target_base.rstrip('/\\'), sanitized_title)
 
     def delete_anime_files(
         self,
