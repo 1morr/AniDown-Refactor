@@ -456,19 +456,14 @@ class AnimeService:
         base_path = config.qbittorrent.base_download_path.rstrip('/\\')
         sanitized_title = self._sanitize_title(anime_title)
 
-        # Select folder based on media type
+        # Select folder based on media type (matches path_builder.py structure)
+        # Structure: /downloads/Anime/Title or /downloads/LiveAction/Title
         if media_type == 'live_action':
             media_folder = config.qbittorrent.live_action_folder_name
         else:
             media_folder = config.qbittorrent.anime_folder_name
 
-        # Select folder based on category
-        if category == 'movie':
-            type_folder = config.qbittorrent.movie_folder_name
-        else:
-            type_folder = config.qbittorrent.tv_folder_name
-
-        return os.path.join(base_path, media_folder, type_folder, sanitized_title)
+        return os.path.join(base_path, media_folder, sanitized_title)
 
     def _get_hardlink_folder_path(
         self,
