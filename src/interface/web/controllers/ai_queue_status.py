@@ -114,6 +114,159 @@ def reset_key_cooldown(purpose: str, key_id: str):
         return APIResponse.not_found(f'未找到 Key: {key_id}')
 
 
+@ai_queue_bp.route('/api/ai-queue/key/<purpose>/<key_id>/enable', methods=['POST'])
+@handle_api_errors
+def enable_key(purpose: str, key_id: str):
+    """
+    启用已禁用的 Key。
+
+    当 Key 因为 400/403/404 错误被自动禁用后，
+    可以通过此接口手动重新启用。
+
+    Args:
+        purpose: Key Pool 用途标识（如 'title_parse'）
+        key_id: Key 唯一标识
+
+    Returns:
+        JSON 响应:
+        - 成功: {success: true, message: '...'}
+        - 失败: {success: false, message: '...'}
+    """
+    logger.api_request(f'/api/ai-queue/key/{purpose}/{key_id}/enable', 'POST')
+
+    pool = get_pool(purpose)
+    if not pool:
+        logger.api_error_msg(
+            f'/api/ai-queue/key/{purpose}/{key_id}/enable',
+            f'未找到 {purpose} 的 Key Pool'
+        )
+        return APIResponse.not_found(f'未找到 {purpose} 的 Key Pool')
+
+    if pool.enable_key(key_id):
+        logger.api_success(
+            f'/api/ai-queue/key/{purpose}/{key_id}/enable',
+            f'Key {key_id} 已重新启用'
+        )
+        return APIResponse.success(message=f'Key {key_id} 已重新启用')
+    else:
+        logger.api_error_msg(
+            f'/api/ai-queue/key/{purpose}/{key_id}/enable',
+            f'Key {key_id} 未处于禁用状态或不存在'
+        )
+        return APIResponse.bad_request(f'Key {key_id} 未处于禁用状态或不存在')
+
+
+@ai_queue_bp.route('/api/ai-queue/key/<purpose>/<key_id>/reset-rpm', methods=['POST'])
+@handle_api_errors
+def reset_key_rpm(purpose: str, key_id: str):
+    """
+    重置指定 Key 的 RPM 计数。
+
+    Args:
+        purpose: Key Pool 用途标识
+        key_id: Key 唯一标识
+
+    Returns:
+        JSON 响应
+    """
+    logger.api_request(f'/api/ai-queue/key/{purpose}/{key_id}/reset-rpm', 'POST')
+
+    pool = get_pool(purpose)
+    if not pool:
+        logger.api_error_msg(
+            f'/api/ai-queue/key/{purpose}/{key_id}/reset-rpm',
+            f'未找到 {purpose} 的 Key Pool'
+        )
+        return APIResponse.not_found(f'未找到 {purpose} 的 Key Pool')
+
+    if pool.reset_rpm(key_id):
+        logger.api_success(
+            f'/api/ai-queue/key/{purpose}/{key_id}/reset-rpm',
+            f'Key {key_id} RPM 已重置'
+        )
+        return APIResponse.success(message=f'Key {key_id} RPM 已重置')
+    else:
+        logger.api_error_msg(
+            f'/api/ai-queue/key/{purpose}/{key_id}/reset-rpm',
+            f'未找到 Key: {key_id}'
+        )
+        return APIResponse.not_found(f'未找到 Key: {key_id}')
+
+
+@ai_queue_bp.route('/api/ai-queue/key/<purpose>/<key_id>/reset-rpd', methods=['POST'])
+@handle_api_errors
+def reset_key_rpd(purpose: str, key_id: str):
+    """
+    重置指定 Key 的 RPD 计数。
+
+    Args:
+        purpose: Key Pool 用途标识
+        key_id: Key 唯一标识
+
+    Returns:
+        JSON 响应
+    """
+    logger.api_request(f'/api/ai-queue/key/{purpose}/{key_id}/reset-rpd', 'POST')
+
+    pool = get_pool(purpose)
+    if not pool:
+        logger.api_error_msg(
+            f'/api/ai-queue/key/{purpose}/{key_id}/reset-rpd',
+            f'未找到 {purpose} 的 Key Pool'
+        )
+        return APIResponse.not_found(f'未找到 {purpose} 的 Key Pool')
+
+    if pool.reset_rpd(key_id):
+        logger.api_success(
+            f'/api/ai-queue/key/{purpose}/{key_id}/reset-rpd',
+            f'Key {key_id} RPD 已重置'
+        )
+        return APIResponse.success(message=f'Key {key_id} RPD 已重置')
+    else:
+        logger.api_error_msg(
+            f'/api/ai-queue/key/{purpose}/{key_id}/reset-rpd',
+            f'未找到 Key: {key_id}'
+        )
+        return APIResponse.not_found(f'未找到 Key: {key_id}')
+
+
+@ai_queue_bp.route('/api/ai-queue/key/<purpose>/<key_id>/reset-all', methods=['POST'])
+@handle_api_errors
+def reset_key_all_limits(purpose: str, key_id: str):
+    """
+    重置指定 Key 的所有限制（冷却、RPM、RPD）。
+
+    Args:
+        purpose: Key Pool 用途标识
+        key_id: Key 唯一标识
+
+    Returns:
+        JSON 响应
+    """
+    logger.api_request(f'/api/ai-queue/key/{purpose}/{key_id}/reset-all', 'POST')
+
+    pool = get_pool(purpose)
+    if not pool:
+        logger.api_error_msg(
+            f'/api/ai-queue/key/{purpose}/{key_id}/reset-all',
+            f'未找到 {purpose} 的 Key Pool'
+        )
+        return APIResponse.not_found(f'未找到 {purpose} 的 Key Pool')
+
+    if pool.reset_all_limits(key_id):
+        logger.api_success(
+            f'/api/ai-queue/key/{purpose}/{key_id}/reset-all',
+            f'Key {key_id} 所有限制已重置'
+        )
+        return APIResponse.success(message=f'Key {key_id} 所有限制已重置')
+    else:
+        logger.api_error_msg(
+            f'/api/ai-queue/key/{purpose}/{key_id}/reset-all',
+            f'未找到 Key: {key_id}'
+        )
+        return APIResponse.not_found(f'未找到 Key: {key_id}')
+
+
 @ai_queue_bp.route('/api/ai-queue/circuit/<purpose>/reset', methods=['POST'])
 @handle_api_errors
 def reset_circuit_breaker(purpose: str):

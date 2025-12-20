@@ -159,14 +159,15 @@
             <th class="py-2 pr-3">用途</th>
             <th class="py-2 pr-3">Key 名称</th>
             <th class="py-2 pr-3">状态</th>
-            <th class="py-2 pr-3">使用次数 (RPM/RPD)</th>
+            <th class="py-2 pr-3">RPM (每分钟)</th>
+            <th class="py-2 pr-3">RPD (每天)</th>
             <th class="py-2 pr-3">最近响应</th>
             <th class="py-2 pr-3">冷却</th>
             <th class="py-2 pr-3">操作</th>
           </tr>
         </thead>
         <tbody id="keys-table" class="text-slate-700 dark:text-gray-200">
-          <tr><td colspan="7" class="py-4 text-center text-slate-400">加载中...</td></tr>
+          <tr><td colspan="8" class="py-4 text-center text-slate-400">加载中...</td></tr>
         </tbody>
       </table>
     </div>
@@ -323,40 +324,111 @@ function updateKeysTable(keyPools) {
     if (!pool.keys) continue;
 
     for (const key of pool.keys) {
-      const stateClass = key.state === 'available'
-        ? 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-400'
-        : key.state === 'long_cooling'
-          ? 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400'
-          : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-500/20 dark:text-yellow-400';
-
-      const stateText = key.state === 'available' ? '可用' : key.state === 'long_cooling' ? '长冷却' : '冷却中';
+      // 状态样式
+      let stateClass, stateText;
+      if (key.state === 'available') {
+        stateClass = 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-400';
+        stateText = '可用';
+      } else if (key.state === 'disabled') {
+        stateClass = 'bg-gray-100 text-gray-800 dark:bg-gray-500/20 dark:text-gray-400';
+        stateText = '已禁用';
+      } else if (key.state === 'long_cooling') {
+        stateClass = 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400';
+        stateText = '长冷却';
+      } else {
+        stateClass = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-500/20 dark:text-yellow-400';
+        stateText = '冷却中';
+      }
 
       const cooldownText = key.cooldown_remaining_seconds > 0
         ? `${Math.round(key.cooldown_remaining_seconds)}s`
         : '-';
 
-      const lastResponseHtml = key.last_error
-        ? `<span class="px-1.5 py-0.5 text-xs bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400 rounded" title="${escapeHtml(key.last_error)}">错误 (${key.error_count})</span>`
-        : key.last_response_time_ms
-          ? `<span class="px-1.5 py-0.5 text-xs bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-400 rounded">${key.last_response_time_ms}ms</span>`
-          : '<span class="text-slate-400">-</span>';
+      // RPM/RPD 进度条和状态
+      const rpmPercent = key.rpm_limit > 0 ? Math.min(100, (key.rpm_count / key.rpm_limit) * 100) : 0;
+      const rpdPercent = key.rpd_limit > 0 ? Math.min(100, (key.rpd_count / key.rpd_limit) * 100) : 0;
+      const rpmBlocked = key.rpm_blocked;
+      const rpdBlocked = key.rpd_blocked;
+      const rpmWait = key.rpm_window_remaining_seconds || 0;
 
-      const resetBtn = key.cooldown_remaining_seconds > 0
-        ? `<button onclick="resetKeyCooldown('${purpose}', '${key.key_id}')"
-                   class="px-2 py-1 text-xs bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-400 rounded hover:bg-blue-200 dark:hover:bg-blue-500/30 transition-colors">
-             重置
-           </button>`
-        : '<span class="text-slate-400">-</span>';
+      let rpmHtml = '';
+      if (key.rpm_limit > 0) {
+        const rpmBarColor = rpmBlocked
+          ? 'bg-red-500 dark:bg-red-400'
+          : rpmPercent > 80
+            ? 'bg-yellow-500 dark:bg-yellow-400'
+            : 'bg-green-500 dark:bg-green-400';
+        const rpmWaitText = rpmBlocked ? ` (${Math.round(rpmWait)}s)` : '';
+        rpmHtml = `
+          <div class="flex items-center gap-1">
+            <div class="w-16 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+              <div class="h-full ${rpmBarColor} transition-all" style="width: ${rpmPercent}%"></div>
+            </div>
+            <span class="text-xs font-mono ${rpmBlocked ? 'text-red-600 dark:text-red-400 font-medium' : ''}">${key.rpm_count}/${key.rpm_limit}${rpmWaitText}</span>
+            ${rpmBlocked ? `<button onclick="resetKeyRpm('${purpose}', '${key.key_id}')" class="ml-1 text-xs text-blue-600 dark:text-blue-400 hover:underline" title="重置 RPM">重置</button>` : ''}
+          </div>`;
+      } else {
+        rpmHtml = '<span class="text-slate-400 text-xs">无限制</span>';
+      }
+
+      let rpdHtml = '';
+      if (key.rpd_limit > 0) {
+        const rpdBarColor = rpdBlocked
+          ? 'bg-red-500 dark:bg-red-400'
+          : rpdPercent > 80
+            ? 'bg-yellow-500 dark:bg-yellow-400'
+            : 'bg-green-500 dark:bg-green-400';
+        rpdHtml = `
+          <div class="flex items-center gap-1">
+            <div class="w-16 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+              <div class="h-full ${rpdBarColor} transition-all" style="width: ${rpdPercent}%"></div>
+            </div>
+            <span class="text-xs font-mono ${rpdBlocked ? 'text-red-600 dark:text-red-400 font-medium' : ''}">${key.rpd_count}/${key.rpd_limit}</span>
+            ${rpdBlocked ? `<button onclick="resetKeyRpd('${purpose}', '${key.key_id}')" class="ml-1 text-xs text-blue-600 dark:text-blue-400 hover:underline" title="重置 RPD">重置</button>` : ''}
+          </div>`;
+      } else {
+        rpdHtml = '<span class="text-slate-400 text-xs">无限制</span>';
+      }
+
+      // 最后响应/错误信息
+      let lastResponseHtml;
+      if (key.disabled) {
+        lastResponseHtml = `<span class="px-1.5 py-0.5 text-xs bg-gray-100 text-gray-800 dark:bg-gray-500/20 dark:text-gray-400 rounded" title="${escapeHtml(key.disabled_reason || '')}">禁用原因</span>`;
+      } else if (key.last_error) {
+        const errorType = key.last_error_type ? ` [${key.last_error_type}]` : '';
+        lastResponseHtml = `<span class="px-1.5 py-0.5 text-xs bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400 rounded" title="${escapeHtml(key.last_error)}${errorType}">错误 (${key.error_count})</span>`;
+      } else if (key.last_response_time_ms) {
+        lastResponseHtml = `<span class="px-1.5 py-0.5 text-xs bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-400 rounded">${key.last_response_time_ms}ms</span>`;
+      } else {
+        lastResponseHtml = '<span class="text-slate-400">-</span>';
+      }
+
+      // 操作按钮
+      let actionBtn;
+      if (key.disabled) {
+        actionBtn = `<button onclick="enableKey('${purpose}', '${key.key_id}')"
+                       class="px-2 py-1 text-xs bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-400 rounded hover:bg-green-200 dark:hover:bg-green-500/30 transition-colors">
+             启用
+           </button>`;
+      } else if (key.cooldown_remaining_seconds > 0 || rpmBlocked || rpdBlocked) {
+        actionBtn = `<button onclick="resetKeyAllLimits('${purpose}', '${key.key_id}')"
+                       class="px-2 py-1 text-xs bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-400 rounded hover:bg-blue-200 dark:hover:bg-blue-500/30 transition-colors">
+             全部重置
+           </button>`;
+      } else {
+        actionBtn = '<span class="text-slate-400">-</span>';
+      }
 
       rows.push(`
-        <tr class="border-b border-slate-100 dark:border-white/5">
+        <tr class="border-b border-slate-100 dark:border-white/5 ${key.disabled ? 'opacity-60' : ''}">
           <td class="py-2 pr-3 font-mono text-slate-500 dark:text-gray-400">${escapeHtml(purpose)}</td>
           <td class="py-2 pr-3">${escapeHtml(key.name)}</td>
           <td class="py-2 pr-3"><span class="px-2 py-0.5 text-xs font-medium ${stateClass} rounded-full">${stateText}</span></td>
-          <td class="py-2 pr-3 font-mono">${key.rpm_count}/${key.rpm_limit || '∞'} / ${key.rpd_count}/${key.rpd_limit || '∞'}</td>
+          <td class="py-2 pr-3">${rpmHtml}</td>
+          <td class="py-2 pr-3">${rpdHtml}</td>
           <td class="py-2 pr-3">${lastResponseHtml}</td>
           <td class="py-2 pr-3 font-mono">${cooldownText}</td>
-          <td class="py-2 pr-3">${resetBtn}</td>
+          <td class="py-2 pr-3">${actionBtn}</td>
         </tr>
       `);
     }
@@ -364,7 +436,7 @@ function updateKeysTable(keyPools) {
 
   tbody.innerHTML = rows.length > 0
     ? rows.join('')
-    : '<tr><td colspan="7" class="py-4 text-center text-slate-400 dark:text-gray-500">暂无 Key 配置</td></tr>';
+    : '<tr><td colspan="8" class="py-4 text-center text-slate-400 dark:text-gray-500">暂无 Key 配置</td></tr>';
 }
 
 function updateCircuitBreakers(breakers) {
@@ -378,18 +450,37 @@ function updateCircuitBreakers(breakers) {
   const cards = [];
 
   for (const [purpose, breaker] of Object.entries(breakers)) {
-    const isOpen = breaker.is_open;
-    const statusClass = isOpen
-      ? 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20'
-      : 'bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20';
-    const statusText = isOpen ? '已触发' : '正常';
-    const statusBadgeClass = isOpen
-      ? 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400'
-      : 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-400';
+    // 状态判断
+    const state = breaker.state;
+    let statusClass, statusText, statusBadgeClass;
+
+    if (state === 'open') {
+      statusClass = 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20';
+      statusText = '已触发';
+      statusBadgeClass = 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400';
+    } else if (state === 'half_open') {
+      statusClass = 'bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20';
+      statusText = '探测中';
+      statusBadgeClass = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-500/20 dark:text-yellow-400';
+    } else {
+      statusClass = 'bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20';
+      statusText = '正常';
+      statusBadgeClass = 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-400';
+    }
 
     const remainingText = breaker.remaining_seconds > 0
       ? `${Math.round(breaker.remaining_seconds)}s`
       : '-';
+
+    // 探测信息
+    let probeInfo = '';
+    if (state === 'half_open') {
+      probeInfo = `
+        <div class="text-sm text-slate-600 dark:text-gray-400 mt-1">
+          探测进度: <span class="font-mono">${breaker.probe_success_count}/${breaker.success_threshold}</span> 成功
+        </div>
+      `;
+    }
 
     const tripInfo = breaker.trip_count > 0
       ? `<div class="text-xs text-slate-500 dark:text-gray-400 mt-1">
@@ -398,7 +489,7 @@ function updateCircuitBreakers(breakers) {
          </div>`
       : '';
 
-    const resetBtn = isOpen
+    const resetBtn = breaker.is_open
       ? `<button onclick="resetCircuitBreaker('${purpose}')"
                  class="mt-2 px-3 py-1.5 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors">
            <i class="fa-solid fa-unlock mr-1"></i>解除熔断
@@ -411,11 +502,12 @@ function updateCircuitBreakers(breakers) {
           <span class="font-semibold text-slate-800 dark:text-white">${escapeHtml(purpose)}</span>
           <span class="px-2 py-0.5 text-xs font-medium ${statusBadgeClass} rounded-full">${statusText}</span>
         </div>
-        ${isOpen ? `
+        ${state === 'open' ? `
           <div class="text-sm text-slate-600 dark:text-gray-400">
             剩余时间: <span class="font-mono font-medium">${remainingText}</span>
           </div>
         ` : ''}
+        ${probeInfo}
         ${tripInfo}
         ${resetBtn}
       </div>
@@ -428,6 +520,80 @@ function updateCircuitBreakers(breakers) {
 async function resetKeyCooldown(purpose, keyId) {
   try {
     const response = await fetch(`/api/ai-queue/key/${purpose}/${keyId}/reset`, {
+      method: 'POST'
+    });
+    const result = await response.json();
+
+    if (result.success) {
+      showSuccess(result.message);
+      refreshStatus();
+    } else {
+      showError(result.message);
+    }
+  } catch (e) {
+    showError('重置失败: ' + e.message);
+  }
+}
+
+async function enableKey(purpose, keyId) {
+  if (!confirm(`确定要重新启用 Key ${keyId} 吗？\n\n注意：如果 Key 因为被 ban 而禁用，启用后可能会再次被禁用。`)) return;
+
+  try {
+    const response = await fetch(`/api/ai-queue/key/${purpose}/${keyId}/enable`, {
+      method: 'POST'
+    });
+    const result = await response.json();
+
+    if (result.success) {
+      showSuccess(result.message);
+      refreshStatus();
+    } else {
+      showError(result.message);
+    }
+  } catch (e) {
+    showError('启用失败: ' + e.message);
+  }
+}
+
+async function resetKeyRpm(purpose, keyId) {
+  try {
+    const response = await fetch(`/api/ai-queue/key/${purpose}/${keyId}/reset-rpm`, {
+      method: 'POST'
+    });
+    const result = await response.json();
+
+    if (result.success) {
+      showSuccess(result.message);
+      refreshStatus();
+    } else {
+      showError(result.message);
+    }
+  } catch (e) {
+    showError('重置 RPM 失败: ' + e.message);
+  }
+}
+
+async function resetKeyRpd(purpose, keyId) {
+  try {
+    const response = await fetch(`/api/ai-queue/key/${purpose}/${keyId}/reset-rpd`, {
+      method: 'POST'
+    });
+    const result = await response.json();
+
+    if (result.success) {
+      showSuccess(result.message);
+      refreshStatus();
+    } else {
+      showError(result.message);
+    }
+  } catch (e) {
+    showError('重置 RPD 失败: ' + e.message);
+  }
+}
+
+async function resetKeyAllLimits(purpose, keyId) {
+  try {
+    const response = await fetch(`/api/ai-queue/key/${purpose}/${keyId}/reset-all`, {
       method: 'POST'
     });
     const result = await response.json();

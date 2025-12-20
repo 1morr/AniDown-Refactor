@@ -105,15 +105,16 @@ class AIFileRenamer(IFileRenamer):
             logger.warning('📭 没有文件需要处理')
             return RenameResult()
 
-        # 检查熔断器
-        if self._circuit_breaker.is_open():
+        # 检查熔断器是否允许请求
+        if not self._circuit_breaker.allow_request():
             remaining = self._circuit_breaker.get_remaining_seconds()
+            state = self._circuit_breaker.state.value
             logger.warning(
-                f'🔴 [{self._key_pool.purpose}] 熔断器已开启，'
+                f'🔴 [{self._key_pool.purpose}] 熔断器状态: {state}，'
                 f'剩余 {remaining:.0f}s'
             )
             raise AICircuitBreakerError(
-                message='熔断器已开启',
+                message=f'熔断器状态: {state}',
                 remaining_seconds=remaining
             )
 
@@ -286,11 +287,14 @@ class AIFileRenamer(IFileRenamer):
             )
 
             if response.success:
-                # 报告成功
+                # 报告成功给 Key Pool
                 self._key_pool.report_success(
                     reservation.key_id,
                     response_time_ms=response.response_time_ms
                 )
+
+                # 报告成功给熔断器（用于半开状态探测）
+                self._circuit_breaker.report_success()
 
                 # 记录 AI 调试日志
                 if ai_debug_service.enabled:
@@ -340,27 +344,29 @@ class AIFileRenamer(IFileRenamer):
                         error_message=response.error_message
                     )
 
-                # 报告错误
-                is_rate_limit = response.error_code == 429
+                # 报告错误给 Key Pool（使用状态码区分错误类型）
                 retry_after = None
-                if is_rate_limit:
+                if response.error_code == 429:
                     retry_after = self._extract_retry_after(response.error_message)
 
                 self._key_pool.report_error(
                     reservation.key_id,
                     response.error_message or 'Unknown error',
-                    is_rate_limit=is_rate_limit,
+                    status_code=response.error_code,
                     retry_after=retry_after
                 )
+
+                # 报告失败给熔断器（用于半开状态探测）
+                self._circuit_breaker.report_failure(response.error_message)
 
                 # 检查是否需要触发熔断
                 pool_status = self._key_pool.get_status()
                 if pool_status['all_in_long_cooling']:
                     self._circuit_breaker.trip(
-                        reason='所有 Key 都在长冷却中'
+                        reason='所有 Key 都不可用（长冷却或已禁用）'
                     )
                     raise AICircuitBreakerError(
-                        message='所有 Key 都已冷却，触发熔断',
+                        message='所有 Key 都不可用，触发熔断',
                         remaining_seconds=self._circuit_breaker.get_remaining_seconds()
                     )
 
