@@ -25,7 +25,9 @@ class PathBuilder:
         download_root: str,
         library_root: str,
         anime_subdir: str = 'Anime',
-        live_action_subdir: str = 'LiveAction'
+        live_action_subdir: str = 'LiveAction',
+        tv_subdir: str = 'TV',
+        movie_subdir: str = 'Movies'
     ):
         """
         Initialize the path builder.
@@ -35,11 +37,15 @@ class PathBuilder:
             library_root: Root directory for media library.
             anime_subdir: Subdirectory name for anime content.
             live_action_subdir: Subdirectory name for live action content.
+            tv_subdir: Subdirectory name for TV series.
+            movie_subdir: Subdirectory name for movies.
         """
         self._download_root = download_root
         self._library_root = library_root
         self._anime_subdir = anime_subdir
         self._live_action_subdir = live_action_subdir
+        self._tv_subdir = tv_subdir
+        self._movie_subdir = movie_subdir
 
     @property
     def download_root(self) -> str:
@@ -74,22 +80,25 @@ class PathBuilder:
 
         Example:
             >>> builder.build_download_path('Frieren', 1, 'tv', 'anime', 'Sakurato')
-            '/downloads/Anime/Frieren/Season 1/[Sakurato]'
+            '/downloads/Anime/TV/Frieren/Season 1/[Sakurato]'
         """
         # Sanitize title for filesystem
         safe_title = self._sanitize_filename(title)
 
-        # Determine media type subdirectory
-        type_dir = self._anime_subdir if media_type == 'anime' else self._live_action_subdir
+        # Determine media type subdirectory (Anime or LiveAction)
+        media_dir = self._anime_subdir if media_type == 'anime' else self._live_action_subdir
+
+        # Determine category subdirectory (TV or Movies)
+        category_dir = self._movie_subdir if (category == 'movie' or season == 0) else self._tv_subdir
 
         # Build path components
         if category == 'movie' or season == 0:
-            # Movies: /downloads/Anime/Title
-            path = os.path.join(self._download_root, type_dir, safe_title)
+            # Movies: /downloads/Anime/Movies/Title
+            path = os.path.join(self._download_root, media_dir, category_dir, safe_title)
         else:
-            # TV: /downloads/Anime/Title/Season X
+            # TV: /downloads/Anime/TV/Title/Season X
             season_dir = f'Season {season}'
-            path = os.path.join(self._download_root, type_dir, safe_title, season_dir)
+            path = os.path.join(self._download_root, media_dir, category_dir, safe_title, season_dir)
 
         # Optionally add subtitle group directory
         if subtitle_group:
