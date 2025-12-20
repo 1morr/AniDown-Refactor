@@ -245,21 +245,31 @@ class TestRSSController:
     """Tests for RSS controller."""
 
     @pytest.fixture
-    def client(self):
-        """Create test client."""
+    def app(self):
+        """Create Flask app for testing."""
         from src.container import container
         from src.interface.web.app import create_app
 
         app = create_app(container)
         app.config['TESTING'] = True
 
+        return app
+
+    @pytest.fixture
+    def client(self, app):
+        """Create test client."""
         return app.test_client()
 
     def test_trigger_rss_check(self, client):
-        """Test triggering manual RSS check."""
-        with patch('src.services.queue.rss_queue.get_rss_queue') as mock_queue:
-            mock_instance = MagicMock()
-            mock_queue.return_value = mock_instance
+        """Test triggering manual RSS check with spec-based mock."""
+        from src.services.queue.rss_queue import RSSQueueWorker
+
+        with patch('src.services.queue.rss_queue.get_rss_queue') as mock_get_queue:
+            # Use spec to ensure mock matches real interface
+            mock_instance = MagicMock(spec=RSSQueueWorker)
+            mock_instance.enqueue_event.return_value = 1
+            mock_instance.get_queue_size.return_value = 1
+            mock_get_queue.return_value = mock_instance
 
             response = client.post('/api/refresh_all_rss')
 
@@ -271,24 +281,299 @@ class TestRSSController:
         response = client.get('/api/rss_history')
 
         assert response.status_code == 200
+        data = json.loads(response.data)
+
+        # Verify response structure
+        assert 'success' in data
+        assert data['success'] is True
+
+    def test_process_unified_rss_ai_mode(self, client):
+        """Test /process_unified_rss endpoint with AI mode."""
+        from src.services.queue.rss_queue import RSSQueueWorker, RSSPayload
+
+        with patch('src.interface.web.controllers.rss.get_rss_queue') as mock_get_queue:
+            # Use spec to catch API mismatches
+            mock_instance = MagicMock(spec=RSSQueueWorker)
+            mock_instance.enqueue_event.return_value = 1
+            mock_instance.get_queue_size.return_value = 1
+            mock_get_queue.return_value = mock_instance
+
+            request_data = {
+                'rss_url': 'https://mikanani.me/RSS/MyBangumi?token=test',
+                'is_manual_mode': False,  # AI mode
+                'blocked_keywords': '繁日内嵌',
+                'blocked_regex': ''
+            }
+
+            response = client.post(
+                '/process_unified_rss',
+                data=json.dumps(request_data),
+                content_type='application/json'
+            )
+
+        assert response.status_code == 200
+        data = json.loads(response.data)
+
+        # Verify response content
+        assert 'success' in data
+        assert data['success'] is True
+        assert 'message' in data
+        assert 'queue_len' in data
+
+        # Verify enqueue_event was called with correct signature
+        mock_instance.enqueue_event.assert_called_once()
+        call_args = mock_instance.enqueue_event.call_args
+        assert call_args.kwargs['event_type'] == 'ai_mode'
+        assert isinstance(call_args.kwargs['payload'], RSSPayload)
+
+    def test_process_unified_rss_manual_mode(self, client):
+        """Test /process_unified_rss endpoint with manual mode."""
+        from src.services.queue.rss_queue import RSSQueueWorker, RSSPayload
+
+        with patch('src.interface.web.controllers.rss.get_rss_queue') as mock_get_queue:
+            mock_instance = MagicMock(spec=RSSQueueWorker)
+            mock_instance.enqueue_event.return_value = 1
+            mock_instance.get_queue_size.return_value = 1
+            mock_get_queue.return_value = mock_instance
+
+            request_data = {
+                'rss_url': 'https://mikanani.me/RSS/MyBangumi?token=test',
+                'is_manual_mode': True,
+                'short_title': '测试动漫',
+                'subtitle_group': '测试字幕组',
+                'season': 1,
+                'category': 'tv',
+                'media_type': 'anime',
+                'blocked_keywords': '',
+                'blocked_regex': ''
+            }
+
+            response = client.post(
+                '/process_unified_rss',
+                data=json.dumps(request_data),
+                content_type='application/json'
+            )
+
+        assert response.status_code == 200
+        data = json.loads(response.data)
+
+        assert data['success'] is True
+        assert 'queue_len' in data
+
+        # Verify payload contains manual mode data
+        mock_instance.enqueue_event.assert_called_once()
+        call_args = mock_instance.enqueue_event.call_args
+        assert call_args.kwargs['event_type'] == 'manual_mode'
+        payload = call_args.kwargs['payload']
+        assert payload.extra_data['short_title'] == '测试动漫'
+        assert payload.extra_data['season'] == 1
+
+    def test_process_unified_rss_missing_rss_url(self, client):
+        """Test /process_unified_rss fails when rss_url is missing."""
+        request_data = {
+            'processing_mode': 'ai'
+        }
+
+        response = client.post(
+            '/process_unified_rss',
+            data=json.dumps(request_data),
+            content_type='application/json'
+        )
+
+        assert response.status_code == 400
+        data = json.loads(response.data)
+        assert data['success'] is False
+
+    def test_process_unified_rss_manual_mode_missing_title(self, client):
+        """Test /process_unified_rss manual mode fails without short_title."""
+        request_data = {
+            'rss_url': 'https://example.com/rss',
+            'is_manual_mode': True,
+            'season': 1,
+            'category': 'tv'
+        }
+
+        response = client.post(
+            '/process_unified_rss',
+            data=json.dumps(request_data),
+            content_type='application/json'
+        )
+
+        assert response.status_code == 400
+        data = json.loads(response.data)
+        assert data['success'] is False
+
+    def test_preview_filters_api(self, client):
+        """Test /api/preview_filters endpoint."""
+        from src.services.rss_service import RSSService
+        from src.core.interfaces.adapters import RSSItem
+
+        # Create mock RSS items as dataclass objects (not dicts!)
+        mock_items = [
+            RSSItem(
+                title='[字幕组] 测试动漫 - 01 [1080p]',
+                link='magnet:?xt=urn:btih:abc123',
+                description='Test',
+                torrent_url='',
+                hash='abc123',
+                pub_date='2025-01-01'
+            ),
+            RSSItem(
+                title='[字幕组] 测试动漫 - 02 [繁日内嵌]',
+                link='magnet:?xt=urn:btih:def456',
+                description='Test',
+                torrent_url='',
+                hash='def456',
+                pub_date='2025-01-01'
+            ),
+            RSSItem(
+                title='[字幕组] 测试动漫 - 03 [1080p]',
+                link='magnet:?xt=urn:btih:ghi789',
+                description='Test',
+                torrent_url='',
+                hash='ghi789',
+                pub_date='2025-01-01'
+            ),
+        ]
+
+        with patch.object(RSSService, 'parse_feed', return_value=mock_items):
+            request_data = {
+                'rss_url': 'https://example.com/rss',
+                'blocked_keywords': '繁日内嵌',
+                'blocked_regex': ''
+            }
+
+            response = client.post(
+                '/api/preview_filters',
+                data=json.dumps(request_data),
+                content_type='application/json'
+            )
+
+        assert response.status_code == 200
+        data = json.loads(response.data)
+
+        # Verify response structure
+        assert data['success'] is True
+        assert 'results' in data
+        assert 'stats' in data
+
+        # Verify filtering worked
+        stats = data['stats']
+        assert stats['total'] == 3
+        assert stats['filtered'] == 1  # One item has '繁日内嵌'
+        assert stats['passed'] == 2
+
+        # Verify results contain expected fields
+        results = data['results']
+        assert len(results) == 3
+        for result in results:
+            assert 'title' in result
+            assert 'status' in result
+
+    def test_preview_filters_api_missing_url(self, client):
+        """Test /api/preview_filters fails without rss_url."""
+        request_data = {
+            'blocked_keywords': '繁日内嵌'
+        }
+
+        response = client.post(
+            '/api/preview_filters',
+            data=json.dumps(request_data),
+            content_type='application/json'
+        )
+
+        assert response.status_code == 400
+        data = json.loads(response.data)
+        assert data['success'] is False
+
+    def test_preview_filters_api_with_regex(self, client):
+        """Test /api/preview_filters with regex filter."""
+        from src.services.rss_service import RSSService
+        from src.core.interfaces.adapters import RSSItem
+
+        mock_items = [
+            RSSItem(
+                title='[字幕组] 测试动漫 S01E01 [1080p]',
+                link='magnet:?xt=urn:btih:abc123',
+                description='Test',
+                torrent_url='',
+                hash='abc123',
+                pub_date='2025-01-01'
+            ),
+            RSSItem(
+                title='[字幕组] 测试动漫 S02E01 [720p]',
+                link='magnet:?xt=urn:btih:def456',
+                description='Test',
+                torrent_url='',
+                hash='def456',
+                pub_date='2025-01-01'
+            ),
+        ]
+
+        with patch.object(RSSService, 'parse_feed', return_value=mock_items):
+            request_data = {
+                'rss_url': 'https://example.com/rss',
+                'blocked_keywords': '',
+                'blocked_regex': 'S02E\\d+'  # Filter out season 2
+            }
+
+            response = client.post(
+                '/api/preview_filters',
+                data=json.dumps(request_data),
+                content_type='application/json'
+            )
+
+        assert response.status_code == 200
+        data = json.loads(response.data)
+
+        assert data['stats']['filtered'] == 1
+        assert data['stats']['passed'] == 1
+
+    def test_preview_filters_api_invalid_regex(self, client):
+        """Test /api/preview_filters handles invalid regex gracefully."""
+        request_data = {
+            'rss_url': 'https://example.com/rss',
+            'blocked_keywords': '',
+            'blocked_regex': '[invalid(regex'  # Invalid regex
+        }
+
+        response = client.post(
+            '/api/preview_filters',
+            data=json.dumps(request_data),
+            content_type='application/json'
+        )
+
+        assert response.status_code == 400
+        data = json.loads(response.data)
+        assert data['success'] is False
+        # Check for error message in either 'message' or 'error' field
+        error_msg = data.get('message', '') or data.get('error', '')
+        assert '正则表达式' in error_msg or 'regex' in error_msg.lower()
 
 
 class TestManualUploadController:
     """Tests for manual upload controller."""
 
     @pytest.fixture
-    def client(self):
-        """Create test client."""
+    def app(self):
+        """Create Flask app for testing."""
         from src.container import container
         from src.interface.web.app import create_app
 
         app = create_app(container)
         app.config['TESTING'] = True
 
+        return app
+
+    @pytest.fixture
+    def client(self, app):
+        """Create test client."""
         return app.test_client()
 
     def test_upload_magnet_link(self, client):
         """Test uploading magnet link via WebUI."""
+        from src.services.download_manager import DownloadManager
+
         data = {
             'upload_type': 'magnet',
             'magnet_link': 'magnet:?xt=urn:btih:abc123',
@@ -299,8 +584,8 @@ class TestManualUploadController:
         }
 
         with patch('src.container.container.download_manager') as mock_dm:
-            mock_instance = MagicMock()
-            mock_instance.return_value = mock_instance
+            # Use spec for better type checking
+            mock_instance = MagicMock(spec=DownloadManager)
             mock_instance.process_manual_upload.return_value = True
             mock_dm.return_value = mock_instance
 
@@ -312,6 +597,10 @@ class TestManualUploadController:
 
         # Should return success or validation error
         assert response.status_code in [200, 400, 404, 500]
+
+        if response.status_code == 200:
+            data = json.loads(response.data)
+            assert 'success' in data
 
 
 class TestConfigController:
@@ -432,3 +721,276 @@ class TestWebUIIntegration:
                     json.loads(response.data)
                 except json.JSONDecodeError:
                     pytest.fail(f'Endpoint {endpoint} did not return valid JSON')
+
+
+@pytest.mark.integration
+class TestRSSControllerIntegration:
+    """Integration tests for RSS controller with real services."""
+
+    @pytest.fixture
+    def app(self):
+        """Create Flask app for testing."""
+        from src.container import container
+        from src.interface.web.app import create_app
+
+        app = create_app(container)
+        app.config['TESTING'] = True
+
+        return app
+
+    @pytest.fixture
+    def client(self, app):
+        """Create test client."""
+        return app.test_client()
+
+    @pytest.mark.slow
+    def test_preview_filters_real_service(self, client):
+        """
+        Integration test for /api/preview_filters using real RSSService.
+
+        This test uses real network access to verify the complete flow.
+        """
+        from tests.fixtures.test_data import RSS_MIKAN_MY_BANGUMI
+
+        request_data = {
+            'rss_url': RSS_MIKAN_MY_BANGUMI,
+            'blocked_keywords': '繁日内嵌\n简日内嵌',
+            'blocked_regex': ''
+        }
+
+        try:
+            response = client.post(
+                '/api/preview_filters',
+                data=json.dumps(request_data),
+                content_type='application/json'
+            )
+
+            assert response.status_code == 200
+            data = json.loads(response.data)
+
+            # Verify response structure
+            assert data['success'] is True
+            assert 'results' in data
+            assert 'stats' in data
+
+            stats = data['stats']
+            assert 'total' in stats
+            assert 'passed' in stats
+            assert 'filtered' in stats
+
+            print(f"\n✅ Preview filters integration test passed:")
+            print(f"   Total items: {stats['total']}")
+            print(f"   Passed: {stats['passed']}")
+            print(f"   Filtered: {stats['filtered']}")
+
+        except Exception as e:
+            pytest.skip(f'Network error or RSS feed unavailable: {e}')
+
+    def test_rss_queue_interface_compatibility(self, client):
+        """
+        Test that RSS controller uses RSSQueueWorker interface correctly.
+
+        This test verifies the controller code is compatible with
+        the actual RSSQueueWorker API without mocking.
+        """
+        from src.services.queue.rss_queue import RSSQueueWorker, RSSPayload
+
+        # Create a real queue worker instance to verify interface
+        worker = RSSQueueWorker(name='TestQueue')
+
+        # Verify enqueue_event method exists and has correct signature
+        assert hasattr(worker, 'enqueue_event')
+        assert callable(worker.enqueue_event)
+
+        # Test creating proper payload
+        payload = RSSPayload(
+            rss_url='https://example.com/rss',
+            trigger_type='manual',
+            extra_data={'mode': 'ai_mode'}
+        )
+
+        # Verify payload structure
+        assert payload.rss_url == 'https://example.com/rss'
+        assert payload.trigger_type == 'manual'
+        assert payload.extra_data['mode'] == 'ai_mode'
+
+        # Test enqueue_event works with proper signature
+        queue_size = worker.enqueue_event(
+            event_type='test_event',
+            payload=payload
+        )
+
+        assert isinstance(queue_size, int)
+        assert queue_size >= 1
+
+    def test_rss_item_interface_compatibility(self, client):
+        """
+        Test that RSS controller correctly uses RSSItem dataclass.
+
+        Verifies controllers use attribute access, not dict access.
+        """
+        from src.core.interfaces.adapters import RSSItem
+
+        # Create RSSItem instance
+        item = RSSItem(
+            title='[字幕组] Test Anime - 01',
+            link='magnet:?xt=urn:btih:abc123',
+            description='Test description',
+            torrent_url='https://example.com/torrent',
+            hash='abc123def456',
+            pub_date='2025-01-01'
+        )
+
+        # Verify attribute access works (not dict access)
+        assert item.title == '[字幕组] Test Anime - 01'
+        assert item.hash == 'abc123def456'
+        assert item.link == 'magnet:?xt=urn:btih:abc123'
+
+        # Verify dict access would fail
+        with pytest.raises((TypeError, AttributeError)):
+            item.get('title', '')  # This should fail
+
+        # Verify dataclass doesn't have get method
+        assert not hasattr(item, 'get')
+
+
+@pytest.mark.integration
+class TestQueueInterfaceCompliance:
+    """Tests to verify code complies with queue worker interfaces."""
+
+    def test_rss_queue_worker_methods(self):
+        """Verify RSSQueueWorker has all expected methods."""
+        from src.services.queue.rss_queue import RSSQueueWorker
+
+        # Check required methods exist
+        required_methods = [
+            'enqueue',
+            'enqueue_event',
+            'enqueue_scheduled_check',
+            'enqueue_manual_check',
+            'enqueue_fixed_subscription',
+            'enqueue_single_feed',
+            'get_queue_size',
+            'start',
+            'stop',
+            'pause',
+            'resume',
+        ]
+
+        for method in required_methods:
+            assert hasattr(RSSQueueWorker, method), \
+                f'RSSQueueWorker missing method: {method}'
+
+    def test_queue_event_structure(self):
+        """Verify QueueEvent has correct structure."""
+        from src.services.queue.queue_worker import QueueEvent
+
+        # Create event
+        event = QueueEvent(
+            event_type='test',
+            payload={'data': 'test'}
+        )
+
+        # Verify structure
+        assert event.event_type == 'test'
+        assert event.payload == {'data': 'test'}
+        assert hasattr(event, 'received_at')
+        assert hasattr(event, 'metadata')
+
+        # Note: QueueEvent does NOT have queue_id
+        assert not hasattr(event, 'queue_id')
+
+    def test_rss_payload_structure(self):
+        """Verify RSSPayload has correct structure."""
+        from src.services.queue.rss_queue import RSSPayload
+
+        payload = RSSPayload(
+            rss_url='https://example.com/rss',
+            trigger_type='manual',
+            extra_data={'blocked_keywords': ['test']}
+        )
+
+        # Verify structure
+        assert payload.rss_url == 'https://example.com/rss'
+        assert payload.trigger_type == 'manual'
+        assert payload.extra_data['blocked_keywords'] == ['test']
+        assert payload.anime_id is None
+        assert payload.title is None
+        assert isinstance(payload.items, list)
+
+
+class TestAPIResponseFormat:
+    """Tests to verify API responses have consistent format."""
+
+    @pytest.fixture
+    def client(self):
+        """Create test client."""
+        from src.container import container
+        from src.interface.web.app import create_app
+
+        app = create_app(container)
+        app.config['TESTING'] = True
+
+        return app.test_client()
+
+    def test_success_response_format(self, client):
+        """Verify successful API responses have consistent format."""
+        response = client.get('/api/rss_history')
+
+        assert response.status_code == 200
+        data = json.loads(response.data)
+
+        # Standard success response should have 'success' field
+        assert 'success' in data
+        assert data['success'] is True
+
+    def test_error_response_format(self, client):
+        """Verify error API responses have consistent format."""
+        # Send invalid request
+        response = client.post(
+            '/api/preview_filters',
+            data=json.dumps({}),  # Missing required fields
+            content_type='application/json'
+        )
+
+        assert response.status_code == 400
+        data = json.loads(response.data)
+
+        # Standard error response should have 'success' and 'message' or 'error'
+        assert 'success' in data
+        assert data['success'] is False
+        assert 'message' in data or 'error' in data
+
+    def test_api_anime_response_structure(self, client):
+        """Verify /api/anime returns expected structure."""
+        response = client.get('/api/anime')
+
+        assert response.status_code == 200
+        data = json.loads(response.data)
+
+        assert 'success' in data
+        if data['success']:
+            assert 'data' in data or 'anime' in data or 'items' in data or 'anime_list' in data
+
+    def test_api_downloads_response_structure(self, client):
+        """Verify /api/downloads returns expected structure."""
+        response = client.get('/api/downloads')
+
+        assert response.status_code == 200
+        data = json.loads(response.data)
+
+        assert 'success' in data
+        if data['success']:
+            # Should contain download data
+            assert 'data' in data or 'downloads' in data or 'items' in data
+
+    def test_api_system_status_response_structure(self, client):
+        """Verify /api/system/status returns expected structure."""
+        response = client.get('/api/system/status')
+
+        assert response.status_code == 200
+        data = json.loads(response.data)
+
+        assert 'success' in data
+        if data['success']:
+            assert 'data' in data

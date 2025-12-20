@@ -87,45 +87,51 @@ def process_unified_rss(
             return APIResponse.bad_request(error)
 
         # 加入队列处理
-        evt = worker.enqueue(
-            event_type="manual_mode",
+        payload = RSSPayload(
             rss_url=rss_url,
-            triggered_by="WebUI触发",
-            payload={
-                "short_title": short_title,
-                "subtitle_group": subtitle_group,
-                "season": season,
-                "category": category,
-                "media_type": media_type,
-                "blocked_keywords": blocked_keywords,
-                "blocked_regex": blocked_regex,
+            trigger_type='manual',
+            extra_data={
+                'mode': 'manual_mode',
+                'short_title': short_title,
+                'subtitle_group': subtitle_group,
+                'season': season,
+                'category': category,
+                'media_type': media_type,
+                'blocked_keywords': blocked_keywords,
+                'blocked_regex': blocked_regex,
             }
+        )
+        queue_size = worker.enqueue_event(
+            event_type='manual_mode',
+            payload=payload
         )
 
         logger.api_success('/process_unified_rss', '手动模式RSS处理已加入队列')
         return APIResponse.success(
             message='手动模式RSS处理已加入队列',
-            queue_id=evt.queue_id,
-            queue_len=worker.qsize()
+            queue_len=queue_size
         )
 
     else:
         # AI模式，加入队列处理
-        evt = worker.enqueue(
-            event_type="ai_mode",
+        payload = RSSPayload(
             rss_url=rss_url,
-            triggered_by="WebUI触发",
-            payload={
-                "blocked_keywords": blocked_keywords,
-                "blocked_regex": blocked_regex,
+            trigger_type='manual',
+            extra_data={
+                'mode': 'ai_mode',
+                'blocked_keywords': blocked_keywords,
+                'blocked_regex': blocked_regex,
             }
+        )
+        queue_size = worker.enqueue_event(
+            event_type='ai_mode',
+            payload=payload
         )
 
         logger.api_success('/process_unified_rss', 'AI模式RSS处理已加入队列')
         return APIResponse.success(
             message='AI模式RSS处理已加入队列',
-            queue_id=evt.queue_id,
-            queue_len=worker.qsize()
+            queue_len=queue_size
         )
 
 
@@ -286,7 +292,7 @@ def refresh_all_rss_api(
     logger.api_success('/api/refresh_all_rss', f"已加入队列 {len(rss_feeds)} 个RSS")
     return APIResponse.success(
         message=f'已将 {len(rss_feeds)} 个RSS链接加入处理队列',
-        queue_len=worker.qsize()
+        queue_len=worker.get_queue_size()
     )
 
 
@@ -326,7 +332,7 @@ def preview_filters_api(
 
     # 解析RSS feed
     logger.db_query("解析RSS", rss_url)
-    rss_items = rss_service.parse_rss_feed(rss_url)
+    rss_items = rss_service.parse_feed(rss_url)
 
     if not rss_items:
         return APIResponse.bad_request('无法解析RSS feed或feed为空')
@@ -341,8 +347,8 @@ def preview_filters_api(
     }
 
     for item in rss_items:
-        title = item.get('title', '')
-        hash_id = item.get('hash', '')
+        title = item.title
+        hash_id = item.hash
 
         # 检查是否已在数据库中
         exists_in_db = False
@@ -547,5 +553,5 @@ def fetch_all_bangumi_rss_api(
     return APIResponse.success(
         message=f'已将 {len(bangumi_rss_feeds)} 个番组RSS链接加入处理队列（已应用过滤规则）',
         rss_links=[feed.url for feed in bangumi_rss_feeds],
-        queue_len=worker.qsize()
+        queue_len=worker.get_queue_size()
     )
