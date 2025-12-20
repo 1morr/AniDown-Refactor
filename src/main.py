@@ -50,13 +50,15 @@ def init_database():
 
 
 def init_key_pools():
-    """初始化 API Key Pool"""
+    """初始化 API Key Pool 和熔断器"""
     from src.core.config import config
     from src.container import container
     from src.infrastructure.ai.key_pool import KeySpec, register_pool
+    from src.infrastructure.ai.circuit_breaker import register_breaker
 
     # 初始化 title_parse key pool
     title_parse_pool = container.title_parse_pool()
+    title_parse_breaker = container.title_parse_breaker()
     title_parse_config = config.openai.title_parse
 
     keys = []
@@ -90,12 +92,14 @@ def init_key_pools():
     if keys:
         title_parse_pool.configure(keys)
         register_pool(title_parse_pool)
+        register_breaker(title_parse_breaker)
         logger.info(f'🔑 Title Parse Key Pool 已配置: {len(keys)} 个 Key')
     else:
         logger.warning('⚠️ Title Parse 未配置 API Key')
 
     # 初始化 multi_file_rename key pool
     rename_pool = container.rename_pool()
+    rename_breaker = container.rename_breaker()
     rename_config = config.openai.multi_file_rename
 
     rename_keys = []
@@ -127,6 +131,7 @@ def init_key_pools():
     if rename_keys:
         rename_pool.configure(rename_keys)
         register_pool(rename_pool)
+        register_breaker(rename_breaker)
         logger.info(f'🔑 Rename Key Pool 已配置: {len(rename_keys)} 个 Key')
     else:
         logger.warning('⚠️ Multi-File Rename 未配置 API Key')
