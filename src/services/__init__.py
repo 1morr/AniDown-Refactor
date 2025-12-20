@@ -5,7 +5,7 @@ Contains business logic services that orchestrate domain operations.
 Services coordinate between adapters, repositories, and domain entities.
 """
 
-from src.services.download.rss_processor import RSSItem, RSSProcessor
+from src.services.download.rss_processor import RSSItem, RSSProcessor, RSSProcessResult
 from src.services.download.torrent_completion_handler import TorrentCompletionHandler
 from src.services.file.hardlink_service import HardlinkService
 from src.services.file.path_builder import PathBuilder
@@ -21,12 +21,16 @@ from src.services.metadata_service import MetadataService, get_metadata_service
 from src.services.anime_service import AnimeService, get_anime_service
 from src.services.ai_debug_service import AIDebugService, get_ai_debug_service
 from src.services.log_rotation_service import LogRotationService, get_log_rotation_service
+from src.services.rss_service import RSSService
 
 __all__ = [
     # Download services
     'RSSProcessor',
     'RSSItem',
+    'RSSProcessResult',
     'TorrentCompletionHandler',
+    # RSS Service
+    'RSSService',
     # File services
     'PathBuilder',
     'HardlinkService',

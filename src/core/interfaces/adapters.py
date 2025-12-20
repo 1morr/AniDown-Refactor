@@ -288,6 +288,86 @@ class IDownloadClient(ABC):
         pass
 
 
+@dataclass
+class RSSItem:
+    """
+    RSS feed item data class.
+
+    Represents a single item parsed from an RSS/Atom feed.
+
+    Attributes:
+        title: Item title (episode/release title).
+        link: Link to the torrent file or magnet link.
+        description: Item description.
+        torrent_url: Direct URL to torrent file.
+        hash: Torrent hash (if available).
+        pub_date: Publication date string.
+    """
+    title: str
+    link: str
+    description: str = ''
+    torrent_url: str = ''
+    hash: str = ''
+    pub_date: str = ''
+
+    @property
+    def is_magnet(self) -> bool:
+        """Check if link is a magnet link."""
+        return self.link.startswith('magnet:') or self.torrent_url.startswith('magnet:')
+
+    @property
+    def effective_url(self) -> str:
+        """Return the effective URL for downloading (torrent_url or link)."""
+        return self.torrent_url if self.torrent_url else self.link
+
+
+class IRSSParser(ABC):
+    """
+    RSS parser interface.
+
+    Defines the contract for parsing RSS/Atom feeds and filtering items.
+    """
+
+    @abstractmethod
+    def parse_feed(self, rss_url: str) -> List[RSSItem]:
+        """
+        Parse an RSS/Atom feed.
+
+        Args:
+            rss_url: URL of the RSS feed.
+
+        Returns:
+            List of RSSItem objects parsed from the feed.
+        """
+        pass
+
+    @abstractmethod
+    def filter_new_items(self, items: List[RSSItem]) -> List[RSSItem]:
+        """
+        Filter out items that already exist in the database.
+
+        Args:
+            items: List of RSS items to filter.
+
+        Returns:
+            List of new items not present in the database.
+        """
+        pass
+
+    @abstractmethod
+    def extract_hash_from_url(self, url: str) -> str:
+        """
+        Extract torrent hash from a URL or magnet link.
+
+        Args:
+            url: Torrent URL or magnet link.
+
+        Returns:
+            Torrent hash string, empty if not found.
+        """
+        pass
+
+
 class IMetadataClient(ABC):
     """
     Metadata client interface.

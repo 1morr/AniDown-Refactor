@@ -13,9 +13,11 @@ from src.core.interfaces.repositories import (
 from src.core.interfaces.adapters import (
     TitleParseResult,
     RenameResult,
+    RSSItem,
     ITitleParser,
     IFileRenamer,
     IDownloadClient,
+    IRSSParser,
     IMetadataClient,
 )
 from src.core.interfaces.notifications import (
@@ -37,10 +39,12 @@ __all__ = [
     # Adapter Data Classes
     'TitleParseResult',
     'RenameResult',
+    'RSSItem',
     # Adapter Interfaces
     'ITitleParser',
     'IFileRenamer',
     'IDownloadClient',
+    'IRSSParser',
     'IMetadataClient',
     # Notification Data Classes
     'RSSNotification',
