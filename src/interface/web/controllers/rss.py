@@ -102,7 +102,7 @@ def process_unified_rss(
             }
         )
         queue_size = worker.enqueue_event(
-            event_type='manual_mode',
+            event_type=RSSQueueWorker.EVENT_MANUAL_CHECK,
             payload=payload
         )
 
@@ -124,7 +124,7 @@ def process_unified_rss(
             }
         )
         queue_size = worker.enqueue_event(
-            event_type='ai_mode',
+            event_type=RSSQueueWorker.EVENT_MANUAL_CHECK,
             payload=payload
         )
 

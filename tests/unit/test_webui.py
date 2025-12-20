@@ -323,7 +323,7 @@ class TestRSSController:
         # Verify enqueue_event was called with correct signature
         mock_instance.enqueue_event.assert_called_once()
         call_args = mock_instance.enqueue_event.call_args
-        assert call_args.kwargs['event_type'] == 'ai_mode'
+        assert call_args.kwargs['event_type'] == RSSQueueWorker.EVENT_MANUAL_CHECK
         assert isinstance(call_args.kwargs['payload'], RSSPayload)
 
     def test_process_unified_rss_manual_mode(self, client):
@@ -363,7 +363,7 @@ class TestRSSController:
         # Verify payload contains manual mode data
         mock_instance.enqueue_event.assert_called_once()
         call_args = mock_instance.enqueue_event.call_args
-        assert call_args.kwargs['event_type'] == 'manual_mode'
+        assert call_args.kwargs['event_type'] == RSSQueueWorker.EVENT_MANUAL_CHECK
         payload = call_args.kwargs['payload']
         assert payload.extra_data['short_title'] == '测试动漫'
         assert payload.extra_data['season'] == 1
