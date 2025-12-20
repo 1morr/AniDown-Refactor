@@ -49,6 +49,36 @@ def init_database():
     logger.info('✅ 数据库初始化完成')
 
 
+def init_discord_webhook():
+    """初始化 Discord Webhook 客户端"""
+    from src.core.config import config
+    from src.container import container
+
+    discord_client = container.discord_webhook()
+
+    # 构建 webhook URL 映射
+    webhooks = {}
+    if config.discord.rss_webhook_url:
+        webhooks['rss'] = config.discord.rss_webhook_url
+    if config.discord.hardlink_webhook_url:
+        webhooks['hardlink'] = config.discord.hardlink_webhook_url
+        # 下载完成通知也使用 hardlink webhook
+        webhooks['download'] = config.discord.hardlink_webhook_url
+
+    # 配置 webhook 客户端
+    discord_client.configure(
+        webhooks=webhooks,
+        enabled=config.discord.enabled
+    )
+
+    if config.discord.enabled and webhooks:
+        logger.info(f'🔔 Discord 通知已启用: {list(webhooks.keys())}')
+    elif not config.discord.enabled:
+        logger.info('🔕 Discord 通知已禁用')
+    else:
+        logger.warning('⚠️ Discord 已启用但未配置 Webhook URL')
+
+
 def test_config():
     """测试配置模块"""
     from src.core.config import config
@@ -496,6 +526,9 @@ def main():
 
     # 初始化数据库
     init_database()
+
+    # 初始化 Discord Webhook
+    init_discord_webhook()
 
     # 获取 DownloadManager 实例
     download_manager = container.download_manager()

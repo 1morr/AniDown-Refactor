@@ -94,8 +94,7 @@ class AITitleParser(ITitleParser):
             if not reservation:
                 logger.error(f'❌ [{self._key_pool.purpose}] 没有可用的 API Key')
                 raise AIKeyExhaustedError(
-                    message='没有可用的 API Key',
-                    code='AI_KEY_EXHAUSTED'
+                    message='没有可用的 API Key'
                 )
 
             logger.debug(
