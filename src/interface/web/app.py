@@ -11,7 +11,16 @@ from src.core.config import config
 from src.core.utils.timezone_utils import format_datetime_iso
 
 # 导入蓝图
+from src.interface.web.controllers.ai_queue_status import ai_queue_bp
+from src.interface.web.controllers.ai_test import ai_test_bp
+from src.interface.web.controllers.anime import anime_bp
+from src.interface.web.controllers.config import config_bp
 from src.interface.web.controllers.dashboard import dashboard_bp
+from src.interface.web.controllers.database import database_bp
+from src.interface.web.controllers.downloads import downloads_bp
+from src.interface.web.controllers.manual_upload import manual_upload_bp
+from src.interface.web.controllers.rss import rss_bp
+from src.interface.web.controllers.system_status import system_status_bp
 
 
 class CustomJSONProvider(DefaultJSONProvider):
@@ -51,11 +60,29 @@ def create_app(container: Container) -> Flask:
     app.container = container
 
     # 注册蓝图
+    app.register_blueprint(ai_queue_bp)
+    app.register_blueprint(ai_test_bp)
+    app.register_blueprint(anime_bp)
+    app.register_blueprint(config_bp)
     app.register_blueprint(dashboard_bp)
+    app.register_blueprint(database_bp)
+    app.register_blueprint(downloads_bp)
+    app.register_blueprint(manual_upload_bp)
+    app.register_blueprint(rss_bp)
+    app.register_blueprint(system_status_bp)
 
     # 注入依赖到蓝图
     container.wire(modules=[
+        "src.interface.web.controllers.ai_queue_status",
+        "src.interface.web.controllers.ai_test",
+        "src.interface.web.controllers.anime",
+        "src.interface.web.controllers.config",
         "src.interface.web.controllers.dashboard",
+        "src.interface.web.controllers.database",
+        "src.interface.web.controllers.downloads",
+        "src.interface.web.controllers.manual_upload",
+        "src.interface.web.controllers.rss",
+        "src.interface.web.controllers.system_status",
     ])
 
     # 注册 Jinja2 过滤器 - 统一的时间格式化

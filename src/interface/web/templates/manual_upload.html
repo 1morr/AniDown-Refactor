@@ -1,0 +1,476 @@
+<!-- filename: templates/manual_upload.html -->
+{% extends "base.html" %}
+
+{% block title %}手动上传 - AniDown{% endblock %}
+
+{% block content %}
+<!-- 页面标题 -->
+<header class="mb-8">
+    <h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-3">
+        <i class="fa-solid fa-cloud-arrow-up text-emerald-600 dark:text-emerald-500"></i>
+        手动上传
+    </h1>
+    <p class="text-slate-500 dark:text-gray-500 text-sm">上传 Torrent 文件或输入磁力链接，并添加元数据</p>
+</header>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    
+    <!-- 左侧：主表单区域 -->
+    <div class="lg:col-span-2 space-y-6">
+        
+        <!-- 1. 资源类型切换卡片 -->
+        <div class="glass-card rounded-xl p-6">
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-500 flex items-center justify-center">
+                        <i class="fa-solid fa-plus"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-slate-800 dark:text-white" id="mode-title">Torrent 文件上传</h3>
+                        <p class="text-xs text-slate-500 dark:text-gray-500" id="mode-desc">选择本地 .torrent 文件进行解析</p>
+                    </div>
+                </div>
+                
+                <!-- 切换开关 -->
+                <div class="flex items-center gap-2 bg-slate-100 dark:bg-black/30 rounded-full p-1 border border-slate-200 dark:border-white/5">
+                    <button id="btn-torrent" class="px-4 py-1.5 rounded-full text-sm font-medium transition-all bg-emerald-600 text-white shadow-md" onclick="switchMode('torrent')">
+                        Torrent
+                    </button>
+                    <button id="btn-magnet" class="px-4 py-1.5 rounded-full text-sm font-medium text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white transition-all" onclick="switchMode('magnet')">
+                        磁力链
+                    </button>
+                </div>
+            </div>
+
+            <!-- 动态内容区 -->
+            <div id="input-container" class="animate-fade-in">
+                
+                <!-- Mode A: Torrent 上传区 -->
+                <div id="section-torrent" class="block">
+                    <label class="block text-xs font-bold text-slate-500 dark:text-gray-500 uppercase mb-2 ml-1">选择 Torrent 文件 <span class="text-red-500">*</span></label>
+                    <div class="relative w-full group">
+                        <input type="file" id="file-upload" class="hidden" accept=".torrent" onchange="updateFileName(this)">
+                        <label for="file-upload" class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-300 dark:border-gray-700 rounded-xl cursor-pointer hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/5 transition-all group-hover:text-emerald-600 dark:group-hover:text-emerald-400">
+                            <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                                <i class="fa-solid fa-file-arrow-up text-3xl text-slate-400 dark:text-gray-500 mb-3 group-hover:text-emerald-500 transition-colors"></i>
+                                <p class="text-sm text-slate-500 dark:text-gray-400 group-hover:text-slate-700 dark:group-hover:text-gray-300" id="file-label-text"><span class="font-semibold">点击上传</span> 或拖拽文件至此</p>
+                                <p class="text-xs text-slate-400 dark:text-gray-600 mt-1">支持 .torrent 格式</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Mode B: 磁力链输入区 -->
+                <div id="section-magnet" class="hidden">
+                    <label class="block text-xs font-bold text-slate-500 dark:text-gray-500 uppercase mb-2 ml-1">磁力链接 <span class="text-red-500">*</span></label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
+                            <i class="fa-solid fa-magnet text-slate-400 dark:text-gray-500"></i>
+                        </div>
+                        <input type="text" id="magnet-link" class="input-field w-full rounded-lg py-3 pl-10 pr-4 text-sm font-mono placeholder-slate-400 dark:placeholder-gray-600" placeholder="magnet:?xt=urn:btih:..." >
+                    </div>
+                    <p class="text-[10px] text-slate-400 dark:text-gray-500 mt-2 ml-1">系统将自动解析磁力链接中的元数据</p>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- 2. 动漫信息表单 -->
+        <div class="glass-card rounded-xl p-6">
+            <h3 class="text-lg font-semibold text-slate-800 dark:text-white mb-6 flex items-center gap-2">
+                <i class="fa-solid fa-pen-to-square text-slate-400 dark:text-gray-400"></i> 动漫信息
+            </h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Name -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 dark:text-gray-500 uppercase mb-2 ml-1">动漫名称 <span class="text-red-500">*</span></label>
+                    <input type="text" id="anime-name" class="input-field w-full rounded-lg px-4 py-3 text-sm" placeholder="例如：进击的巨人">
+                </div>
+                <!-- Group -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 dark:text-gray-500 uppercase mb-2 ml-1">字幕组</label>
+                    <input type="text" id="group" class="input-field w-full rounded-lg px-4 py-3 text-sm" placeholder="例如：幻樱字幕组">
+                </div>
+                <!-- Season -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 dark:text-gray-500 uppercase mb-2 ml-1">季数</label>
+                    <input type="number" id="season" class="input-field w-full rounded-lg px-4 py-3 text-sm" value="1" min="1">
+                </div>
+                <!-- Type -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 dark:text-gray-500 uppercase mb-2 ml-1">类型</label>
+                    <div class="relative">
+                        <select id="type" class="form-control w-full rounded-lg px-4 py-3 text-sm appearance-none cursor-pointer">
+                            <option value="tv">剧集 (TV Series)</option>
+                            <option value="movie">剧场版 (Movie)</option>
+                        </select>
+                        <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-400 dark:text-gray-400">
+                            <i class="fa-solid fa-chevron-down text-xs"></i>
+                        </div>
+                    </div>
+                </div>
+                <!-- Media Type -->
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-bold text-slate-500 dark:text-gray-500 uppercase mb-2 ml-1">媒体类型</label>
+                    <div class="relative">
+                        <select id="media-type" class="form-control w-full rounded-lg px-4 py-3 text-sm appearance-none cursor-pointer">
+                            <option value="anime" selected>动漫</option>
+                            <option value="live_action">真人</option>
+                        </select>
+                        <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-400 dark:text-gray-400">
+                            <i class="fa-solid fa-chevron-down text-xs"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 多季选项 -->
+            <div class="mt-6 pt-6 border-t border-slate-200 dark:border-white/5">
+                <label class="flex items-start gap-3 cursor-pointer group">
+                    <div class="relative flex items-center">
+                        <input type="checkbox" id="multi-season-check" class="peer h-5 w-5 cursor-pointer appearance-none rounded-md border border-slate-300 dark:border-gray-600 bg-slate-100 dark:bg-black/20 checked:border-emerald-500 checked:bg-emerald-500 transition-all">
+                        <i class="fa-solid fa-check text-white absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-xs opacity-0 peer-checked:opacity-100 pointer-events-none"></i>
+                    </div>
+                    <div>
+                        <span class="text-sm font-medium text-slate-700 dark:text-gray-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">包含多季内容</span>
+                        <p class="text-xs text-slate-500 dark:text-gray-500 mt-1 leading-relaxed">
+                            <i class="fa-solid fa-robot text-emerald-500 mr-1"></i> 勾选此项后将完全使用 AI 处理，忽略一致性开关，自动识别每个文件的季度和集数。
+                        </p>
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        <!-- 提交按钮 -->
+        <button id="submit-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-500/20 transition-all transform hover:scale-[1.01] flex items-center justify-center gap-2 group">
+            <i class="fa-solid fa-upload group-hover:animate-bounce"></i> 开始上传并处理
+        </button>
+
+    </div>
+
+    <!-- 右侧：侧边栏 -->
+    <div class="lg:col-span-1 space-y-6">
+        
+        <!-- 1. 使用说明 -->
+        <div class="glass-card rounded-xl p-6">
+            <h3 class="font-semibold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+                <i class="fa-regular fa-circle-question text-emerald-600 dark:text-emerald-400"></i> 使用说明
+            </h3>
+            <div class="space-y-4">
+                <div class="space-y-2">
+                    <p class="text-xs font-bold text-slate-500 dark:text-gray-500 uppercase">功能特性</p>
+                    <ul class="text-sm text-slate-600 dark:text-gray-400 space-y-2">
+                        <li class="flex items-start gap-2"><i class="fa-solid fa-check text-emerald-500 mt-1"></i> 支持 Torrent 文件上传</li>
+                        <li class="flex items-start gap-2"><i class="fa-solid fa-check text-emerald-500 mt-1"></i> 支持磁力链接输入</li>
+                        <li class="flex items-start gap-2"><i class="fa-solid fa-check text-emerald-500 mt-1"></i> 自动创建动漫信息记录</li>
+                        <li class="flex items-start gap-2"><i class="fa-solid fa-check text-emerald-500 mt-1"></i> 自动添加到 qBittorrent</li>
+                    </ul>
+                </div>
+                
+                <div class="h-px w-full bg-slate-200 dark:bg-white/5"></div>
+
+                <div class="space-y-2">
+                    <p class="text-xs font-bold text-slate-500 dark:text-gray-500 uppercase">注意事项</p>
+                    <ul class="text-sm text-slate-600 dark:text-gray-400 space-y-2">
+                        <li class="flex items-start gap-2"><i class="fa-solid fa-triangle-exclamation text-amber-500 mt-1"></i> 确保 qBittorrent 已正确配置</li>
+                        <li class="flex items-start gap-2"><i class="fa-solid fa-triangle-exclamation text-amber-500 mt-1"></i> 请准确填写名称以便分类</li>
+                        <li class="flex items-start gap-2"><i class="fa-solid fa-triangle-exclamation text-amber-500 mt-1"></i> 磁力链接格式必须正确</li>
+                    </ul>
+                </div>
+
+                <a href="{{ url_for('config.config_page') }}" class="inline-block text-xs text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1.5 rounded hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-all mt-2">
+                    <i class="fa-solid fa-gears mr-1"></i> 系统配置
+                </a>
+            </div>
+        </div>
+
+        <!-- 2. 最近上传 -->
+        <div class="glass-card rounded-xl p-6">
+            <h3 class="font-semibold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-clock-rotate-left text-slate-400 dark:text-gray-400"></i> 最近上传
+            </h3>
+            <div id="recent-uploads">
+                <div class="text-center">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500 mx-auto"></div>
+                    <p class="mt-2 text-sm text-slate-500 dark:text-gray-500">正在载入...</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // ---------------------------------------------------------
+    // 1. 切换模式逻辑 (Torrent / 磁力链)
+    // ---------------------------------------------------------
+    let currentMode = 'torrent';
+
+    function switchMode(mode) {
+        currentMode = mode;
+        const btnTorrent = document.getElementById('btn-torrent');
+        const btnMagnet = document.getElementById('btn-magnet');
+        const sectionTorrent = document.getElementById('section-torrent');
+        const sectionMagnet = document.getElementById('section-magnet');
+        
+        const title = document.getElementById('mode-title');
+        const desc = document.getElementById('mode-desc');
+
+        if (mode === 'torrent') {
+            // 样式切换
+            btnTorrent.className = "px-4 py-1.5 rounded-full text-sm font-medium transition-all bg-emerald-600 text-white shadow-md";
+            btnMagnet.className = "px-4 py-1.5 rounded-full text-sm font-medium text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white transition-all";
+
+            // 内容切换
+            sectionTorrent.classList.remove('hidden');
+            sectionMagnet.classList.add('hidden');
+            
+            // 文本更新
+            title.innerText = "Torrent 文件上传";
+            desc.innerText = "选择本地 .torrent 文件进行解析";
+        } else {
+            // 样式切换
+            btnMagnet.className = "px-4 py-1.5 rounded-full text-sm font-medium transition-all bg-emerald-600 text-white shadow-md";
+            btnTorrent.className = "px-4 py-1.5 rounded-full text-sm font-medium text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white transition-all";
+
+            // 内容切换
+            sectionTorrent.classList.add('hidden');
+            sectionMagnet.classList.remove('hidden');
+
+            // 文本更新
+            title.innerText = "磁力链接输入";
+            desc.innerText = "输入 magnet 链接进行下载";
+        }
+        
+        // 简单的淡入动画重置
+        const container = document.getElementById('input-container');
+        container.classList.remove('animate-fade-in');
+        void container.offsetWidth; 
+        container.classList.add('animate-fade-in');
+    }
+
+    // ---------------------------------------------------------
+    // 2. 文件上传文件名显示逻辑
+    // ---------------------------------------------------------
+    function updateFileName(input) {
+        const label = document.getElementById('file-label-text');
+        if (input.files && input.files.length > 0) {
+            label.innerHTML = `已选择: <span class="text-emerald-600 dark:text-emerald-400 font-bold">${input.files[0].name}</span>`;
+        } else {
+            label.innerHTML = `<span class="font-semibold">点击上传</span> 或拖拽文件至此`;
+        }
+    }
+
+    // ---------------------------------------------------------
+    // 3. 提交处理
+    // ---------------------------------------------------------
+    document.getElementById('submit-btn').addEventListener('click', async () => {
+        const submitBtn = document.getElementById('submit-btn');
+        const originalBtnText = submitBtn.innerHTML;
+
+        // 1. 收集数据
+        const name = document.getElementById('anime-name').value;
+        const group = document.getElementById('group').value;
+        const season = document.getElementById('season').value;
+        const type = document.getElementById('type').value;
+        const mediaType = document.getElementById('media-type').value;
+        const isMultiSeason = document.getElementById('multi-season-check').checked;
+
+        // 简单验证
+        if (!name) {
+            window.showFlashMessage('error', '请填写动漫名称');
+            return;
+        }
+
+        const requestData = {
+            upload_type: currentMode,
+            anime_title: name,
+            subtitle_group: group,
+            season: parseInt(season),
+            category: type,
+            media_type: mediaType,
+            is_multi_season: isMultiSeason
+        };
+
+        if (currentMode === 'torrent') {
+            const fileInput = document.getElementById('file-upload');
+            if (fileInput.files.length === 0) {
+                window.showFlashMessage('error', '请选择 Torrent 文件');
+                return;
+            }
+            
+            // 将文件转换为Base64
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                requestData.torrent_file = e.target.result.split(',')[1];
+                sendUploadRequest(requestData);
+            };
+            reader.readAsDataURL(fileInput.files[0]);
+            return;
+        } else {
+            const magnetLink = document.getElementById('magnet-link').value;
+            if (!magnetLink) {
+                window.showFlashMessage('error', '请输入磁力链接');
+                return;
+            }
+            requestData.magnet_link = magnetLink;
+        }
+
+        sendUploadRequest(requestData);
+
+        async function sendUploadRequest(data) {
+            // 2. 发送请求 (Loading 状态)
+            submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 处理中...';
+            submitBtn.disabled = true;
+            submitBtn.classList.add('opacity-70', 'cursor-not-allowed');
+
+            try {
+                const response = await fetch('{{ url_for("manual_upload.submit_manual_upload") }}', { 
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+
+                if (response.ok && (result.success || result.status === 'success')) {
+                    window.showFlashMessage('success', result.message || '上传成功！任务已添加。');
+                    // 重置表单
+                    document.getElementById('anime-name').value = '';
+                    document.getElementById('group').value = '';
+                    document.getElementById('season').value = '1';
+                    document.getElementById('type').value = 'tv';
+                    document.getElementById('multi-season-check').checked = false;
+                    if (currentMode === 'torrent') {
+                        document.getElementById('file-upload').value = '';
+                        updateFileName(document.getElementById('file-upload'));
+                    } else {
+                        document.getElementById('magnet-link').value = '';
+                    }
+                    // 重新加载最近上传
+                    loadRecentUploads();
+                } else {
+                    window.showFlashMessage('error', result.error || result.message || '上传失败，请重试。');
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                window.showFlashMessage('error', '网络错误，无法连接服务器。');
+            } finally {
+                // 3. 恢复按钮
+                submitBtn.innerHTML = originalBtnText;
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-70', 'cursor-not-allowed');
+            }
+        }
+    });
+
+    // ---------------------------------------------------------
+    // 4. 加载最近上传记录
+    // ---------------------------------------------------------
+    function loadRecentUploads() {
+        fetch('{{ url_for("manual_upload.get_manual_upload_history_api") }}')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('載入上傳記錄失敗:', data.error);
+                    return;
+                }
+                displayUploadHistory(data.history);
+            })
+            .catch(error => {
+                console.error('載入上傳記錄失敗:', error.message);
+            });
+    }
+
+    function displayUploadHistory(history) {
+        const container = document.getElementById('recent-uploads');
+
+        if (!history || history.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-slate-500 dark:text-gray-500">
+                    <i class="fa-solid fa-info-circle text-2xl mb-2"></i>
+                    <p class="text-sm">暫無上傳記錄</p>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        history.slice(0, 5).forEach(record => {
+            const animeTitle = record.anime_title;
+            const subtitleGroup = record.subtitle_group || '未知字幕组';
+            const season = record.season || 1;
+            const category = record.category || 'tv';
+            const categoryDisplay = category === 'tv' ? '剧集' : '剧场版';
+            const categoryIcon = category === 'tv' ? 'tv' : 'film';
+            const uploadType = record.upload_type === 'torrent' ? 'Torrent' : 'Magnet';
+            const uploadTypeIcon = record.upload_type === 'torrent' ? 'file-arrow-up' : 'magnet';
+            const status = record.upload_status === 'success' ? 'success' : 'error';
+
+            // 格式化时间 - 使用全局的 TimezoneUtils
+            let timeDisplay = '未知时间';
+            if (record.created_at) {
+                try {
+                    // 使用全局的相对时间格式化（从 base.html）
+                    timeDisplay = window.TimezoneUtils.formatRelative(record.created_at);
+                } catch (e) {
+                    console.error('时间格式化错误:', e);
+                    // 备用方案
+                    timeDisplay = formatDate(record.created_at, 'date');
+                }
+            }
+
+            html += `
+                <div class="p-3 rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10 transition-colors group cursor-default relative overflow-hidden mb-3">
+                    <div class="absolute top-2 right-2">
+                        <i class="fa-solid fa-circle-${status === 'success' ? 'check text-emerald-500' : 'xmark text-red-500'} text-xs"></i>
+                    </div>
+
+                    <h4 class="text-sm font-semibold text-slate-800 dark:text-white truncate pr-6 mb-2">${animeTitle}</h4>
+
+                    <div class="space-y-1.5">
+                        <div class="flex items-center gap-2 text-xs text-slate-600 dark:text-gray-400">
+                            <i class="fa-solid fa-users text-slate-400 dark:text-gray-500 w-3"></i>
+                            <span class="truncate">${subtitleGroup}</span>
+                        </div>
+
+                        <div class="flex items-center gap-3 text-xs">
+                            <div class="flex items-center gap-1.5 text-slate-600 dark:text-gray-400">
+                                <i class="fa-solid fa-${categoryIcon} text-slate-400 dark:text-gray-500 w-3"></i>
+                                <span>${categoryDisplay}</span>
+                            </div>
+
+                            <div class="flex items-center gap-1.5 text-slate-600 dark:text-gray-400">
+                                <i class="fa-solid fa-hashtag text-slate-400 dark:text-gray-500 w-3"></i>
+                                <span>S${season}</span>
+                            </div>
+
+                            <div class="flex items-center gap-1.5 text-slate-600 dark:text-gray-400">
+                                <i class="fa-solid fa-${uploadTypeIcon} text-slate-400 dark:text-gray-500 w-3"></i>
+                                <span>${uploadType}</span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-1.5 text-xs text-slate-500 dark:text-gray-500">
+                            <i class="fa-solid fa-clock text-slate-400 dark:text-gray-600 w-3"></i>
+                            <span>${timeDisplay}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    // 页面加载时获取最近上传记录
+    document.addEventListener('DOMContentLoaded', function() {
+        loadRecentUploads();
+    });
+</script>
+{% endblock %}

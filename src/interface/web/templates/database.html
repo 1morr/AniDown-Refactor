@@ -1,0 +1,830 @@
+<!-- filename: templates/database.html -->
+{% extends "base.html" %}
+
+{% block title %}AniDown{% endblock %}
+
+{% block styles %}
+<style>
+    /* --- 核心布局样式 --- */
+    .custom-table-layout {
+        table-layout: fixed; 
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    th.resizable-th {
+        position: relative;
+        background-clip: padding-box;
+        white-space: nowrap;
+        overflow: hidden; 
+        transition: background-color 0.2s;
+    }
+    
+    th.resizable-th:hover {
+        background-color: rgba(0, 0, 0, 0.05);
+    }
+    .dark th.resizable-th:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+
+    /* 表头内容容器 */
+    .th-content {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        height: 100%;
+        padding-right: 10px;
+        white-space: nowrap;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    /* 排序图标样式 */
+    .sort-icon {
+        margin-left: 6px;
+        font-size: 0.8em;
+        color: #94a3b8;
+        opacity: 0.5;
+        transition: all 0.2s;
+    }
+    
+    .sort-active {
+        color: #3b82f6;
+        opacity: 1;
+    }
+
+    /* 拖拽手柄样式 */
+    .resizer {
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: 5px;
+        cursor: col-resize;
+        user-select: none;
+        touch-action: none;
+        z-index: 10;
+        border-right: 1px solid rgba(203, 213, 225, 0.5);
+    }
+    .dark .resizer {
+        border-right: 1px solid rgba(255,255,255,0.1);
+    }
+    .resizer:hover, .resizing {
+        background-color: #3b82f6;
+        width: 8px;
+    }
+
+    .data-cell {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 0;
+    }
+
+    /* --- 新增：加载遮罩层样式 --- */
+    .loading-overlay {
+        position: absolute;
+        inset: 0; /* top/right/bottom/left = 0 */
+        background-color: rgba(255, 255, 255, 0.6);
+        backdrop-filter: blur(2px);
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease;
+    }
+    .dark .loading-overlay {
+        background-color: rgba(0, 0, 0, 0.6);
+    }
+    
+    /* 激活状态 */
+    .loading-overlay.active {
+        opacity: 1;
+        pointer-events: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+    <!-- 标题区 -->
+    <header class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-1 flex items-center gap-3">
+                <i class="fa-solid fa-database text-blue-600 dark:text-neon-blue"></i>
+                数据库查看
+            </h1>
+            <p class="text-slate-500 dark:text-gray-500 text-sm">查看、搜索及管理数据库中的表记录</p>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="resetColumnWidths()" class="px-4 py-2 rounded-lg bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-white/10 hover:bg-slate-200 dark:hover:bg-white/20 transition text-sm font-medium flex items-center gap-2 shadow-sm">
+                <i class="fa-solid fa-rotate-left"></i> 重置列宽
+            </button>
+            <button onclick="exportTableToCSV()" class="px-4 py-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition text-sm font-medium flex items-center gap-2 shadow-sm">
+                <i class="fa-solid fa-file-export"></i> 导出表格
+            </button>
+        </div>
+    </header>
+
+    <!-- 1. 表格选择与过滤器 -->
+    <section class="glass-card rounded-xl p-4 space-y-4">
+        <div class="flex flex-col md:flex-row gap-4 justify-between items-center">
+            <div class="relative w-full md:w-96 group">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i class="fa-solid fa-search text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
+                </div>
+                <input type="text" id="search-input" class="block w-full pl-10 pr-3 py-2 border border-slate-200 dark:border-white/10 rounded-lg leading-5 bg-slate-50 dark:bg-black/20 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-all" placeholder="搜索动漫标题、ID或哈希值...">
+            </div>
+            
+            <div class="flex items-center gap-2 text-sm text-slate-500 dark:text-gray-400">
+                <span>每页显示:</span>
+                <select id="page-limit" class="bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-1.5 focus:outline-none">
+                    <option selected value="20">20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+                <span>行</span>
+            </div>
+        </div>
+
+        <!-- 表格 Tabs -->
+        <div class="border-t border-slate-200 dark:border-white/5 pt-4">
+            <p class="text-xs font-bold text-slate-400 dark:text-gray-500 uppercase tracking-wider mb-3 px-1">选择数据表</p>
+            <div class="flex gap-2" id="table-tabs">
+                {% set tables = [
+                    ('anime_info', 'fa-film', '动漫信息'),
+                    ('anime_patterns', 'fa-code', '正则模式'),
+                    ('download_status', 'fa-download', '下载状态'),
+                    ('hardlinks', 'fa-link', '硬链接'),
+                    ('torrent_files', 'fa-file', 'Torrent文件'),
+                    ('rss_processing_history', 'fa-rss', 'RSS历史'),
+                    ('manual_upload_history', 'fa-upload', '上传历史'),
+                    ('sql_query_history', 'fa-history', 'SQL历史')
+                ] %}
+
+                {% for table_id, icon, label in tables %}
+                <button class="shrink-0 px-3.5 py-1.5 rounded-lg {{ 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' if loop.first else 'bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-white/10 hover:bg-slate-200 dark:hover:bg-white/10' }} flex items-center gap-1.5 text-sm transition-all" data-table="{{ table_id }}">
+                    <i class="fa-solid {{ icon }}"></i> {{ label }}
+                    <span class="{{ 'bg-white/20' if loop.first else 'bg-slate-200 dark:bg-white/10 text-slate-500 dark:text-gray-400' }} px-1.5 py-0.5 rounded text-[10px]" id="{{ table_id }}_count">0</span>
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <!-- 2. 数据表格区域 -->
+    <section class="glass-card rounded-xl overflow-hidden flex flex-col">
+        <div class="p-4 border-b border-slate-200 dark:border-white/5 bg-slate-50/50 dark:bg-white/5 flex justify-between items-center">
+            <h3 class="font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+                <i class="fa-solid fa-table text-slate-400"></i> 
+                <span id="current-table-name">anime_info</span>
+            </h3>
+            <div class="text-xs text-slate-500 dark:text-gray-400">
+                显示第 <span class="font-mono font-bold dark:text-white" id="range-start">0</span> 至 <span class="font-mono font-bold dark:text-white" id="range-end">0</span> 条，共 <span class="font-mono font-bold dark:text-white" id="total-count">0</span> 条记录
+            </div>
+        </div>
+
+        <!-- 
+            优化点：添加 min-h-[600px] 确保最小高度，防止翻页跳动
+            添加 relative 以便放置 loading 遮罩
+        -->
+        <div class="relative min-h-[600px] flex flex-col">
+            
+            <!-- 加载遮罩层 -->
+            <div id="table-loading-overlay" class="loading-overlay">
+                <div class="flex flex-col items-center gap-3">
+                    <i class="fa-solid fa-circle-notch fa-spin text-4xl text-blue-500"></i>
+                    <span class="text-sm font-medium text-slate-600 dark:text-slate-300">数据加载中...</span>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto custom-scrollbar flex-1">
+                <table class="custom-table-layout text-left" id="main-data-table">
+                    <thead class="bg-slate-100 dark:bg-[#18181b] text-xs uppercase text-slate-500 dark:text-gray-400 font-semibold tracking-wider"></thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-white/5 text-sm text-slate-700 dark:text-slate-300"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 分页器 -->
+        <div class="p-4 border-t border-slate-200 dark:border-white/5 flex justify-between items-center bg-slate-50/50 dark:bg-white/5">
+            <div class="hidden sm:block text-sm text-slate-500 dark:text-gray-400">
+                页码 <span class="font-medium text-slate-900 dark:text-white" id="current-page">1</span> / <span id="total-pages">1</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button class="px-3 py-1 rounded-md border border-slate-200 dark:border-white/10 bg-white dark:bg-black/20 text-slate-400 dark:text-gray-500 cursor-not-allowed opacity-50" disabled id="prev-page-btn">
+                    <i class="fa-solid fa-chevron-left text-xs"></i> 上一页
+                </button>
+                <div class="flex gap-1" id="pagination-numbers"></div>
+                <button class="px-3 py-1 rounded-md border border-slate-200 dark:border-white/10 bg-white dark:bg-black/20 text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-white/10 transition" id="next-page-btn">
+                    下一页 <i class="fa-solid fa-chevron-right text-xs"></i>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- 3. SQL 执行控制台 -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 glass-card rounded-xl p-1 flex flex-col relative group">
+            <div class="absolute top-0 left-0 right-0 h-8 bg-slate-100 dark:bg-[#1e1e20] rounded-t-xl flex items-center px-4 border-b border-slate-200 dark:border-white/5 z-10">
+                <span class="text-xs font-bold text-slate-500 dark:text-gray-400 flex items-center gap-2">
+                    <i class="fa-solid fa-terminal"></i> SQL Console
+                </span>
+            </div>
+            <div class="pt-10 pb-14 px-2 h-full bg-white dark:bg-[#0d0d0d] rounded-xl">
+                <textarea id="sql-input" class="sql-editor w-full h-40 bg-transparent border-none focus:ring-0 text-sm font-mono text-slate-800 dark:text-green-400 placeholder-slate-400 dark:placeholder-gray-700 resize-none p-2" 
+                    placeholder="-- 在此输入 SQL 语句&#10;SELECT * FROM anime_info WHERE category = 'tv' LIMIT 10;"></textarea>
+            </div>
+            <div class="absolute bottom-2 right-2 flex gap-2">
+                <button onclick="clearSql()" class="px-3 py-1.5 rounded text-xs font-medium text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition">清空</button>
+                <button onclick="runSql()" class="px-4 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium shadow-lg shadow-blue-500/30 flex items-center gap-2 transition-transform active:scale-95">
+                    <i class="fa-solid fa-play"></i> 执行查询
+                </button>
+            </div>
+            <div id="sql-result-message" class="hidden absolute bottom-16 left-4 right-4 p-2 text-xs font-mono rounded border"></div>
+        </div>
+
+        <div class="glass-card rounded-xl p-5 flex flex-col">
+            <h3 class="font-semibold text-slate-800 dark:text-white mb-4 flex items-center gap-2 text-sm">
+                <i class="fa-solid fa-clock-rotate-left text-slate-400"></i> SQL 历史
+            </h3>
+            <div class="flex-1 overflow-y-auto max-h-[200px] space-y-2 pr-1 custom-scrollbar" id="sql-history-container"></div>
+        </div>
+    </section>
+
+    <!-- 4. SQL 查詢結果 -->
+    <section id="sql-results-section" class="glass-card rounded-xl overflow-hidden flex-col" style="display: none;">
+        <div class="p-4 border-b border-slate-200 dark:border-white/5 bg-slate-50/50 dark:bg-white/5 flex justify-between items-center">
+            <h3 class="font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+                <i class="fa-solid fa-table-list text-slate-400"></i> SQL 查詢結果
+            </h3>
+            <div class="text-xs text-slate-500 dark:text-gray-400">
+                共 <span class="font-mono font-bold dark:text-white" id="sql-result-count">0</span> 行
+            </div>
+        </div>
+        <div class="overflow-x-auto custom-scrollbar">
+            <table class="custom-table-layout text-left" id="sql-result-table">
+                <thead class="bg-slate-100 dark:bg-[#18181b] text-xs uppercase text-slate-500 dark:text-gray-400 font-semibold tracking-wider"></thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-white/5 text-sm text-slate-700 dark:text-slate-300"></tbody>
+            </table>
+        </div>
+    </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // --- 全局变量 ---
+    let currentTable = 'anime_info';
+    let currentPage = 1;
+    let perPage = 20;
+    let searchTerm = '';
+    let sortColumn = ''; 
+    let sortOrder = 'desc'; 
+
+    const canvasContext = document.createElement("canvas").getContext("2d");
+
+    // --- 初始化 ---
+    document.addEventListener('DOMContentLoaded', function() {
+        loadTableCounts();
+        loadTableData();
+        loadSqlHistory();
+        
+        document.getElementById('search-input').addEventListener('input', debounce(function(e) {
+            searchTerm = e.target.value;
+            currentPage = 1;
+            loadTableData();
+        }, 300));
+        
+        document.getElementById('page-limit').addEventListener('change', function() {
+            perPage = parseInt(this.value);
+            currentPage = 1;
+            loadTableData();
+        });
+        
+        const tabButtons = document.querySelectorAll('#table-tabs button');
+        tabButtons.forEach(btn => {
+            btn.addEventListener('click', function() {
+                switchTable(this.getAttribute('data-table'), tabButtons);
+            });
+        });
+    });
+
+    function debounce(func, wait) {
+        let timeout;
+        return function(...args) {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func(...args), wait);
+        };
+    }
+
+    function getTextWidth(text) {
+        canvasContext.font = "600 13px 'Inter', sans-serif"; 
+        return canvasContext.measureText(text).width;
+    }
+
+    function switchTable(tableName, allButtons) {
+        currentTable = tableName;
+        currentPage = 1;
+        searchTerm = '';
+        sortColumn = '';
+        sortOrder = 'desc';
+        document.getElementById('search-input').value = '';
+        
+        allButtons.forEach(btn => {
+            const isCurrent = btn.getAttribute('data-table') === tableName;
+            btn.className = isCurrent
+                ? "shrink-0 px-3.5 py-1.5 rounded-lg bg-blue-600 text-white shadow-lg shadow-blue-500/30 flex items-center gap-1.5 text-sm font-medium transition-transform hover:scale-105"
+                : "shrink-0 px-3.5 py-1.5 rounded-lg bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-white/10 hover:bg-slate-200 dark:hover:bg-white/10 hover:border-slate-300 dark:hover:border-white/20 flex items-center gap-1.5 text-sm transition-all";
+            const icon = btn.querySelector('i');
+            if (icon) icon.className = icon.className.split(' ').slice(0, 2).join(' ') + ' text-[11px]';
+            const badge = btn.querySelector('span');
+            badge.className = isCurrent
+                ? "bg-white/20 px-1.5 py-0.5 rounded text-[10px]"
+                : "bg-slate-200 dark:bg-white/10 px-1.5 py-0.5 rounded text-[10px] text-slate-500 dark:text-gray-400";
+        });
+        
+        document.getElementById('current-table-name').textContent = tableName;
+        loadTableData();
+    }
+
+    function handleSort(columnName) {
+        if (sortColumn === columnName) {
+            sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+        } else {
+            sortColumn = columnName;
+            sortOrder = 'desc';
+        }
+        currentPage = 1;
+        loadTableData();
+    }
+
+    // --- 核心：构建表格 ---
+    function buildTable(tableElementId, columns, data, storageKeyPrefix = 'db_cols_') {
+        const table = document.getElementById(tableElementId);
+        const thead = table.querySelector('thead');
+        const tbody = table.querySelector('tbody');
+        
+        thead.innerHTML = '';
+        tbody.innerHTML = '';
+
+        if (!columns || columns.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="100%" class="text-center py-8 text-slate-500">暂无数据</td></tr>';
+            return;
+        }
+
+        const storageKey = `${storageKeyPrefix}${currentTable}`;
+        let savedWidths = {};
+        try {
+            savedWidths = JSON.parse(localStorage.getItem(storageKey)) || {};
+        } catch (e) { console.error("LocalStorage error", e); }
+
+        const headerRow = document.createElement('tr');
+        columns.forEach((colName) => {
+            const th = document.createElement('th');
+            th.className = 'px-4 py-3 border-l border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-[#18181b] resizable-th';
+            
+            const textWidth = getTextWidth(colName);
+            const calculatedMinWidth = Math.max(60, Math.ceil(textWidth + 32 + 10 + 20 + 20)); 
+            
+            let finalWidth = calculatedMinWidth + 'px';
+            if (savedWidths[colName]) {
+                const savedVal = parseInt(savedWidths[colName]);
+                if (savedVal >= calculatedMinWidth) {
+                    finalWidth = savedWidths[colName];
+                }
+            }
+            
+            th.style.width = finalWidth;
+            th.style.minWidth = `${calculatedMinWidth}px`; 
+
+            // 内容容器
+            const divContent = document.createElement('div');
+            divContent.className = 'th-content';
+            divContent.title = `点击按 ${colName} 排序`;
+            divContent.onclick = () => handleSort(colName);
+
+            const textSpan = document.createElement('span');
+            textSpan.textContent = colName;
+            divContent.appendChild(textSpan);
+
+            // 排序图标
+            const icon = document.createElement('i');
+            icon.className = 'fa-solid sort-icon';
+            if (sortColumn === colName) {
+                icon.classList.add('sort-active');
+                if (sortOrder === 'asc') {
+                    icon.classList.add('fa-sort-up');
+                } else {
+                    icon.classList.add('fa-sort-down');
+                }
+            } else {
+                icon.classList.add('fa-sort');
+            }
+            divContent.appendChild(icon);
+            
+            th.appendChild(divContent);
+
+            // 拖拽手柄
+            const resizer = document.createElement('div');
+            resizer.className = 'resizer';
+            th.appendChild(resizer);
+            createResizableColumn(th, resizer, colName, storageKey, calculatedMinWidth);
+
+            headerRow.appendChild(th);
+        });
+        thead.appendChild(headerRow);
+
+        if (data && data.length > 0) {
+            const fragment = document.createDocumentFragment();
+            data.forEach((row, i) => {
+                const tr = document.createElement('tr');
+                tr.className = `hover:bg-slate-50 dark:hover:bg-white/5 transition-colors ${i % 2 !== 0 ? 'bg-slate-50/30 dark:bg-white/[0.02]' : ''}`;
+                
+                row.forEach((cell, cellIndex) => {
+                    const td = document.createElement('td');
+                    td.className = 'px-4 py-3 data-cell border-l border-transparent dark:border-white/5';
+                    
+                    const colName = columns[cellIndex];
+                    let content = cell;
+
+                    if (colName === 'id') {
+                        td.className += ' font-mono text-xs text-slate-400 dark:text-gray-500';
+                    } else if (colName.includes('hash') && cell) {
+                         content = cell;
+                         td.className += ' font-mono text-xs text-slate-500';
+                    } else if ((colName.endsWith('_at') || colName.includes('time')) && cell) {
+                        td.className += ' font-mono text-xs text-slate-500';
+                        // 数据库页面特殊处理：直接显示UTC时间
+                        content = cell ? (cell + ' (UTC)') : '-';
+                    }
+
+                    if (content === null || content === undefined || content === '') {
+                        td.textContent = '-';
+                    } else if (typeof content === 'string' && content.startsWith('<')) {
+                        td.innerHTML = content; 
+                    } else {
+                        td.textContent = content;
+                        td.title = content; 
+                    }
+                    
+                    tr.appendChild(td);
+                });
+                fragment.appendChild(tr);
+            });
+            tbody.appendChild(fragment);
+        } else {
+            tbody.innerHTML = '<tr><td colspan="100%" class="text-center py-8 text-slate-500">暂无数据</td></tr>';
+        }
+    }
+
+    function createResizableColumn(th, resizer, colName, storageKey, minWidth) {
+        let x = 0;
+        let w = 0;
+
+        const mouseDownHandler = function(e) {
+            e.stopPropagation();
+            x = e.clientX;
+            const styles = window.getComputedStyle(th);
+            w = parseInt(styles.width, 10);
+
+            resizer.classList.add('resizing');
+            document.body.style.cursor = 'col-resize'; 
+            
+            document.addEventListener('mousemove', mouseMoveHandler);
+            document.addEventListener('mouseup', mouseUpHandler);
+        };
+
+        const mouseMoveHandler = function(e) {
+            const dx = e.clientX - x;
+            const newWidth = Math.max(minWidth, w + dx);
+            th.style.width = `${newWidth}px`;
+        };
+
+        const mouseUpHandler = function() {
+            resizer.classList.remove('resizing');
+            document.body.style.cursor = '';
+
+            document.removeEventListener('mousemove', mouseMoveHandler);
+            document.removeEventListener('mouseup', mouseUpHandler);
+
+            saveColumnWidth(colName, th.style.width, storageKey);
+        };
+
+        resizer.addEventListener('mousedown', mouseDownHandler);
+    }
+
+    function saveColumnWidth(colName, width, storageKey) {
+        try {
+            let savedWidths = JSON.parse(localStorage.getItem(storageKey)) || {};
+            savedWidths[colName] = width;
+            localStorage.setItem(storageKey, JSON.stringify(savedWidths));
+        } catch (e) { console.error("Save width error", e); }
+    }
+
+    function resetColumnWidths() {
+        Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('db_cols_') || key.startsWith('sql_cols_')) {
+                localStorage.removeItem(key);
+            }
+        });
+        alert('列宽已重置。');
+        if (document.getElementById('sql-results-section').style.display !== 'none') {
+             loadTableData();
+        } else {
+            loadTableData();
+        }
+    }
+
+    // --- 数据加载 ---
+    async function loadTableCounts() {
+        try {
+            const response = await fetch('{{ url_for("database.get_table_data_api") }}?table=counts');
+            const data = await response.json();
+            if (data.counts) {
+                Object.keys(data.counts).forEach(table => {
+                    const el = document.getElementById(`${table}_count`);
+                    if (el) el.textContent = data.counts[table];
+                });
+            }
+        } catch (error) { console.error('加载计数失败:', error); }
+    }
+
+    // 优化后的 loadTableData
+    async function loadTableData() {
+        const overlay = document.getElementById('table-loading-overlay');
+        
+        // 1. 显示遮罩层，但不清空表格内容
+        overlay.classList.add('active');
+
+        try {
+            const params = new URLSearchParams({
+                table: currentTable,
+                page: currentPage,
+                per_page: perPage,
+                search: searchTerm,
+                sort_column: sortColumn,
+                sort_order: sortOrder
+            });
+            
+            const response = await fetch(`{{ url_for("database.get_table_data_api") }}?${params}`);
+            const data = await response.json();
+            
+            if (data.error) {
+                showError(data.error);
+                return;
+            }
+            
+            // 2. 数据获取成功后，重新构建表格（替换旧内容）
+            buildTable('main-data-table', data.columns, data.data, 'db_cols_');
+            updatePagination(data);
+            
+            // 更新统计信息
+            document.getElementById('range-start').textContent = data.data?.length > 0 ? ((currentPage - 1) * perPage + 1) : 0;
+            document.getElementById('range-end').textContent = data.data ? ((currentPage - 1) * perPage + data.data.length) : 0;
+            document.getElementById('total-count').textContent = data.total_count || 0;
+
+        } catch (error) {
+            showError('加载数据失败: ' + error.message);
+        } finally {
+            // 3. 无论成功失败，隐藏遮罩层
+            // 使用 setTimeout 稍微延迟一点点，让渲染更平滑
+            setTimeout(() => {
+                overlay.classList.remove('active');
+            }, 100);
+        }
+    }
+
+    // --- 分页 ---
+    function updatePagination(data) {
+        const totalPages = data.total_pages || 1;
+        document.getElementById('current-page').textContent = currentPage;
+        document.getElementById('total-pages').textContent = totalPages;
+        
+        const prevBtn = document.getElementById('prev-page-btn');
+        const nextBtn = document.getElementById('next-page-btn');
+        const paginationNumbers = document.getElementById('pagination-numbers');
+        
+        prevBtn.disabled = currentPage <= 1;
+        nextBtn.disabled = currentPage >= totalPages;
+        
+        prevBtn.onclick = () => { if (currentPage > 1) { currentPage--; loadTableData(); } };
+        nextBtn.onclick = () => { if (currentPage < totalPages) { currentPage++; loadTableData(); } };
+        
+        paginationNumbers.innerHTML = '';
+        let start = Math.max(1, currentPage - 2);
+        let end = Math.min(totalPages, currentPage + 2);
+        
+        if (start > 1) {
+            addPageBtn(1, paginationNumbers);
+            if (start > 2) paginationNumbers.appendChild(document.createTextNode('...'));
+        }
+
+        for (let i = start; i <= end; i++) {
+            addPageBtn(i, paginationNumbers);
+        }
+        
+        if (end < totalPages) {
+            if (end < totalPages - 1) paginationNumbers.appendChild(document.createTextNode('...'));
+            addPageBtn(totalPages, paginationNumbers);
+        }
+    }
+
+    function addPageBtn(pageNum, container) {
+        const btn = document.createElement('button');
+        btn.className = pageNum === currentPage 
+            ? "w-8 h-8 rounded-md bg-blue-600 text-white text-sm font-medium shadow-md shadow-blue-500/20"
+            : "w-8 h-8 rounded-md hover:bg-slate-100 dark:hover:bg-white/10 text-slate-600 dark:text-gray-300 text-sm font-medium transition";
+        btn.textContent = pageNum;
+        btn.onclick = () => { currentPage = pageNum; loadTableData(); };
+        container.appendChild(btn);
+    }
+
+    // --- SQL 功能 ---
+    function clearSql() {
+        document.getElementById('sql-input').value = '';
+        document.getElementById('sql-result-message').className = 'hidden';
+        document.getElementById('sql-results-section').style.display = 'none';
+    }
+
+    async function runSql() {
+        const query = document.getElementById('sql-input').value.trim();
+        const msgDiv = document.getElementById('sql-result-message');
+        
+        if (!query) { showError('请输入 SQL'); return; }
+
+        try {
+            const response = await fetch('{{ url_for("database.execute_sql_api") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: query })
+            });
+            
+            const result = await response.json();
+            
+            msgDiv.classList.remove('hidden');
+            if (result.error) {
+                msgDiv.className = "absolute bottom-16 left-4 right-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/30 rounded p-2 text-xs text-red-700 dark:text-red-400 font-mono flex items-center";
+                msgDiv.innerHTML = `<i class="fa-solid fa-exclamation-circle mr-2"></i> ${result.error}`;
+            } else {
+                msgDiv.className = "absolute bottom-16 left-4 right-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-500/30 rounded p-2 text-xs text-emerald-700 dark:text-emerald-400 font-mono flex items-center";
+                
+                if (result.type === 'select') {
+                    msgDiv.innerHTML = `<i class="fa-solid fa-check-circle mr-2"></i> 查询成功，返回 ${result.row_count} 行 (耗时: ${result.execution_time}ms)`;
+                    displayQueryResults(result);
+                } else {
+                    msgDiv.innerHTML = `<i class="fa-solid fa-check-circle mr-2"></i> 执行成功，影响 ${result.row_count} 行`;
+                    document.getElementById('sql-results-section').style.display = 'none';
+                }
+                
+                saveSqlHistory(query, result);
+                loadSqlHistory();
+            }
+        } catch (error) {
+            showError('执行出错: ' + error.message);
+        }
+    }
+
+    function displayQueryResults(result) {
+        const section = document.getElementById('sql-results-section');
+        section.style.display = 'flex';
+        document.getElementById('sql-result-count').textContent = result.data.length;
+        buildTable('sql-result-table', result.columns, result.data, 'sql_cols_result_');
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    async function saveSqlHistory(query, result) {
+        fetch('{{ url_for("database.save_sql_history_api") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                query: query,
+                success: result.success ? 1 : 0,
+                rows_affected: result.row_count || 0,
+                execution_time: result.execution_time || 0
+            })
+        }).catch(console.error);
+    }
+
+    async function loadSqlHistory() {
+        try {
+            const response = await fetch('{{ url_for("database.get_sql_history_api") }}');
+            const data = await response.json();
+            const container = document.getElementById('sql-history-container');
+            container.innerHTML = '';
+            
+            if (data.history && data.history.length > 0) {
+                data.history.forEach(item => {
+                    const btn = document.createElement('button');
+                    btn.className = 'w-full text-left group p-2 rounded hover:bg-slate-100 dark:hover:bg-white/5 border border-transparent hover:border-slate-200 dark:hover:border-white/10 transition-all';
+                    btn.innerHTML = `
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-[10px] font-bold text-slate-400 dark:text-gray-500 uppercase">${item.query_type || 'SQL'}</span>
+                            <i class="fa-solid fa-copy text-slate-300 dark:text-gray-600 group-hover:text-blue-400 text-xs opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                        </div>
+                        <code class="text-xs font-mono text-slate-600 dark:text-slate-300 block truncate">${item.query}</code>
+                    `;
+                    btn.onclick = () => {
+                        const input = document.getElementById('sql-input');
+                        input.value = item.query;
+                        input.focus();
+                    };
+                    container.appendChild(btn);
+                });
+            } else {
+                container.innerHTML = '<div class="text-center text-slate-400 text-xs py-4">暂无历史</div>';
+            }
+        } catch (e) { console.error(e); }
+    }
+
+    // 工具函数现在由 base.html 提供：
+    // - showError()
+    // - formatDate() (替代 formatDateTime)
+    // 为了兼容性，保留 formatDateTime 别名
+    const formatDateTime = formatDate;
+
+    // --- 导出表格功能 ---
+    async function exportTableToCSV() {
+        try {
+            // 显示加载提示
+            const overlay = document.getElementById('table-loading-overlay');
+            overlay.classList.add('active');
+
+            // 获取当前表格的全部数据（不分页）
+            const params = new URLSearchParams({
+                table: currentTable,
+                page: 1,
+                per_page: 999999,  // 获取所有数据
+                search: searchTerm,
+                sort_column: sortColumn,
+                sort_order: sortOrder
+            });
+
+            const response = await fetch(`{{ url_for("database.get_table_data_api") }}?${params}`);
+            const data = await response.json();
+
+            if (data.error) {
+                showError(data.error);
+                return;
+            }
+
+            if (!data.columns || !data.data || data.data.length === 0) {
+                showError('没有数据可导出');
+                return;
+            }
+
+            // 转换为CSV格式
+            let csv = '';
+
+            // 添加表头（使用BOM以确保Excel正确显示UTF-8）
+            csv = '\uFEFF' + data.columns.map(col => `"${col}"`).join(',') + '\n';
+
+            // 添加数据行
+            data.data.forEach(row => {
+                const csvRow = row.map(cell => {
+                    // 处理null和undefined
+                    if (cell === null || cell === undefined) {
+                        return '""';
+                    }
+                    // 转换为字符串并转义引号
+                    const cellStr = String(cell).replace(/"/g, '""');
+                    return `"${cellStr}"`;
+                }).join(',');
+                csv += csvRow + '\n';
+            });
+
+            // 创建下载链接
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+
+            // 生成文件名（包含表名和时间戳）
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            const filename = `${currentTable}_${timestamp}.csv`;
+
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            // 显示成功消息
+            if (window.showFlashMessage) {
+                window.showFlashMessage('success', `成功导出 ${data.data.length} 条记录到 ${filename}`);
+            }
+
+        } catch (error) {
+            showError('导出失败: ' + error.message);
+        } finally {
+            // 隐藏加载提示
+            const overlay = document.getElementById('table-loading-overlay');
+            setTimeout(() => {
+                overlay.classList.remove('active');
+            }, 100);
+        }
+    }
+</script>
+{% endblock %}

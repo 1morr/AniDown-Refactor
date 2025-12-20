@@ -1,0 +1,1733 @@
+{% extends 'base.html' %}
+
+{% block title %}AniDown{% endblock %}
+
+{% block styles %}
+<style>
+    /* 基础表单样式 */
+    .form-control {
+        background-color: #ffffff; 
+        border: 1px solid #e2e8f0; 
+        color: #334155;
+    }
+    .dark .form-control {
+        background-color: rgba(255, 255, 255, 0.03); 
+        border: 1px solid rgba(255, 255, 255, 0.1); 
+        color: #E4E4E7;
+    }
+    .dark .form-control option { 
+        background-color: #18181b; 
+        color: #E4E4E7; 
+    }
+    .form-control:focus {
+        border-color: #3B82F6;
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+    }
+
+    /* 表格样式 */
+    tbody tr:hover { background-color: rgba(0, 0, 0, 0.02); }
+    .dark tbody tr:hover { background-color: rgba(255, 255, 255, 0.03); }
+
+    .sortable-header {
+        cursor: pointer;
+        user-select: none;
+        position: relative;
+        padding-right: 20px !important;
+        transition: background-color 0.2s;
+    }
+    .sortable-header:hover {
+        background-color: rgba(59, 130, 246, 0.1);
+    }
+    .dark .sortable-header:hover {
+        background-color: rgba(59, 130, 246, 0.15);
+    }
+    .sort-indicator {
+        position: absolute;
+        right: 6px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 10px;
+        opacity: 0.5;
+        transition: opacity 0.2s;
+    }
+    .sortable-header:hover .sort-indicator {
+        opacity: 0.8;
+    }
+    .sort-indicator.active {
+        opacity: 1;
+        color: #3B82F6;
+    }
+    .dark .sort-indicator.active {
+        color: #60A5FA;
+    }
+
+    /* === 新增：硬链接管理器优化样式 === */
+    
+    /* 筛选 Tab 选中状态 */
+    .filter-tab.active {
+        background-color: #ffffff;
+        color: #0f172a;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+    }
+    .dark .filter-tab.active {
+        background-color: #27272a;
+        color: #ffffff;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.4);
+    }
+
+    /* 列表悬停时，输入框高亮 */
+    .file-row:hover .custom-name-input:not(:disabled) {
+        border-color: #94a3b8;
+    }
+    .dark .file-row:hover .custom-name-input:not(:disabled) {
+        border-color: #52525b;
+    }
+
+    /* 禁用按钮样式 */
+    button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none !important;
+        box-shadow: none !important;
+    }
+
+    /* 自定义细滚动条 */
+    .scrollbar-thin::-webkit-scrollbar {
+        width: 6px;
+    }
+    .scrollbar-thin::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .scrollbar-thin::-webkit-scrollbar-thumb {
+        background-color: rgba(156, 163, 175, 0.3);
+        border-radius: 20px;
+    }
+    .dark .scrollbar-thin::-webkit-scrollbar-thumb {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+    <!-- 1. 标题与摘要 -->
+    <div class="flex flex-col md:flex-row justify-between items-end gap-4">
+        <div>
+            <h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-3">
+                <i class="fa-solid fa-list-check text-blue-600 dark:text-neon-green"></i>
+                下载管理
+            </h1>
+            <p class="text-slate-500 dark:text-gray-500 text-sm">管理和监控所有下载任务状态与文件归档</p>
+        </div>
+        <div class="text-right">
+            <p class="text-xs text-slate-400 dark:text-gray-500 font-mono">Total Records</p>
+            <p class="text-2xl font-bold text-slate-800 dark:text-white font-mono" id="total-records">Loading...</p>
+        </div>
+    </div>
+
+    <!-- 2. 控制面板 (筛选与操作) -->
+    <section class="glass-card rounded-xl p-5 space-y-4">
+        <!-- 第一行：搜索与主要操作 -->
+        <div class="flex flex-col lg:flex-row gap-4 justify-between">
+            
+            <!-- 搜索栏 -->
+            <div class="flex gap-2 flex-1">
+                <div class="relative flex-1 max-w-lg">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-500 text-sm"></i>
+                    <input type="text" id="search-input" placeholder="搜索动漫标题、文件名或字幕组..." 
+                        class="w-full pl-9 pr-10 py-2 rounded-lg text-sm font-medium form-control transition-all">
+                    <button onclick="document.getElementById('search-input').value=''; renderTable()" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-white">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                
+                <!-- 页面大小 -->
+                <div class="relative w-24">
+                     <select id="page-size" class="w-full appearance-none pl-3 pr-8 py-2 rounded-lg text-sm font-medium form-control cursor-pointer">
+                        <option value="20">20条</option>
+                        <option value="50">50条</option>
+                        <option value="100">100条</option>
+                    </select>
+                    <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-500 text-xs pointer-events-none"></i>
+                </div>
+            </div>
+
+            <!-- 右侧按钮组 -->
+            <div class="flex flex-wrap gap-2">
+                <button onclick="checkAllFiles()" class="px-3 py-2 rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-600/20 dark:hover:bg-blue-600/30 border border-blue-200 dark:border-blue-500/30 text-sm text-blue-600 dark:text-blue-400 transition-colors flex items-center gap-2">
+                    <i class="fa-solid fa-check-double"></i> 检查所有
+                </button>
+                
+                <button onclick="checkIncompleteTorrents()" class="px-3 py-2 rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-600/20 dark:hover:bg-blue-600/30 border border-blue-200 dark:border-blue-500/30 text-sm text-blue-600 dark:text-blue-400 transition-colors flex items-center gap-2">
+                    <i class="fa-solid fa-hourglass-half"></i> 检查未完成
+                </button>
+                
+                <button onclick="sendWebhookForCompleted()" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-sm text-white font-medium shadow-lg shadow-emerald-500/20 dark:shadow-emerald-900/20 transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-paper-plane"></i> 批量发送Webhook
+                </button>
+            </div>
+        </div>
+
+        <!-- 第二行：高级筛选 -->
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 pt-4 border-t border-slate-200 dark:border-white/5">
+            <!-- 状态筛选 -->
+            <div class="relative">
+                <label class="absolute -top-2.5 left-2 text-[10px] font-bold text-slate-500 dark:text-gray-500 bg-white dark:bg-[#0F0F11] px-1 rounded">状态</label>
+                <select id="filter-status" class="w-full appearance-none pl-3 pr-8 py-2 rounded-lg text-xs form-control cursor-pointer h-9">
+                    <option value="all">全部状态</option>
+                    <option value="completed">Completed</option>
+                    <option value="downloading">Downloading</option>
+                    <option value="pending">Pending</option>
+                    <option value="missing">Missing</option>
+                </select>
+                <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-600 text-xs pointer-events-none"></i>
+            </div>
+            <!-- 季度筛选 -->
+            <div class="relative">
+                <label class="absolute -top-2.5 left-2 text-[10px] font-bold text-slate-500 dark:text-gray-500 bg-white dark:bg-[#0F0F11] px-1 rounded">季度</label>
+                <select id="filter-season" class="w-full appearance-none pl-3 pr-8 py-2 rounded-lg text-xs form-control cursor-pointer h-9">
+                    <option value="all">全部季度</option>
+                    <option value="1">S1</option>
+                    <option value="2">S2</option>
+                    <option value="3">S3</option>
+                    <option value="4">S4</option>
+                    <option value="5+">S5+</option>
+                </select>
+                <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-600 text-xs pointer-events-none"></i>
+            </div>
+            <!-- 媒体类型筛选 -->
+            <div class="relative">
+                <label class="absolute -top-2.5 left-2 text-[10px] font-bold text-slate-500 dark:text-gray-500 bg-white dark:bg-[#0F0F11] px-1 rounded">媒体类型</label>
+                <select id="filter-media-type" class="w-full appearance-none pl-3 pr-8 py-2 rounded-lg text-xs form-control cursor-pointer h-9">
+                    <option value="all">全部类型</option>
+                    <option value="anime">动漫</option>
+                    <option value="live_action">真人</option>
+                </select>
+                <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-600 text-xs pointer-events-none"></i>
+            </div>
+            <!-- 硬链接筛选 -->
+            <div class="relative">
+                <label class="absolute -top-2.5 left-2 text-[10px] font-bold text-slate-500 dark:text-gray-500 bg-white dark:bg-[#0F0F11] px-1 rounded">硬链接</label>
+                <select id="filter-hardlink" class="w-full appearance-none pl-3 pr-8 py-2 rounded-lg text-xs form-control cursor-pointer h-9">
+                    <option value="all">全部</option>
+                    <option value="yes">已链接</option>
+                    <option value="no">未链接</option>
+                </select>
+                <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-600 text-xs pointer-events-none"></i>
+            </div>
+            <!-- 分组方式 -->
+            <div class="relative flex gap-2">
+                <div class="relative flex-1">
+                    <label class="absolute -top-2.5 left-2 text-[10px] font-bold text-slate-500 dark:text-gray-500 bg-white dark:bg-[#0F0F11] px-1 rounded">分组</label>
+                    <select id="group-by" class="w-full appearance-none pl-3 pr-8 py-2 rounded-lg text-xs form-control cursor-pointer h-9">
+                        <option value="">不分组</option>
+                        <option value="anime_title">按动漫</option>
+                        <option value="subtitle_group">按字幕组</option>
+                        <option value="status">按状态</option>
+                    </select>
+                    <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-600 text-xs pointer-events-none"></i>
+                </div>
+                <button onclick="resetFilters()" class="h-9 px-3 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 text-slate-500 dark:text-gray-400 text-xs" title="清空筛选">
+                    <i class="fa-solid fa-filter-circle-xmark"></i>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- 3. 下载列表 (Table) -->
+    <section class="glass-card rounded-xl overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse table-fixed">
+                <thead>
+                    <tr class="border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-xs text-slate-500 dark:text-gray-400 uppercase font-semibold">
+                        <th class="py-3 pl-5 px-2 sortable-header" style="width: 15%;" onclick="toggleSort('anime_title')">
+                            动漫标题
+                            <span class="sort-indicator" id="sort-anime_title"></span>
+                        </th>
+                        <th class="py-3 px-2 sortable-header" style="width: 17%;" onclick="toggleSort('original_filename')">
+                            文件名
+                            <span class="sort-indicator" id="sort-original_filename"></span>
+                        </th>
+                        <th class="py-3 px-2 sortable-header" style="width: 10%;" onclick="toggleSort('subtitle_group')">
+                            字幕组
+                            <span class="sort-indicator" id="sort-subtitle_group"></span>
+                        </th>
+                        <th class="py-3 px-2 text-center sortable-header" style="width: 6%;" onclick="toggleSort('season')">
+                            季度
+                            <span class="sort-indicator" id="sort-season"></span>
+                        </th>
+                        <th class="py-3 px-2 text-center sortable-header" style="width: 7%;" onclick="toggleSort('media_type')">
+                            类型
+                            <span class="sort-indicator" id="sort-media_type"></span>
+                        </th>
+                        <th class="py-3 px-2 text-center sortable-header" style="width: 8%;" onclick="toggleSort('status')">
+                            状态
+                            <span class="sort-indicator" id="sort-status"></span>
+                        </th>
+                        <th class="py-3 px-2 text-center sortable-header" style="width: 9%;" onclick="toggleSort('has_hardlinks')" title="硬链接状态">
+                            硬链接
+                            <span class="sort-indicator" id="sort-has_hardlinks"></span>
+                        </th>
+                        <th class="py-3 px-2 text-right sortable-header" style="width: 10%;" onclick="toggleSort('download_time')">
+                            下载时间
+                            <span class="sort-indicator" id="sort-download_time"></span>
+                        </th>
+                        <th class="py-3 px-2 text-right sortable-header" style="width: 10%;" onclick="toggleSort('completion_time')">
+                            完成时间
+                            <span class="sort-indicator" id="sort-completion_time"></span>
+                        </th>
+                        <th class="py-3 pr-4 pl-2 text-right" style="width: 14%;">操作</th>
+                    </tr>
+                </thead>
+                <tbody class="text-sm divide-y divide-slate-200 dark:divide-white/5" id="table-body">
+                    <!-- JS 渲染 -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination Footer -->
+        <div class="flex items-center justify-between px-4 py-3 border-t border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/5">
+            <div class="text-xs text-slate-500 dark:text-gray-500">
+                显示 <span class="text-slate-900 dark:text-white font-bold" id="page-start">1</span> 到 <span class="text-slate-900 dark:text-white font-bold" id="page-end">20</span> 条，共 <span id="total-count-footer">...</span> 条
+            </div>
+            <div class="flex items-center gap-1" id="pagination-controls">
+                <!-- 分页控件将通过JavaScript动态生成 -->
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- 4. 硬链接管理 Modal (优化版) -->
+    <!-- ============================================ -->
+    <div id="modal-link-manager" class="fixed inset-0 z-50 hidden flex items-center justify-center">
+        <div class="modal-backdrop" onclick="closeModal('modal-link-manager')"></div>
+        
+        <div class="modal-content bg-white dark:bg-[#18181b] w-full max-w-6xl h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden ring-1 ring-slate-900/5 transition-all transform scale-100">
+            
+            <!-- A. 顶部标题与摘要 -->
+            <div class="px-6 py-4 border-b border-slate-100 dark:border-white/5 flex justify-between items-start bg-slate-50/50 dark:bg-[#18181b]">
+                <div class="space-y-1">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                            <i class="fa-solid fa-link"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-slate-800 dark:text-white">硬链接管理器</h3>
+                    </div>
+                    <div id="manager-torrent-summary" class="text-xs text-slate-500 dark:text-slate-400 pl-11 flex gap-4">
+                        <!-- JS 填充摘要信息 -->
+                        <span>加载中...</span>
+                    </div>
+                </div>
+                <button onclick="closeModal('modal-link-manager')" class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-200 dark:hover:bg-white/10 text-slate-400 transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- B. 工具栏 (筛选与全选) -->
+            <div class="px-6 py-3 border-b border-slate-100 dark:border-white/5 flex flex-col md:flex-row gap-4 justify-between items-center bg-white dark:bg-[#18181b]">
+                <!-- 左侧：筛选 Tabs -->
+                <div class="flex p-1 bg-slate-100 dark:bg-white/5 rounded-lg">
+                    <button onclick="hardlinkManager.setFilter('all')" class="filter-tab active px-4 py-1.5 rounded-md text-xs font-semibold transition-all" data-filter="all">
+                        全部 <span id="count-all" class="ml-1 opacity-60 font-normal">0</span>
+                    </button>
+                    <button onclick="hardlinkManager.setFilter('video')" class="filter-tab px-4 py-1.5 rounded-md text-xs font-semibold transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" data-filter="video">
+                        <i class="fa-solid fa-video mr-1"></i>视频 <span id="count-video" class="ml-1 opacity-60 font-normal">0</span>
+                    </button>
+                    <button onclick="hardlinkManager.setFilter('subtitle')" class="filter-tab px-4 py-1.5 rounded-md text-xs font-semibold transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" data-filter="subtitle">
+                        <i class="fa-solid fa-closed-captioning mr-1"></i>字幕 <span id="count-subtitle" class="ml-1 opacity-60 font-normal">0</span>
+                    </button>
+                    <button onclick="hardlinkManager.setFilter('other')" class="filter-tab px-4 py-1.5 rounded-md text-xs font-semibold transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" data-filter="other">
+                        其他 <span id="count-other" class="ml-1 opacity-60 font-normal">0</span>
+                    </button>
+                </div>
+
+                <!-- 右侧：快捷选择 -->
+                <div class="flex items-center gap-2">
+                    <button onclick="hardlinkManager.selectAllFiles()" class="text-xs font-medium px-3 py-1.5 rounded border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                        <i class="fa-solid fa-check-double mr-1 text-blue-500"></i> 全选当前
+                    </button>
+                    <button onclick="hardlinkManager.clearSelection()" class="text-xs font-medium px-3 py-1.5 rounded border border-dashed border-slate-300 dark:border-slate-600 text-slate-500 hover:text-rose-500 hover:border-rose-300 transition-colors">
+                        清空
+                    </button>
+                </div>
+            </div>
+            
+            <!-- C. 文件列表主体 -->
+            <div class="flex-1 overflow-y-auto bg-slate-50/30 dark:bg-[#121214] relative scrollbar-thin">
+                <!-- 表头 -->
+                <div class="sticky top-0 z-10 grid grid-cols-12 gap-4 px-6 py-2 bg-slate-50 dark:bg-[#1c1c1f] border-b border-slate-200 dark:border-white/5 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    <div class="col-span-6 md:col-span-7 pl-2">文件信息</div>
+                    <div class="col-span-2 md:col-span-1 text-right hidden md:block">大小</div>
+                    <div class="col-span-2 md:col-span-1 text-center hidden md:block">状态</div>
+                    <div class="col-span-6 md:col-span-3">重命名 / 目标文件名</div>
+                </div>
+
+                <!-- 列表容器 -->
+                <div id="manager-file-list" class="divide-y divide-slate-100 dark:divide-white/5">
+                    <!-- JS 动态填充 -->
+                </div>
+                
+                <!-- 空状态提示 (Hidden by default) -->
+                <div id="empty-state-filter" class="hidden flex flex-col items-center justify-center py-20 text-slate-400">
+                    <i class="fa-regular fa-folder-open text-4xl mb-3 opacity-50"></i>
+                    <p class="text-sm">当前筛选条件下没有文件</p>
+                </div>
+            </div>
+
+            <!-- D. 底部操作面板 -->
+            <div class="border-t border-slate-200 dark:border-white/10 bg-white dark:bg-[#18181b] p-4 md:px-6 md:py-5">
+                <div class="flex flex-col xl:flex-row gap-6 items-center justify-between">
+                    
+                    <!-- 路径设置 -->
+                    <div class="w-full xl:w-1/2">
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">目标子路径 (Relative Path)</label>
+                        <div class="relative group">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i class="fa-regular fa-folder text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
+                            </div>
+                            <input type="text" id="target-path-input" 
+                                placeholder="例如: /Season 1 (留空则链接到根目录)" 
+                                class="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-sm outline-none transition-all dark:text-white form-control">
+                        </div>
+                    </div>
+
+                    <!-- 动作按钮组 -->
+                    <div class="w-full xl:w-auto flex flex-col sm:flex-row gap-3 justify-end">
+                        <!-- 危险/次要操作 -->
+                        <div class="flex gap-2">
+                             <button id="btn-delete-link" onclick="hardlinkManager.deleteHardlinks()" class="flex-1 sm:flex-none px-4 py-2.5 rounded-xl border border-rose-200 dark:border-rose-500/30 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 text-sm font-semibold transition-colors flex items-center justify-center gap-2" disabled>
+                                <i class="fa-regular fa-trash-can"></i> <span class="hidden sm:inline">删除链接</span>
+                            </button>
+                            <button id="btn-rename-link" onclick="hardlinkManager.renameHardlinks()" class="flex-1 sm:flex-none px-4 py-2.5 rounded-xl border border-amber-200 dark:border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-500/10 text-sm font-semibold transition-colors flex items-center justify-center gap-2" disabled>
+                                <i class="fa-solid fa-pencil"></i> <span class="hidden sm:inline">重命名</span>
+                            </button>
+                        </div>
+                        
+                        <!-- 主要操作 -->
+                        <button id="btn-create-link" onclick="hardlinkManager.createHardlinks()" class="flex-1 sm:flex-none px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/25 text-sm font-bold transition-all transform active:scale-95 flex items-center justify-center gap-2" disabled>
+                            <i class="fa-solid fa-link"></i> 创建硬链接
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- 5. 删除确认 Modal -->
+    <!-- ============================================ -->
+    <div id="modal-delete" class="fixed inset-0 z-50 hidden flex items-center justify-center">
+        <div class="modal-backdrop" onclick="closeModal('modal-delete')"></div>
+        <div class="modal-content bg-white dark:bg-[#1e1e20] w-full max-w-lg rounded-xl shadow-2xl overflow-hidden">
+            <!-- Header -->
+            <div class="bg-rose-600 px-6 py-4 flex justify-between items-center">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-trash-can"></i> 删除下载项目</h3>
+                <button onclick="closeModal('modal-delete')" class="text-white/80 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            
+            <div class="p-6 space-y-5">
+                <!-- Warning Box -->
+                <div class="bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20 rounded-lg p-3 flex gap-3 items-start">
+                    <i class="fa-solid fa-triangle-exclamation text-yellow-600 dark:text-yellow-500 mt-0.5"></i>
+                    <div class="text-sm text-yellow-700 dark:text-yellow-200 font-bold">警告：此操作不可撤销，请谨慎选择！</div>
+                </div>
+
+                <!-- Info -->
+                <div class="space-y-2 text-sm text-slate-600 dark:text-gray-300" id="delete-modal-info">
+                    <!-- JS 填充 -->
+                </div>
+
+                <!-- Options -->
+                <div class="space-y-3 border-t border-b border-slate-200 dark:border-white/10 py-4">
+                    <div class="flex items-start gap-3">
+                        <input type="checkbox" id="del-source" class="mt-1 w-4 h-4 rounded bg-slate-200 dark:bg-white/10 border-gray-400 text-rose-600 focus:ring-rose-500 cursor-pointer">
+                        <label for="del-source" class="cursor-pointer">
+                            <div class="text-sm font-bold text-slate-800 dark:text-white">删除原文件</div>
+                            <div class="text-xs text-slate-500 dark:text-gray-400">从qBittorrent移除torrent并删除下载的文件</div>
+                        </label>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <input type="checkbox" id="del-link" class="mt-1 w-4 h-4 rounded bg-slate-200 dark:bg-white/10 border-gray-400 text-rose-600 focus:ring-rose-500 cursor-pointer">
+                        <label for="del-link" class="cursor-pointer">
+                            <div class="text-sm font-bold text-slate-800 dark:text-white">删除硬链接</div>
+                            <div class="text-xs text-slate-500 dark:text-gray-400">删除所有关联的硬链接文件</div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Note -->
+                <div class="bg-cyan-50 dark:bg-cyan-500/10 rounded-lg p-3 flex gap-3 text-xs text-cyan-700 dark:text-cyan-300">
+                    <i class="fa-solid fa-circle-info mt-0.5"></i>
+                    删除原文件后，记录将移动到删除历史中保存，可随时重新下载。
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="px-6 py-4 bg-slate-50 dark:bg-[#1e1e20] border-t border-slate-200 dark:border-white/10 flex justify-end gap-3">
+                <button onclick="closeModal('modal-delete')" class="px-4 py-2 rounded bg-slate-500 hover:bg-slate-600 text-white text-sm font-medium transition-colors"><i class="fa-solid fa-xmark mr-1"></i> 取消</button>
+                <button onclick="confirmDelete()" class="px-4 py-2 rounded bg-rose-600 hover:bg-rose-700 text-white text-sm font-medium transition-colors"><i class="fa-solid fa-trash-can mr-1"></i> 确认删除</button>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 全局变量
+    let currentPage = 1;
+    let perPage = 20;
+    let searchTerm = '';
+    let sortColumn = 'download_time';
+    let sortOrder = 'desc';
+    let statusFilter = 'all';
+    let seasonFilter = 'all';
+    let mediaTypeFilter = 'all';
+    let hardlinkFilter = 'all';
+    let groupBy = '';
+    let viewingGroup = null;
+    let currentDeleteHashId = null;
+    let hardlinkManager = null;
+    let requestCounter = 0; // 请求序列号，用于防止竞态条件
+
+    // 页面加载时初始化
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeEventListeners();
+        renderTable();
+        updateSortIndicators();
+
+        // 初始化硬链接管理器
+        hardlinkManager = new HardlinkManager();
+    });
+
+    // 初始化事件监听器
+    function initializeEventListeners() {
+        // 搜索功能
+        const searchInput = document.getElementById('search-input');
+        searchInput.addEventListener('input', (e) => {
+            searchTerm = e.target.value.trim();
+            currentPage = 1;
+            console.log('[Filter] 搜索变更:', searchTerm);
+            renderTable();
+        });
+
+        // 页面大小改变
+        document.getElementById('page-size').addEventListener('change', (e) => {
+            perPage = parseInt(e.target.value);
+            currentPage = 1;
+            console.log('[Filter] 页面大小变更:', perPage);
+            renderTable();
+        });
+
+        // 筛选器 - 使用统一的处理函数确保状态同步
+        document.getElementById('filter-status').addEventListener('change', (e) => {
+            const newValue = e.target.value;
+            console.log('[Filter] 状态筛选变更:', statusFilter, '->', newValue);
+            statusFilter = newValue;
+            currentPage = 1;
+            renderTable();
+        });
+
+        document.getElementById('filter-season').addEventListener('change', (e) => {
+            const newValue = e.target.value;
+            console.log('[Filter] 季度筛选变更:', seasonFilter, '->', newValue);
+            seasonFilter = newValue;
+            currentPage = 1;
+            renderTable();
+        });
+
+        document.getElementById('filter-media-type').addEventListener('change', (e) => {
+            const newValue = e.target.value;
+            console.log('[Filter] 媒体类型筛选变更:', mediaTypeFilter, '->', newValue);
+            mediaTypeFilter = newValue;
+            currentPage = 1;
+            renderTable();
+        });
+
+        document.getElementById('filter-hardlink').addEventListener('change', (e) => {
+            const newValue = e.target.value;
+            console.log('[Filter] 硬链接筛选变更:', hardlinkFilter, '->', newValue);
+            hardlinkFilter = newValue;
+            currentPage = 1;
+            renderTable();
+        });
+
+        document.getElementById('group-by').addEventListener('change', (e) => {
+            const newValue = e.target.value;
+            console.log('[Filter] 分组变更:', groupBy, '->', newValue);
+            groupBy = newValue;
+            viewingGroup = null; // 清除分组查看状态
+            currentPage = 1;
+            renderTable();
+        });
+    }
+
+    // 切换排序
+    function toggleSort(column) {
+        if (sortColumn === column) {
+            // 同一列,切换排序顺序
+            sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+        } else {
+            // 不同列,设置新列并默认降序
+            sortColumn = column;
+            sortOrder = 'desc';
+        }
+        currentPage = 1;
+        updateSortIndicators();
+        renderTable();
+    }
+
+    // 更新排序指示器
+    function updateSortIndicators() {
+        // 清除所有排序指示器
+        document.querySelectorAll('.sort-indicator').forEach(indicator => {
+            indicator.className = 'sort-indicator';
+            indicator.innerHTML = '<i class="fa-solid fa-sort"></i>';
+        });
+
+        // 设置当前排序列的指示器
+        const currentIndicator = document.getElementById(`sort-${sortColumn}`);
+        if (currentIndicator) {
+            currentIndicator.classList.add('active');
+            if (sortOrder === 'asc') {
+                currentIndicator.innerHTML = '<i class="fa-solid fa-sort-up"></i>';
+            } else {
+                currentIndicator.innerHTML = '<i class="fa-solid fa-sort-down"></i>';
+            }
+        }
+    }
+
+    // 渲染表格
+    async function renderTable() {
+        try {
+            // 增加请求序列号
+            requestCounter++;
+            const thisRequestId = requestCounter;
+
+            // 构建筛选参数，将 'all' 转换为空字符串
+            const actualStatusFilter = statusFilter === 'all' ? '' : statusFilter;
+            const actualSeasonFilter = seasonFilter === 'all' ? '' : seasonFilter;
+            const actualMediaTypeFilter = mediaTypeFilter === 'all' ? '' : mediaTypeFilter;
+            const actualHardlinkFilter = hardlinkFilter === 'all' ? '' : hardlinkFilter;
+
+            const params = new URLSearchParams({
+                page: currentPage,
+                per_page: perPage,
+                search: searchTerm,
+                sort_column: sortColumn,
+                sort_order: sortOrder,
+                status_filter: actualStatusFilter,
+                season_filter: actualSeasonFilter,
+                media_type_filter: actualMediaTypeFilter,
+                hardlink_filter: actualHardlinkFilter,
+                group_by: groupBy,
+                viewing_group: viewingGroup || ''
+            });
+
+            console.log(`[RenderTable #${thisRequestId}] 请求参数:`, {
+                page: currentPage,
+                per_page: perPage,
+                status: actualStatusFilter,
+                season: actualSeasonFilter,
+                media_type: actualMediaTypeFilter,
+                hardlink: actualHardlinkFilter,
+                group_by: groupBy,
+                viewing_group: viewingGroup
+            });
+
+            const response = await fetch(`{{ url_for('downloads.api_get_downloads') }}?${params}`);
+            const data = await response.json();
+
+            // 检查这是否还是最新的请求
+            if (thisRequestId !== requestCounter) {
+                console.log(`[RenderTable #${thisRequestId}] 请求已过期，忽略响应（当前请求: #${requestCounter}）`);
+                return;
+            }
+
+            console.log(`[RenderTable #${thisRequestId}] 响应数据:`, data);
+
+            if (data.error) {
+                showError('加载失败: ' + data.error);
+                return;
+            }
+
+            // 根据是否分组渲染不同的内容
+            if (groupBy && !viewingGroup) {
+                renderGroupedDownloads(data);
+                // 分组视图的分页信息
+                updatePagination({
+                    total_count: data.total_count || 0,
+                    current_page: 1,
+                    per_page: data.total_count || 0,
+                    total_pages: 1
+                });
+            } else {
+                renderDownloads(data);
+                // 普通视图的分页信息
+                updatePagination({
+                    total_count: data.total_count || 0,
+                    current_page: data.current_page || 1,
+                    per_page: data.per_page || perPage,
+                    total_pages: data.total_pages || 0
+                });
+            }
+
+            updateTotalRecords(data.total_count || 0);
+        } catch (error) {
+            console.error('[RenderTable] 错误:', error);
+            showError('加载失败: ' + error.message);
+        }
+    }
+
+    // 渲染分组下载
+    function renderGroupedDownloads(data) {
+        const tbody = document.getElementById('table-body');
+        
+        if (!data.groups || data.groups.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="9" class="text-center py-8 text-slate-500 dark:text-gray-400">
+                        <i class="fa-solid fa-info-circle text-2xl mb-2"></i>
+                        <p>暂无数据</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        let html = '';
+        data.groups.forEach(group => {
+            const groupName = group.group_name || '(未分类)';
+            const completedPercent = group.total_count > 0 ? Math.round((group.completed_count / group.total_count) * 100) : 0;
+            const hardlinkPercent = group.total_count > 0 ? Math.round((group.hardlink_count / group.total_count) * 100) : 0;
+
+            html += `
+                <tr class="hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer" onclick="viewGroupDetails('${escapeJs(groupName)}')">
+                    <td class="py-3 pl-5 px-2 font-medium text-slate-700 dark:text-white">${escapeHtml(groupName)}</td>
+                    <td class="py-3 px-2">
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                            ${group.total_count} 项目
+                        </span>
+                    </td>
+                    <td class="py-3 px-2">-</td>
+                    <td class="py-3 px-2 text-center">-</td>
+                    <td class="py-3 px-2 text-center">
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                            ${group.completed_count} (${completedPercent}%)
+                        </span>
+                    </td>
+                    <td class="py-3 px-2 text-center">
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300">
+                            ${group.hardlink_count} (${hardlinkPercent}%)
+                        </span>
+                    </td>
+                    <td class="py-3 px-2 text-right">-</td>
+                    <td class="py-3 px-2 text-right">-</td>
+                    <td class="py-3 pr-4 pl-2 text-right">
+                        <button onclick="event.stopPropagation(); viewGroupDetails('${escapeJs(groupName)}')" class="w-7 h-7 rounded-md flex items-center justify-center bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 text-blue-500 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 transition-colors" title="查看详情">
+                            <i class="fa-solid fa-eye text-xs"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        tbody.innerHTML = html;
+    }
+
+    // 渲染下载列表
+    function renderDownloads(data) {
+        const tbody = document.getElementById('table-body');
+        
+        if (!data.downloads || data.downloads.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="10" class="text-center py-8 text-slate-500 dark:text-gray-400">
+                        <i class="fa-solid fa-info-circle text-2xl mb-2"></i>
+                        <p>暂无下载记录</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        let html = '';
+        
+        // 如果正在查看分组详情，显示返回按钮
+        if (viewingGroup) {
+            html += `
+                <tr>
+                    <td colspan="10" class="py-3 px-5 bg-blue-50 dark:bg-blue-900/10">
+                        <button onclick="exitGroupView()" class="inline-flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200">
+                            <i class="fa-solid fa-arrow-left"></i> 返回分组列表
+                        </button>
+                        <span class="ml-4 text-sm text-slate-600 dark:text-gray-300">当前查看: <strong>${escapeHtml(viewingGroup)}</strong></span>
+                    </td>
+                </tr>
+            `;
+        }
+
+        data.downloads.forEach(download => {
+            const statusClass = getStatusBadgeClass(download.status);
+            const hardlinkIcon = download.has_hardlinks ?
+                '<i class="fa-solid fa-check-circle text-emerald-500 text-xs" title="已硬链接"></i>' :
+                '<i class="fa-regular fa-circle text-slate-300 dark:text-gray-600 text-xs" title="未硬链接"></i>';
+
+            let actions = `
+                <div class="flex justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+                    <button onclick="checkTorrent('${download.hash_id}')" class="w-7 h-7 rounded-md flex items-center justify-center bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 text-blue-500 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 transition-colors" title="重新检查">
+                        <i class="fa-solid fa-rotate text-xs"></i>
+                    </button>
+            `;
+
+
+            if (download.status === 'completed') {
+                actions += `
+                    <button onclick="openLinkManager('${download.hash_id}')" class="w-7 h-7 rounded-md flex items-center justify-center bg-yellow-50 hover:bg-yellow-100 dark:bg-yellow-500/10 dark:hover:bg-yellow-500/20 text-yellow-500 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-500/20 transition-colors" title="硬链接管理">
+                        <i class="fa-solid fa-gear text-xs"></i>
+                    </button>
+                    
+                    <button onclick="sendWebhook('${download.hash_id}')" class="w-7 h-7 rounded-md flex items-center justify-center bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/20 text-emerald-500 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 transition-colors" title="发送通知">
+                        <i class="fa-solid fa-paper-plane text-xs"></i>
+                    </button>
+                `;
+            }
+
+            actions += `
+                    <button onclick="openDeleteConfirm('${download.hash_id}', '${escapeJs(download.anime_title || download.original_filename)}', '${escapeJs(download.original_filename)}', ${download.hardlink_count || 0})" class="w-7 h-7 rounded-md flex items-center justify-center bg-red-50 hover:bg-red-100 dark:bg-red-500/10 dark:hover:bg-red-500/20 text-red-500 dark:text-red-400 border border-red-200 dark:border-red-500/20 transition-colors" title="删除记录">
+                        <i class="fa-solid fa-trash text-xs"></i>
+                    </button>
+                </div>
+            `;
+
+            html += `
+                <tr class="group transition-colors hover:bg-slate-50 dark:hover:bg-white/5">
+                    <td class="py-3 pl-5 px-2">
+                        <div class="font-medium text-slate-700 dark:text-white truncate max-w-[180px]" title="${escapeHtml(download.anime_title || '-')}">${escapeHtml(download.anime_title || '-')}</div>
+                    </td>
+                    <td class="py-3 px-2">
+                        <div class="font-mono text-xs text-slate-500 dark:text-gray-400 truncate max-w-[250px]" title="${escapeHtml(download.original_filename)}">${escapeHtml(download.original_filename)}</div>
+                    </td>
+                    <td class="py-3 px-2 text-xs text-slate-500 dark:text-gray-400 whitespace-nowrap truncate max-w-[100px]" title="${escapeHtml(download.subtitle_group || '-')}">${escapeHtml(download.subtitle_group || '-')}</td>
+                    <td class="py-3 px-2 text-center">
+                        <span class="text-xs font-mono text-slate-600 dark:text-gray-500 bg-slate-100 dark:bg-white/5 px-1.5 py-0.5 rounded">S${download.season || 1}</span>
+                    </td>
+                    <td class="py-3 px-2 text-center">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${download.media_type === 'live_action' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'}">
+                            ${download.media_type === 'live_action' ? 'Live' : 'Anime'}
+                        </span>
+                    </td>
+                    <td class="py-3 px-2 text-center">
+                        <span class="${statusClass} px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">
+                            ${download.status}
+                        </span>
+                    </td>
+                    <td class="py-3 px-2 text-center">
+                        ${hardlinkIcon}
+                    </td>
+                    <td class="py-3 px-2 text-right">
+                        <div class="font-mono text-[10px] text-slate-500 dark:text-gray-500">${formatDate(download.download_time, 'date')}</div>
+                        <div class="font-mono text-[10px] text-slate-400 dark:text-gray-400">${formatDate(download.download_time, 'time')}</div>
+                    </td>
+                    <td class="py-3 px-2 text-right">
+                        <div class="font-mono text-[10px] text-slate-500 dark:text-gray-500">${formatDate(download.completion_time, 'date')}</div>
+                        <div class="font-mono text-[10px] text-slate-400 dark:text-gray-400">${formatDate(download.completion_time, 'time')}</div>
+                    </td>
+                    <td class="py-3 pr-4 pl-2 text-right">
+                        ${actions}
+                    </td>
+                </tr>
+            `;
+        });
+
+        tbody.innerHTML = html;
+    }
+
+    // 更新分页信息
+    function updatePagination(data) {
+        const paginationControls = document.getElementById('pagination-controls');
+        const pageStart = document.getElementById('page-start');
+        const pageEnd = document.getElementById('page-end');
+
+        // 确保有有效的数据
+        const totalCount = data.total_count || 0;
+        const currentPage = data.current_page || 1;
+        const perPage = data.per_page || 20;
+        const totalPages = data.total_pages || 0;
+
+        // 计算显示范围
+        let start = 0;
+        let end = 0;
+
+        if (totalCount > 0) {
+            start = (currentPage - 1) * perPage + 1;
+            end = Math.min(currentPage * perPage, totalCount);
+        }
+
+        pageStart.textContent = start;
+        pageEnd.textContent = end;
+
+        let html = '';
+
+        // 上一页按钮
+        if (currentPage > 1) {
+            html += `
+                <button onclick="changePage(${currentPage - 1})" class="px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-white/10 text-slate-400 dark:text-gray-400 transition-colors">
+                    <i class="fa-solid fa-chevron-left text-xs"></i>
+                </button>
+            `;
+        } else {
+            html += `
+                <button class="px-2 py-1 rounded text-slate-300 dark:text-gray-600 cursor-not-allowed" disabled>
+                    <i class="fa-solid fa-chevron-left text-xs"></i>
+                </button>
+            `;
+        }
+
+        // 页码按钮
+        if (totalPages > 0) {
+            const startPage = Math.max(1, currentPage - 2);
+            const endPage = Math.min(totalPages, currentPage + 2);
+
+            if (startPage > 1) {
+                html += `<button onclick="changePage(1)" class="px-2.5 py-1 rounded hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 dark:text-gray-400 text-xs transition-colors">1</button>`;
+                if (startPage > 2) {
+                    html += `<span class="px-2 text-slate-400 dark:text-gray-600 text-xs">...</span>`;
+                }
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                if (i === currentPage) {
+                    html += `<button class="px-2.5 py-1 rounded bg-blue-600 text-white text-xs font-bold">${i}</button>`;
+                } else {
+                    html += `<button onclick="changePage(${i})" class="px-2.5 py-1 rounded hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 dark:text-gray-400 text-xs transition-colors">${i}</button>`;
+                }
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    html += `<span class="px-2 text-slate-400 dark:text-gray-600 text-xs">...</span>`;
+                }
+                html += `<button onclick="changePage(${totalPages})" class="px-2.5 py-1 rounded hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 dark:text-gray-400 text-xs transition-colors">${totalPages}</button>`;
+            }
+        }
+
+        // 下一页按钮
+        if (currentPage < totalPages) {
+            html += `
+                <button onclick="changePage(${currentPage + 1})" class="px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-white/10 text-slate-400 dark:text-gray-400 transition-colors">
+                    <i class="fa-solid fa-chevron-right text-xs"></i>
+                </button>
+            `;
+        } else {
+            html += `
+                <button class="px-2 py-1 rounded text-slate-300 dark:text-gray-600 cursor-not-allowed" disabled>
+                    <i class="fa-solid fa-chevron-right text-xs"></i>
+                </button>
+            `;
+        }
+
+        paginationControls.innerHTML = html;
+    }
+
+    // 更新总记录数
+    function updateTotalRecords(count) {
+        document.getElementById('total-records').textContent = count;
+        document.getElementById('total-count-footer').textContent = count;
+    }
+
+    // 切换页面
+    function changePage(page) {
+        currentPage = page;
+        renderTable();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // 查看分组详情
+    function viewGroupDetails(groupName) {
+        console.log('查看分组详情:', groupName);
+        viewingGroup = groupName;
+        currentPage = 1;
+        renderTable();
+    }
+
+    // 退出分组查看
+    function exitGroupView() {
+        console.log('退出分组查看');
+        viewingGroup = null;
+        currentPage = 1;
+        renderTable();
+    }
+
+    // 重置筛选器
+    function resetFilters() {
+        document.getElementById('search-input').value = '';
+        document.getElementById('filter-status').value = 'all';
+        document.getElementById('filter-season').value = 'all';
+        document.getElementById('filter-media-type').value = 'all';
+        document.getElementById('filter-hardlink').value = 'all';
+        document.getElementById('group-by').value = '';
+
+        searchTerm = '';
+        statusFilter = 'all';
+        seasonFilter = 'all';
+        mediaTypeFilter = 'all';
+        hardlinkFilter = 'all';
+        groupBy = '';
+        viewingGroup = null;
+        currentPage = 1;
+        renderTable();
+    }
+
+    // Modal 控制
+    function openModal(id) { 
+        document.getElementById(id).classList.remove('hidden'); 
+    }
+    
+    function closeModal(id) { 
+        document.getElementById(id).classList.add('hidden'); 
+    }
+
+    // 检查单个torrent
+    async function checkTorrent(hashId) {
+        try {
+            const response = await fetch(`{{ url_for('downloads.api_check_torrent', hash_id='HASH_ID') }}`.replace('HASH_ID', hashId), {
+                method: 'POST'
+            });
+            const data = await response.json();
+
+            if (data.error) {
+                showError('检查失败: ' + data.error);
+                return;
+            }
+
+            showSuccess(`状态已更新: ${data.status}`);
+            renderTable();
+        } catch (error) {
+            showError('检查失败: ' + error.message);
+        }
+    }
+
+    // 检查所有文件
+    async function checkAllFiles() {
+        if (!confirm('确定要检查所有torrent的状态吗？这可能需要一些时间。')) {
+            return;
+        }
+
+        try {
+            const response = await fetch('{{ url_for("downloads.api_check_all_torrents") }}', {
+                method: 'POST'
+            });
+            const data = await response.json();
+
+            if (data.error) {
+                showError('检查失败: ' + data.error);
+                return;
+            }
+
+            showSuccess(`检查完成！已检查 ${data.checked} 个torrent，更新 ${data.updated} 个状态`);
+            renderTable();
+        } catch (error) {
+            showError('检查失败: ' + error.message);
+        }
+    }
+
+    // 检查未完成的torrents
+    async function checkIncompleteTorrents() {
+        if (!confirm('确定要检查所有未完成的torrent吗？')) {
+            return;
+        }
+
+        try {
+            const response = await fetch('{{ url_for("downloads.api_check_incomplete_torrents") }}', {
+                method: 'POST'
+            });
+            const data = await response.json();
+
+            if (data.error) {
+                showError('检查失败: ' + data.error);
+                return;
+            }
+
+            showSuccess(`检查完成！已检查 ${data.checked} 个未完成的torrent，更新 ${data.updated} 个状态`);
+            renderTable();
+        } catch (error) {
+            showError('检查失败: ' + error.message);
+        }
+    }
+
+    // 批量发送Webhook（加入队列异步处理）
+    async function sendWebhookForCompleted() {
+        if (!confirm('确定要为所有已完成但没有硬链接的torrent发送webhook吗？\n\n任务将加入后台队列依次处理，可在"AI状态"页面查看处理进度。')) {
+            return;
+        }
+
+        try {
+            const response = await fetch('{{ url_for("downloads.api_send_webhook_batch") }}', {
+                method: 'POST'
+            });
+            const data = await response.json();
+
+            if (data.error) {
+                showError('发送失败: ' + data.error);
+                return;
+            }
+
+            if (data.queued === 0) {
+                showSuccess('没有需要处理的下载项');
+            } else {
+                showSuccess(`✅ 已将 ${data.queued} 个项目加入处理队列\n\n当前队列长度: ${data.queue_len}\n\n可在"AI状态"页面查看处理进度`);
+            }
+        } catch (error) {
+            showError('发送失败: ' + error.message);
+        }
+    }
+
+    // 发送单个Webhook（加入队列异步处理）
+    async function sendWebhook(hashId) {
+        if (!confirm('确定要为此torrent发送webhook吗？\n\n任务将加入后台队列处理。')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`{{ url_for('downloads.api_send_webhook', hash_id='HASH_ID') }}`.replace('HASH_ID', hashId), {
+                method: 'POST'
+            });
+            const data = await response.json();
+
+            if (data.error) {
+                showError('发送webhook失败: ' + data.error);
+                return;
+            }
+
+            showSuccess(`✅ 已加入处理队列\n\n队列长度: ${data.queue_len}\n\n可在"AI状态"页面查看处理进度`);
+        } catch (error) {
+            showError('发送webhook失败: ' + error.message);
+        }
+    }
+
+
+    // 打开硬链接管理器
+    async function openLinkManager(hashId) {
+        openModal('modal-link-manager');
+        await hardlinkManager.loadTorrentFiles(hashId);
+    }
+
+    // 打开删除确认对话框
+    function openDeleteConfirm(hashId, title, filename, hardlinkCount) {
+        currentDeleteHashId = hashId;
+
+        document.getElementById('delete-modal-info').innerHTML = `
+            <div class="flex"><span class="font-bold w-16 shrink-0">标题:</span> <span class="truncate">${escapeHtml(title)}</span></div>
+            <div class="flex"><span class="font-bold w-16 shrink-0">文件名:</span> <span class="truncate text-xs font-mono">${escapeHtml(filename)}</span></div>
+            <div class="flex"><span class="font-bold w-16 shrink-0">Hash:</span> <span class="truncate text-xs font-mono text-slate-400">${hashId}</span></div>
+            <div class="flex"><span class="font-bold w-16 shrink-0">硬链接:</span> <span class="text-sm ${hardlinkCount > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}">${hardlinkCount} 个</span></div>
+        `;
+
+        // 重置复选框
+        document.getElementById('del-source').checked = false;
+        document.getElementById('del-link').checked = false;
+
+        // 根据硬链接数量控制删除硬链接选项的启用状态
+        const delLinkCheckbox = document.getElementById('del-link');
+        const delLinkLabel = delLinkCheckbox.nextElementSibling;
+
+        if (hardlinkCount === 0) {
+            delLinkCheckbox.disabled = true;
+            delLinkCheckbox.checked = false;
+            delLinkLabel.classList.add('opacity-50', 'cursor-not-allowed');
+            delLinkLabel.style.cursor = 'not-allowed';
+        } else {
+            delLinkCheckbox.disabled = false;
+            delLinkLabel.classList.remove('opacity-50', 'cursor-not-allowed');
+            delLinkLabel.style.cursor = 'pointer';
+        }
+
+        openModal('modal-delete');
+    }
+
+    // 确认删除
+    async function confirmDelete() {
+        const deleteFiles = document.getElementById('del-source').checked;
+        const deleteHardlinks = document.getElementById('del-link').checked;
+
+        if (!deleteFiles && !deleteHardlinks) {
+            showError('请至少选择一个删除选项');
+            return;
+        }
+
+        try {
+            const response = await fetch(`{{ url_for('downloads.api_delete_download', hash_id='HASH_ID') }}`.replace('HASH_ID', currentDeleteHashId), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    delete_files: deleteFiles,
+                    delete_hardlinks: deleteHardlinks
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.error) {
+                showError('删除失败: ' + data.error);
+                return;
+            }
+
+            let message = '删除成功！';
+            if (data.deleted_files) {
+                message += ' 已从qBittorrent删除torrent及文件，记录已移动到删除历史。';
+            }
+            if (data.deleted_hardlinks) {
+                message += ` 已删除 ${data.hardlinks_deleted_count || 0} 个硬链接。`;
+            }
+
+            showSuccess(message);
+            closeModal('modal-delete');
+            renderTable();
+
+        } catch (error) {
+            showError('删除失败: ' + error.message);
+        }
+    }
+
+    // 升级版硬链接管理器
+    class HardlinkManager {
+        constructor() {
+            this.currentHashId = null;
+            this.torrentFiles = [];
+            this.selectedFiles = new Set();
+            this.currentFilter = 'all'; // all, video, subtitle, other
+        }
+
+        async loadTorrentFiles(hashId) {
+            this.currentHashId = hashId;
+            this.selectedFiles.clear();
+            this.currentFilter = 'all';
+            this.updateFilterTabs();
+            this.updateActionButtons(); // 初始化按钮状态
+
+            // Loading 状态
+            document.getElementById('manager-file-list').innerHTML = `
+                <div class="flex flex-col items-center justify-center py-20 text-blue-500">
+                    <i class="fa-solid fa-circle-notch fa-spin text-3xl mb-3"></i>
+                    <p class="text-sm font-medium">正在读取文件列表...</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch(`{{ url_for('downloads.api_get_torrent_files', hash_id='HASH_ID') }}`.replace('HASH_ID', hashId));
+                const data = await response.json();
+
+                if (data.error) {
+                    showError('获取文件列表失败: ' + data.error);
+                    return;
+                }
+
+                // 处理数据类型以便筛选
+                this.torrentFiles = data.files.map(f => {
+                    let category = 'other';
+                    if (f.type === 'video') category = 'video';
+                    if (f.type === 'subtitle') category = 'subtitle';
+                    return { ...f, category };
+                });
+
+                this.renderTorrentHeader(data.torrent_info);
+                this.updateCounts();
+                this.renderFilesList();
+
+            } catch (error) {
+                showError('加载文件列表失败: ' + error.message);
+                document.getElementById('manager-file-list').innerHTML = `
+                    <div class="text-center py-10 text-rose-500">加载失败</div>
+                `;
+            }
+        }
+
+        // 渲染顶部简要信息
+        renderTorrentHeader(info) {
+            document.getElementById('manager-torrent-summary').innerHTML = `
+                <div class="flex items-center gap-1"><i class="fa-regular fa-hard-drive"></i> ${formatFileSize(info.size)}</div>
+                <div class="w-px h-3 bg-slate-300 dark:bg-slate-600 mx-2"></div>
+                <div class="flex items-center gap-1 text-slate-600 dark:text-slate-300 truncate max-w-md" title="${escapeHtml(info.save_path)}">
+                    <i class="fa-regular fa-folder-open"></i> ${escapeHtml(info.save_path)}
+                </div>
+            `;
+        }
+
+        // 更新各类型数量
+        updateCounts() {
+            const counts = { all: this.torrentFiles.length, video: 0, subtitle: 0, other: 0 };
+            this.torrentFiles.forEach(f => {
+                if (counts[f.category] !== undefined) counts[f.category]++;
+            });
+            
+            document.getElementById('count-all').innerText = counts.all;
+            document.getElementById('count-video').innerText = counts.video;
+            document.getElementById('count-subtitle').innerText = counts.subtitle;
+            document.getElementById('count-other').innerText = counts.other;
+        }
+
+        // 设置筛选器
+        setFilter(filter) {
+            this.currentFilter = filter;
+            this.updateFilterTabs();
+            this.renderFilesList();
+        }
+
+        updateFilterTabs() {
+            document.querySelectorAll('.filter-tab').forEach(btn => {
+                if (btn.dataset.filter === this.currentFilter) {
+                    btn.classList.add('active');
+                    btn.classList.remove('text-slate-500', 'dark:text-slate-400');
+                } else {
+                    btn.classList.remove('active');
+                    btn.classList.add('text-slate-500', 'dark:text-slate-400');
+                }
+            });
+        }
+
+        // 更新底部动作按钮状态 (Create/Delete/Rename)
+        updateActionButtons() {
+            const btnCreate = document.getElementById('btn-create-link');
+            const btnDelete = document.getElementById('btn-delete-link');
+            const btnRename = document.getElementById('btn-rename-link');
+            
+            // 如果没有选择任何文件
+            if (this.selectedFiles.size === 0) {
+                btnCreate.disabled = true;
+                btnDelete.disabled = true;
+                btnRename.disabled = true;
+                return;
+            }
+
+            const selectedIndices = Array.from(this.selectedFiles);
+            
+            // 检查是否有任何已链接的文件 (如有，则不能创建)
+            const hasAnyLinked = selectedIndices.some(index => this.torrentFiles[index].has_hardlink);
+            
+            // 检查是否有任何未链接的文件 (如有，则不能删除/重命名)
+            const hasAnyUnlinked = selectedIndices.some(index => !this.torrentFiles[index].has_hardlink);
+
+            // 设置按钮状态
+            // Create: 只有当所有选中的都是未链接的 (即没有一个已链接的) 才能启用
+            btnCreate.disabled = hasAnyLinked;
+
+            // Delete/Rename: 只有当所有选中的都是已链接的 (即没有一个未链接的) 才能启用
+            btnDelete.disabled = hasAnyUnlinked;
+            btnRename.disabled = hasAnyUnlinked;
+        }
+
+        // 渲染文件列表 (核心逻辑)
+        renderFilesList() {
+            const filesList = document.getElementById('manager-file-list');
+            const emptyState = document.getElementById('empty-state-filter');
+            
+            // 1. 筛选文件
+            const filteredFiles = this.torrentFiles.map((file, index) => ({...file, originalIndex: index}))
+                .filter(file => this.currentFilter === 'all' || file.category === this.currentFilter);
+
+            if (filteredFiles.length === 0) {
+                filesList.innerHTML = '';
+                filesList.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                return;
+            } else {
+                filesList.classList.remove('hidden');
+                emptyState.classList.add('hidden');
+            }
+
+            // 2. 生成 HTML
+            let html = '';
+            filteredFiles.forEach(item => {
+                const file = item; // 包含 originalIndex
+                const index = item.originalIndex;
+                const isSelected = this.selectedFiles.has(index);
+                
+                // 图标与颜色逻辑
+                let iconClass = 'fa-file text-slate-400';
+                
+                if (file.type === 'video') {
+                    iconClass = 'fa-file-video text-blue-500';
+                } else if (file.type === 'subtitle') {
+                    iconClass = 'fa-file-code text-amber-500';
+                }
+
+                // 状态徽章
+                const statusBadge = file.has_hardlink 
+                    ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">
+                        <i class="fa-solid fa-link mr-1"></i> 已链接
+                    </span>`
+                    : `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-400 border border-slate-200 dark:border-white/10">
+                        未链接
+                    </span>`;
+
+                // 硬链接路径显示
+                const linkPathDisplay = file.has_hardlink 
+                    ? `<div class="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1 flex items-start gap-1" title="${escapeHtml(file.hardlink_info.hardlink_path)}">
+                        <i class="fa-solid fa-share fa-flip-vertical mt-0.5 shrink-0"></i> 
+                        <span class="break-all" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.2;">${escapeHtml(file.hardlink_info.hardlink_path)}</span>
+                    </div>` 
+                    : '';
+
+                // 输入框值
+                const inputValue = isSelected && file.has_hardlink && file.hardlink_info ?
+                    file.hardlink_info.hardlink_path.split(/[/\\]/).pop() : '';
+
+                // 选中样式
+                const selectedClass = isSelected ? 'bg-blue-50/50 dark:bg-blue-900/10' : 'hover:bg-slate-50 dark:hover:bg-white/[0.02]';
+
+                html += `
+                    <div class="file-row grid grid-cols-12 gap-4 px-6 py-3 items-center transition-colors border-l-2 ${isSelected ? 'border-blue-500' : 'border-transparent'} ${selectedClass}" style="min-height: 80px;">
+                        
+                        <!-- 1. Checkbox & Icon & Name -->
+                        <div class="col-span-12 md:col-span-7 flex items-start gap-3 min-w-0">
+                            <div class="pt-1 shrink-0">
+                                <input type="checkbox" class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer transition-all"
+                                    data-index="${index}" ${isSelected ? 'checked' : ''}
+                                    onchange="hardlinkManager.toggleFileSelection(${index})">
+                            </div>
+                            <div class="text-lg opacity-80 pt-0.5 shrink-0">${item.category === 'video' ? '<i class="fa-solid fa-file-video text-blue-500"></i>' : (item.category === 'subtitle' ? '<i class="fa-solid fa-closed-captioning text-amber-500"></i>' : '<i class="fa-regular fa-file text-slate-400"></i>')}</div>
+                            <div class="min-w-0 flex-1 flex flex-col justify-center">
+                                <div class="text-sm font-medium text-slate-700 dark:text-slate-200 break-all" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.2;" title="${escapeHtml(file.name)}">
+                                    ${escapeHtml(file.name)}
+                                </div>
+                                <div class="text-[10px] text-slate-400 font-mono mt-1 break-all" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.2;">${escapeHtml(file.relative_path)}</div>
+                                ${linkPathDisplay}
+                            </div>
+                        </div>
+
+                        <!-- 2. Size -->
+                        <div class="col-span-2 md:col-span-1 text-right hidden md:block">
+                            <span class="text-xs font-mono text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-white/5 px-1.5 py-0.5 rounded">${formatFileSize(file.size)}</span>
+                        </div>
+
+                        <!-- 3. Status -->
+                        <div class="col-span-2 md:col-span-1 text-center hidden md:block">
+                            ${statusBadge}
+                        </div>
+
+                        <!-- 4. Rename Input -->
+                        <div class="col-span-12 md:col-span-3 pl-2 md:pl-0 mt-2 md:mt-0">
+                            <div class="relative">
+                                <input type="text" class="w-full form-control rounded-lg px-3 py-1.5 text-xs custom-name-input bg-white dark:bg-[#0F0F11] border border-slate-200 dark:border-white/10 transition-all ${isSelected ? 'text-slate-700 dark:text-white' : 'text-slate-400'}"
+                                    placeholder="${isSelected ? '输入自定义文件名' : '选中以重命名'}"
+                                    data-index="${index}" value="${escapeHtml(inputValue)}"
+                                    ${isSelected ? '' : 'disabled'}
+                                    onclick="event.stopPropagation()"> <!-- 防止点击输入框触发行选择 -->
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            filesList.innerHTML = html;
+        }
+
+        // 切换单个文件选择
+        toggleFileSelection(index) {
+            const checkbox = document.querySelector(`input[type="checkbox"][data-index="${index}"]`);
+            const customNameInput = document.querySelector(`.custom-name-input[data-index="${index}"]`);
+            const file = this.torrentFiles[index];
+
+            if (checkbox.checked) {
+                this.selectedFiles.add(index);
+                customNameInput.disabled = false;
+                customNameInput.focus();
+                
+                // 智能预填充：如果是已硬链文件，显示当前名；如果是新文件，可选择预填原名
+                if (file.has_hardlink && file.hardlink_info) {
+                    customNameInput.value = file.hardlink_info.hardlink_path.split(/[/\\]/).pop();
+                } else if (!customNameInput.value) {
+                    // 可选：如果不希望预填原名，可以留空。这里留空体验较好，用户知道留空=使用原名
+                }
+            } else {
+                this.selectedFiles.delete(index);
+                customNameInput.disabled = true;
+                customNameInput.value = ''; // 清空输入框，视觉上复位
+            }
+
+            // 更新按钮状态
+            this.updateActionButtons();
+
+            // 重新渲染当前行样式 (不必重绘整个列表，提升性能)
+            const row = checkbox.closest('.file-row');
+            if (checkbox.checked) {
+                row.classList.add('bg-blue-50/50', 'dark:bg-blue-900/10', 'border-blue-500');
+                row.classList.remove('border-transparent');
+            } else {
+                row.classList.remove('bg-blue-50/50', 'dark:bg-blue-900/10', 'border-blue-500');
+                row.classList.add('border-transparent');
+            }
+        }
+
+        // 全选 (支持仅全选当前筛选类别)
+        selectAllFiles() {
+            let count = 0;
+            this.torrentFiles.forEach((file, index) => {
+                // 仅选中符合当前 Filter 的文件
+                if (this.currentFilter === 'all' || file.category === this.currentFilter) {
+                    this.selectedFiles.add(index);
+                    count++;
+                }
+            });
+            
+            this.updateActionButtons();
+            
+            if (count > 0) {
+                this.renderFilesList(); // 需要重绘以更新 Input 状态
+            }
+        }
+
+        // 清空选择
+        clearSelection() {
+            this.selectedFiles.clear();
+            this.updateActionButtons();
+            this.renderFilesList();
+        }
+
+        // 创建硬链接
+        async createHardlinks() {
+            if (this.selectedFiles.size === 0) {
+                showError('请先勾选需要创建硬链接的文件');
+                return;
+            }
+
+            // 二次验证：确保所选文件没有已链接的
+            const hasLinked = Array.from(this.selectedFiles).some(index => this.torrentFiles[index].has_hardlink);
+            if (hasLinked) {
+                showError('所选文件中包含已创建硬链接的文件，无法重复创建。请取消勾选已链接文件。');
+                return;
+            }
+            
+            const targetPath = document.getElementById('target-path-input').value.trim();
+            const selectedFilesData = [];
+
+            this.selectedFiles.forEach(index => {
+                const file = this.torrentFiles[index];
+                const customNameInput = document.querySelector(`.custom-name-input[data-index="${index}"]`);
+                const customName = customNameInput ? customNameInput.value.trim() : '';
+
+                selectedFilesData.push({
+                    relative_path: file.relative_path,
+                    custom_name: customName
+                });
+            });
+
+            if (!confirm(`确定要为 ${selectedFilesData.length} 个文件创建硬链接吗？`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`{{ url_for('downloads.api_create_hardlinks', hash_id='HASH_ID') }}`.replace('HASH_ID', this.currentHashId), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        files: selectedFilesData,
+                        target_path: targetPath
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    showError('创建硬链接失败: ' + data.error);
+                    return;
+                }
+
+                let message = `成功创建 ${data.created_links.length} 个硬链接`;
+                if (data.failed_links.length > 0) {
+                    message += `，${data.failed_links.length} 个失败`;
+                }
+
+                showSuccess(message);
+                closeModal('modal-link-manager');
+                renderTable();
+
+            } catch (error) {
+                showError('创建硬链接失败: ' + error.message);
+            }
+        }
+
+        // 删除硬链接
+        async deleteHardlinks() {
+            // 二次验证：确保所选文件都是已链接的
+            const hasUnlinked = Array.from(this.selectedFiles).some(index => !this.torrentFiles[index].has_hardlink);
+            if (hasUnlinked) {
+                showError('所选文件中包含未创建硬链接的文件，无法执行删除操作。请取消勾选未链接文件。');
+                return;
+            }
+
+            const selectedWithHardlinks = [];
+            this.selectedFiles.forEach(index => {
+                const file = this.torrentFiles[index];
+                if (file.has_hardlink && file.hardlink_info) {
+                    selectedWithHardlinks.push(file);
+                }
+            });
+
+            if (selectedWithHardlinks.length === 0) {
+                showError('所选文件中没有已创建的硬链接');
+                return;
+            }
+
+            if (!confirm(`确定要删除 ${selectedWithHardlinks.length} 个硬链接吗？此操作不可撤销！`)) {
+                return;
+            }
+
+            let successCount = 0;
+            let failCount = 0;
+            const errors = [];
+
+            for (const file of selectedWithHardlinks) {
+                try {
+                    const response = await fetch(`/api/hardlinks/${file.hardlink_info.id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.success) {
+                        successCount++;
+                    } else {
+                        failCount++;
+                        errors.push(`${file.name}: ${data.error || '未知错误'}`);
+                    }
+                } catch (error) {
+                    failCount++;
+                    errors.push(`${file.name}: ${error.message}`);
+                }
+            }
+
+            let message = `删除完成！成功 ${successCount} 个`;
+            if (failCount > 0) {
+                message += `，失败 ${failCount} 个`;
+                if (errors.length > 0) {
+                    console.error('删除硬链接错误:', errors);
+                }
+            }
+
+            if (failCount > 0) {
+                showError(message);
+            } else {
+                showSuccess(message);
+            }
+
+            await this.loadTorrentFiles(this.currentHashId);
+            renderTable();
+        }
+
+        // 重命名硬链接
+        async renameHardlinks() {
+            // 二次验证：确保所选文件都是已链接的
+            const hasUnlinked = Array.from(this.selectedFiles).some(index => !this.torrentFiles[index].has_hardlink);
+            if (hasUnlinked) {
+                showError('所选文件中包含未创建硬链接的文件，无法执行重命名操作。请取消勾选未链接文件。');
+                return;
+            }
+
+            const selectedWithHardlinks = [];
+            this.selectedFiles.forEach(index => {
+                const file = this.torrentFiles[index];
+                const customNameInput = document.querySelector(`.custom-name-input[data-index="${index}"]`);
+                const newName = customNameInput ? customNameInput.value.trim() : '';
+
+                if (file.has_hardlink && file.hardlink_info && newName) {
+                    const currentName = file.hardlink_info.hardlink_path.split(/[/\\]/).pop();
+                    if (newName !== currentName) {
+                        selectedWithHardlinks.push({
+                            file: file,
+                            newName: newName
+                        });
+                    }
+                }
+            });
+
+            if (selectedWithHardlinks.length === 0) {
+                showError('请在自定义名称输入框中输入新文件名（仅限已硬链文件）');
+                return;
+            }
+
+            if (!confirm(`确定要重命名 ${selectedWithHardlinks.length} 个硬链接吗？`)) {
+                return;
+            }
+
+            let successCount = 0;
+            let failCount = 0;
+            const errors = [];
+
+            for (const item of selectedWithHardlinks) {
+                try {
+                    const response = await fetch(`/api/hardlinks/${item.file.hardlink_info.id}/rename`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            new_name: item.newName
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok && data.success) {
+                        successCount++;
+                    } else {
+                        failCount++;
+                        errors.push(`${item.file.name}: ${data.error || '未知错误'}`);
+                    }
+                } catch (error) {
+                    failCount++;
+                    errors.push(`${item.file.name}: ${error.message}`);
+                }
+            }
+
+            let message = `重命名完成！成功 ${successCount} 个`;
+            if (failCount > 0) {
+                message += `，失败 ${failCount} 个`;
+                if (errors.length > 0) {
+                    console.error('重命名硬链接错误:', errors);
+                }
+            }
+
+            if (failCount > 0) {
+                showError(message);
+            } else {
+                showSuccess(message);
+            }
+
+            await this.loadTorrentFiles(this.currentHashId);
+            renderTable();
+        }
+    }
+
+    // 工具函数
+    function getStatusBadgeClass(status) {
+        switch (status) {
+            case 'completed':
+                return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300';
+            case 'downloading':
+                return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
+            case 'pending':
+                return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
+            case 'missing':
+                return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
+            default:
+                return 'bg-slate-100 text-slate-800 dark:bg-slate-900/30 dark:text-slate-300';
+        }
+    }
+
+    // 工具函数现在由 base.html 提供：
+    // - escapeHtml()
+    // - escapeJs()
+    // - formatDate()
+    // - formatFileSize()
+    // - showSuccess()
+    // - showError()
+</script>
+{% endblock %}

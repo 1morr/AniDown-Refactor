@@ -1,0 +1,990 @@
+<!-- filename: templates/config.html -->
+{% extends "base.html" %}
+
+{% block title %}AniDown{% endblock %}
+
+{% block content %}
+
+<!-- Flash Messages (Server-side) -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+    {% for category, message in messages %}
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                showFlashMessage('{{ category }}', '{{ message }}');
+            });
+        </script>
+    {% endfor %}
+{% endif %}
+{% endwith %}
+
+<div class="flex flex-col lg:flex-row gap-8">
+    
+    <!-- 左侧侧边栏导航 (Sticky) -->
+    <aside class="w-full lg:w-64 flex-shrink-0">
+        <div class="lg:sticky lg:top-24 glass-card rounded-xl p-4">
+            <h3 class="text-xs font-bold text-slate-500 dark:text-gray-500 uppercase tracking-wider mb-4 ml-2">设置导航</h3>
+            <nav class="space-y-1 flex flex-row lg:flex-col overflow-x-auto lg:overflow-visible pb-2 lg:pb-0 gap-2 lg:gap-0">
+                <a href="#section-basic" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-slate-700 dark:text-white bg-slate-200 dark:bg-white/10 whitespace-nowrap">
+                    <i class="fa-solid fa-sliders w-4 text-center"></i> 基础设置
+                </a>
+                <a href="#section-downloader" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/5 whitespace-nowrap">
+                    <i class="fa-solid fa-download w-4 text-center"></i> 下载器 (QB)
+                </a>
+                <a href="#section-ai" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/5 whitespace-nowrap">
+                    <i class="fa-solid fa-robot w-4 text-center"></i> AI 与 LLM
+                </a>
+                <a href="#section-notification" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/5 whitespace-nowrap">
+                    <i class="fa-brands fa-discord w-4 text-center"></i> 通知服务
+                </a>
+                <a href="#section-file" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/5 whitespace-nowrap">
+                    <i class="fa-solid fa-folder-tree w-4 text-center"></i> 文件与路径
+                </a>
+                <a href="#section-rss" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/5 whitespace-nowrap">
+                    <i class="fa-solid fa-rss w-4 text-center"></i> RSS 订阅
+                </a>
+            </nav>
+        </div>
+    </aside>
+
+    <!-- 右侧表单内容 -->
+    <div class="flex-1 space-y-8 pb-20">
+
+        <!-- 1. 基础设置 -->
+        <section id="section-basic" class="glass-card rounded-xl p-6 scroll-mt-24">
+            <div class="flex items-center gap-3 mb-6 border-b border-slate-200 dark:border-white/5 pb-4">
+                <div class="p-2 bg-blue-100 dark:bg-blue-500/10 rounded-lg text-blue-600 dark:text-neon-blue"><i class="fa-solid fa-sliders"></i></div>
+                <h2 class="text-xl font-bold text-slate-800 dark:text-white">基础服务设置</h2>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- WebUI -->
+                <div class="col-span-full md:col-span-1">
+                    <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">WebUI 端口</label>
+                    <input type="number" id="webui_port" class="input-field" value="{{ config.get('webui.port', 8081) }}">
+                </div>
+                <div class="col-span-full md:col-span-1 flex items-end pb-2">
+                    <div class="flex items-center gap-3">
+                        <div class="relative inline-block w-10 mr-2 align-middle select-none">
+                            <input type="checkbox" name="webui_enabled" id="webui_enabled" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer top-0.5 left-0.5" {{ 'checked' if config.get('webui.enabled', True) else '' }}/>
+                            <label for="webui_enabled" class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 dark:bg-gray-700 cursor-pointer"></label>
+                        </div>
+                        <label for="webui_enabled" class="text-sm text-slate-700 dark:text-gray-300 cursor-pointer">启用 WebUI</label>
+                    </div>
+                </div>
+
+                <!-- Webhook -->
+                <div class="col-span-full md:col-span-1">
+                    <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">Webhook 端口</label>
+                    <input type="number" id="webhook_port" class="input-field" value="{{ config.webhook.port }}">
+                </div>
+                <div class="col-span-full md:col-span-1 flex items-end pb-2">
+                    <div class="flex items-center gap-3">
+                        <div class="relative inline-block w-10 mr-2 align-middle select-none">
+                            <input type="checkbox" name="webhook_enabled" id="webhook_enabled" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer top-0.5 left-0.5" {{ 'checked' if config.webhook.enabled else '' }}/>
+                            <label for="webhook_enabled" class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 dark:bg-gray-700 cursor-pointer"></label>
+                        </div>
+                        <label for="webhook_enabled" class="text-sm text-slate-700 dark:text-gray-300 cursor-pointer">启用 Webhook</label>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- 2. 下载器 -->
+        <section id="section-downloader" class="glass-card rounded-xl p-6 scroll-mt-24">
+            <div class="flex items-center gap-3 mb-6 border-b border-slate-200 dark:border-white/5 pb-4">
+                <div class="p-2 bg-green-100 dark:bg-green-500/10 rounded-lg text-green-600 dark:text-neon-green"><i class="fa-solid fa-download"></i></div>
+                <h2 class="text-xl font-bold text-slate-800 dark:text-white">qBittorrent 设置</h2>
+            </div>
+            <div class="grid grid-cols-1 gap-6">
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">服务器地址 (URL)</label>
+                    <input type="text" id="qb_url" class="input-field" value="{{ config.qbittorrent.url }}">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">用户名</label>
+                        <input type="text" id="qb_username" class="input-field" value="{{ config.qbittorrent.username }}">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">密码</label>
+                        <div class="relative">
+                            <input type="password" id="qb_password" class="input-field pr-8" value="{{ config.qbittorrent.password }}">
+                            <button onclick="togglePassword('qb_password')" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-white">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">基础下载路径</label>
+                    <input type="text" id="qb_path" class="input-field" value="{{ config.qbittorrent.base_download_path }}">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">动漫文件夹名称</label>
+                        <input type="text" id="qb_anime_folder" class="input-field" value="{{ config.qbittorrent.anime_folder_name }}">
+                        <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">在基础路径下创建的动漫根文件夹</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">真人文件夹名称</label>
+                        <input type="text" id="qb_liveaction_folder" class="input-field" value="{{ config.qbittorrent.live_action_folder_name }}">
+                        <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">在基础路径下创建的真人根文件夹</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">剧集(TV)文件夹名称</label>
+                        <input type="text" id="qb_tv_folder" class="input-field" value="{{ config.qbittorrent.tv_folder_name }}">
+                        <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">在动漫/真人文件夹下的TV剧集文件夹</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">电影(Movie)文件夹名称</label>
+                        <input type="text" id="qb_movie_folder" class="input-field" value="{{ config.qbittorrent.movie_folder_name }}">
+                        <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">在动漫/真人文件夹下的电影文件夹</p>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">分类 (Category)</label>
+                    <input type="text" id="qb_category" class="input-field" value="{{ config.qbittorrent.category }}">
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. AI & LLM -->
+        <section id="section-ai" class="glass-card rounded-xl p-6 scroll-mt-24">
+            <div class="flex items-center gap-3 mb-6 border-b border-slate-200 dark:border-white/5 pb-4">
+                <div class="p-2 bg-cyan-100 dark:bg-cyan-500/10 rounded-lg text-cyan-600 dark:text-neon-cyan"><i class="fa-solid fa-robot"></i></div>
+                <h2 class="text-xl font-bold text-slate-800 dark:text-white">AI / LLM 设置</h2>
+            </div>
+            <div class="grid grid-cols-1 gap-6">
+                <!-- 标题解析 -->
+                <div class="border border-slate-200 dark:border-white/10 rounded-lg p-4">
+                    <h4 class="text-sm font-semibold text-slate-700 dark:text-gray-300 mb-4">标题解析</h4>
+                    <div class="grid grid-cols-1 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">API Base URL</label>
+                            <input type="text" id="ai_title_parse_base_url" class="input-field" value="{{ config.get('openai.title_parse.base_url', 'https://api.openai.com/v1') }}">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">API Key</label>
+                            <div class="relative">
+                                <input type="password" id="ai_title_parse_api_key" class="input-field pr-8" value="{{ config.get('openai.title_parse.api_key', '') }}">
+                                <button onclick="togglePassword('ai_title_parse_api_key')" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-white">
+                                    <i class="fa-solid fa-eye"></i>
+                                </button>
+                            </div>
+                            <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">单 Key（兼容旧配置，可选）。若配置了 Key Pool，将优先使用 Key Pool。</p>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">模型 (Model)</label>
+                                <input type="text" id="ai_title_parse_model" class="input-field" value="{{ config.get('openai.title_parse.model', 'gpt-4') }}">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">标题解析重试次数</label>
+                                <input type="number" id="ai_title_parse_retries" class="input-field" value="{{ config.get('openai.title_parse_retries', 3) }}">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">Extra Body (JSON格式)</label>
+                            <textarea id="ai_title_parse_extra_body" class="input-field min-h-[80px] font-mono text-xs" placeholder='例如启用思考模式: {"thinking": {"type": "enabled"}}'>{{ config.get('openai.title_parse.extra_body', '') }}</textarea>
+                            <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">可选。额外的API参数，用于启用思考模式等高级功能。必须是合法的JSON格式。</p>
+                        </div>
+                    </div>
+
+                    <!-- Key Pool -->
+                    <div class="mt-6 border-t border-slate-200 dark:border-white/10 pt-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <div>
+                                <h5 class="text-sm font-semibold text-slate-700 dark:text-gray-300">API Key Pool</h5>
+                                <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">
+                                    每个 Key 可设置 RPM / RPD（0 表示不限制）。总容量会随 Key 数量自动增加（总计为启用 Key 的求和）。
+                                </p>
+                            </div>
+                            <button type="button" onclick="addAiKeyRow('title_parse')" class="px-3 py-2 text-sm rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-gray-200">
+                                <i class="fa-solid fa-plus mr-1"></i> 添加 Key
+                            </button>
+                        </div>
+
+                        <div class="text-xs text-slate-500 dark:text-gray-400 mb-3">
+                            总 RPM: <span id="title_parse_total_rpm" class="font-semibold">0</span>
+                            <span class="mx-2">|</span>
+                            总 RPD: <span id="title_parse_total_rpd" class="font-semibold">0</span>
+                        </div>
+
+                        <div id="ai_title_parse_pool_list" class="space-y-3">
+                            {% for key in config.openai.title_parse.api_key_pool %}
+                            <div class="ai-key-item border border-slate-200 dark:border-white/10 rounded-lg p-3" data-purpose="title_parse">
+                                <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                                    <div class="md:col-span-3">
+                                        <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">名称</label>
+                                        <input type="text" class="input-field ai-key-name" value="{{ key.name }}">
+                                    </div>
+                                    <div class="md:col-span-4">
+                                        <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">API Key</label>
+                                        <input type="password" class="input-field ai-key-value" value="{{ key.api_key }}">
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">RPM</label>
+                                        <input type="number" class="input-field ai-key-rpm" value="{{ key.rpm }}">
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">RPD</label>
+                                        <input type="number" class="input-field ai-key-rpd" value="{{ key.rpd }}">
+                                    </div>
+                                    <div class="md:col-span-1 flex items-center justify-between gap-2">
+                                        <label class="flex items-center gap-2 text-xs text-slate-600 dark:text-gray-300 cursor-pointer">
+                                            <input type="checkbox" class="ai-key-enabled w-4 h-4" {{ 'checked' if key.enabled else '' }}>
+                                            启用
+                                        </label>
+                                        <button type="button" onclick="removeAiKeyRow(this)" class="text-slate-400 hover:text-red-500" title="删除">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 多文件重命名 -->
+                <div class="border border-slate-200 dark:border-white/10 rounded-lg p-4">
+                    <h4 class="text-sm font-semibold text-slate-700 dark:text-gray-300 mb-4">多文件重命名</h4>
+                    <div class="grid grid-cols-1 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">API Base URL</label>
+                            <input type="text" id="ai_multi_rename_base_url" class="input-field" value="{{ config.get('openai.multi_file_rename.base_url', 'https://api.openai.com/v1') }}">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">API Key</label>
+                            <div class="relative">
+                                <input type="password" id="ai_multi_rename_api_key" class="input-field pr-8" value="{{ config.get('openai.multi_file_rename.api_key', '') }}">
+                                <button onclick="togglePassword('ai_multi_rename_api_key')" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-white">
+                                    <i class="fa-solid fa-eye"></i>
+                                </button>
+                            </div>
+                            <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">单 Key（兼容旧配置，可选）。若配置了 Key Pool，将优先使用 Key Pool。</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">模型 (Model)</label>
+                            <input type="text" id="ai_multi_rename_model" class="input-field" value="{{ config.get('openai.multi_file_rename.model', 'gpt-4') }}">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">Extra Body (JSON格式)</label>
+                            <textarea id="ai_multi_rename_extra_body" class="input-field min-h-[80px] font-mono text-xs" placeholder='例如启用思考模式: {"thinking": {"type": "enabled"}}'>{{ config.get('openai.multi_file_rename.extra_body', '') }}</textarea>
+                            <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">可选。额外的API参数，用于启用思考模式等高级功能。必须是合法的JSON格式。</p>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">最大批次大小</label>
+                                <input type="number" id="ai_batch_size" class="input-field" value="{{ config.get('ai_processing.max_batch_size', 30) }}">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">批次重试次数</label>
+                                <input type="number" id="ai_batch_retries" class="input-field" value="{{ config.get('ai_processing.batch_processing_retries', 2) }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Key Pool -->
+                    <div class="mt-6 border-t border-slate-200 dark:border-white/10 pt-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <div>
+                                <h5 class="text-sm font-semibold text-slate-700 dark:text-gray-300">API Key Pool</h5>
+                                <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">
+                                    每个 Key 可设置 RPM / RPD（0 表示不限制）。总容量会随 Key 数量自动增加（总计为启用 Key 的求和）。
+                                </p>
+                            </div>
+                            <button type="button" onclick="addAiKeyRow('multi_file_rename')" class="px-3 py-2 text-sm rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-gray-200">
+                                <i class="fa-solid fa-plus mr-1"></i> 添加 Key
+                            </button>
+                        </div>
+
+                        <div class="text-xs text-slate-500 dark:text-gray-400 mb-3">
+                            总 RPM: <span id="multi_file_rename_total_rpm" class="font-semibold">0</span>
+                            <span class="mx-2">|</span>
+                            总 RPD: <span id="multi_file_rename_total_rpd" class="font-semibold">0</span>
+                        </div>
+
+                        <div id="ai_multi_rename_pool_list" class="space-y-3">
+                            {% for key in config.openai.multi_file_rename.api_key_pool %}
+                            <div class="ai-key-item border border-slate-200 dark:border-white/10 rounded-lg p-3" data-purpose="multi_file_rename">
+                                <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                                    <div class="md:col-span-3">
+                                        <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">名称</label>
+                                        <input type="text" class="input-field ai-key-name" value="{{ key.name }}">
+                                    </div>
+                                    <div class="md:col-span-4">
+                                        <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">API Key</label>
+                                        <input type="password" class="input-field ai-key-value" value="{{ key.api_key }}">
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">RPM</label>
+                                        <input type="number" class="input-field ai-key-rpm" value="{{ key.rpm }}">
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">RPD</label>
+                                        <input type="number" class="input-field ai-key-rpd" value="{{ key.rpd }}">
+                                    </div>
+                                    <div class="md:col-span-1 flex items-center justify-between gap-2">
+                                        <label class="flex items-center gap-2 text-xs text-slate-600 dark:text-gray-300 cursor-pointer">
+                                            <input type="checkbox" class="ai-key-enabled w-4 h-4" {{ 'checked' if key.enabled else '' }}>
+                                            启用
+                                        </label>
+                                        <button type="button" onclick="removeAiKeyRow(this)" class="text-slate-400 hover:text-red-500" title="删除">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. 通知 -->
+        <section id="section-notification" class="glass-card rounded-xl p-6 scroll-mt-24">
+            <div class="flex items-center gap-3 mb-6 border-b border-slate-200 dark:border-white/5 pb-4">
+                <div class="p-2 bg-indigo-100 dark:bg-indigo-500/10 rounded-lg text-indigo-600 dark:text-indigo-400"><i class="fa-brands fa-discord"></i></div>
+                <h2 class="text-xl font-bold text-slate-800 dark:text-white">Discord 通知</h2>
+                <div class="ml-auto">
+                    <div class="relative inline-block w-10 align-middle select-none">
+                        <input type="checkbox" name="discord_enabled" id="discord_enabled" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer top-0.5 left-0.5" {{ 'checked' if config.discord.enabled else '' }}/>
+                        <label for="discord_enabled" class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 dark:bg-gray-700 cursor-pointer"></label>
+                    </div>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 gap-6 {{ 'opacity-50 pointer-events-none' if not config.discord.enabled else '' }} transition-all duration-300" id="discord_settings">
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">RSS 通知 Webhook</label>
+                    <input type="text" id="discord_rss" class="input-field" placeholder="https://discord.com/api/webhooks/..." value="{{ config.discord.rss_webhook_url }}">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">硬链接通知 Webhook</label>
+                    <input type="text" id="discord_hardlink" class="input-field" placeholder="https://discord.com/api/webhooks/..." value="{{ config.discord.hardlink_webhook_url }}">
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. 文件与路径管理 -->
+        <section id="section-file" class="glass-card rounded-xl p-6 scroll-mt-24">
+            <div class="flex items-center gap-3 mb-6 border-b border-slate-200 dark:border-white/5 pb-4">
+                <div class="p-2 bg-orange-100 dark:bg-orange-500/10 rounded-lg text-orange-600 dark:text-orange-400"><i class="fa-solid fa-folder-tree"></i></div>
+                <h2 class="text-xl font-bold text-slate-800 dark:text-white">文件路径与整理</h2>
+            </div>
+            
+            <!-- Path Conversion -->
+            <div class="mb-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h4 class="text-sm font-semibold text-slate-700 dark:text-gray-300">路径转换 (Docker/Local)</h4>
+                    <div class="relative inline-block w-10 align-middle select-none">
+                        <input type="checkbox" id="path_conv_enabled" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer top-0.5 left-0.5" {{ 'checked' if config.get('path_conversion.enabled', False) else '' }}/>
+                        <label for="path_conv_enabled" class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 dark:bg-gray-700 cursor-pointer"></label>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 {{ 'opacity-50 pointer-events-none' if not config.get('path_conversion.enabled', False) else '' }} transition-all duration-300" id="path_conv_fields">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">源基础路径</label>
+                        <input type="text" id="path_conv_src" class="input-field" value="{{ config.get('path_conversion.source_base_path', '/downloads/AniDown/') }}">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">目标基础路径</label>
+                        <input type="text" id="path_conv_target" class="input-field" value="{{ config.get('path_conversion.target_base_path', '/path/to/target/') }}">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Target Paths -->
+            <div class="grid grid-cols-1 gap-6 mb-6 border-t border-slate-200 dark:border-white/5 pt-6">
+                <div>
+                    <h4 class="text-sm font-semibold text-slate-700 dark:text-gray-300 mb-3">动漫硬链接路径</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">剧集(TV) 硬链接目标路径</label>
+                            <input type="text" id="link_target_tv" class="input-field" value="{{ config.link_target_path }}">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">电影(Movie) 硬链接目标路径</label>
+                            <input type="text" id="link_target_movie" class="input-field" value="{{ config.movie_link_target_path }}">
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="text-sm font-semibold text-slate-700 dark:text-gray-300 mb-3">真人硬链接路径</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">剧集(TV) 硬链接目标路径</label>
+                            <input type="text" id="live_action_link_target_tv" class="input-field" value="{{ config.live_action_tv_target_path }}">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">电影(Movie) 硬链接目标路径</label>
+                            <input type="text" id="live_action_link_target_movie" class="input-field" value="{{ config.live_action_movie_target_path }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Naming & TVDB -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-slate-200 dark:border-white/5 pt-6">
+                <div>
+                    <label class="flex items-center gap-2 cursor-pointer mb-3">
+                        <input type="checkbox" id="naming_tv" class="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700" {{ 'checked' if config.get('use_consistent_naming_tv', False) else '' }}>
+                        <span class="text-sm text-slate-700 dark:text-gray-300">启用剧集统一命名</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="naming_movie" class="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700" {{ 'checked' if config.get('use_consistent_naming_movie', False) else '' }}>
+                        <span class="text-sm text-slate-700 dark:text-gray-300">启用电影统一命名</span>
+                    </label>
+                </div>
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm text-slate-700 dark:text-gray-300">TVDB 刮削</span>
+                        <div class="relative inline-block w-10 align-middle select-none">
+                            <input type="checkbox" id="tvdb_enabled" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer top-0.5 left-0.5" {{ 'checked' if config.tvdb.enabled else '' }}/>
+                            <label for="tvdb_enabled" class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 dark:bg-gray-700 cursor-pointer"></label>
+                        </div>
+                    </div>
+                    <input type="text" id="tvdb_key" class="input-field mt-2" placeholder="TVDB API Key" value="{{ config.tvdb.api_key }}">
+                </div>
+            </div>
+        </section>
+
+        <!-- 6. RSS 订阅 -->
+        <section id="section-rss" class="glass-card rounded-xl p-6 scroll-mt-24">
+            <div class="flex items-center gap-3 mb-6 border-b border-slate-200 dark:border-white/5 pb-4">
+                <div class="p-2 bg-yellow-100 dark:bg-yellow-500/10 rounded-lg text-yellow-600 dark:text-yellow-400"><i class="fa-solid fa-rss"></i></div>
+                <h2 class="text-xl font-bold text-slate-800 dark:text-white">RSS 订阅设置</h2>
+            </div>
+            <div class="mb-6">
+                <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">检查间隔 (秒)</label>
+                <input type="number" id="rss_interval" class="input-field md:w-1/3" value="{{ config.rss.check_interval }}">
+            </div>
+
+            <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">固定 RSS 链接列表</label>
+            <div id="rss_list" class="space-y-4">
+                <!-- JS 将动态插入 RSS 输入框 -->
+                {% for feed in config.rss.get_feeds() %}
+                <div class="rss-feed-item border border-slate-200 dark:border-white/10 rounded-lg p-4">
+                    <div class="flex items-start gap-2">
+                        <div class="flex-1">
+                            <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">RSS URL</label>
+                            <input type="text" class="input-field rss-url-input" placeholder="https://..." value="{{ feed.url if feed is not string else feed }}">
+                        </div>
+                        <div class="w-32">
+                            <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">类型</label>
+                            <select class="input-field rss-media-type-select">
+                                <option value="anime" {{ 'selected' if (feed is not string and feed.media_type == 'anime') or feed is string else '' }}>动漫</option>
+                                <option value="live_action" {{ 'selected' if (feed is not string and feed.media_type == 'live_action') else '' }}>真人</option>
+                            </select>
+                        </div>
+                        <button onclick="toggleRssFilters(this)" class="mt-6 px-3 py-2 text-slate-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors" title="展开过滤设置">
+                            <i class="fa-solid fa-filter"></i>
+                        </button>
+                        <button onclick="removeRssFeed(this)" class="mt-6 px-3 py-2 text-slate-400 hover:text-red-500 transition-colors" title="删除">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                    <div class="rss-filters mt-4 hidden">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">屏蔽词 (每行一个)</label>
+                                <textarea class="input-field rss-keywords-input min-h-[100px]" placeholder="例如：简体&#10;1080p">{{ feed.blocked_keywords if feed is not string else '' }}</textarea>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">正则表达式 (每行一个)</label>
+                                <textarea class="input-field rss-regex-input min-h-[100px]" placeholder="例如：.*\[1080p\].*">{{ feed.blocked_regex if feed is not string else '' }}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% if not config.rss.fixed_urls %}
+                <div class="rss-feed-item border border-slate-200 dark:border-white/10 rounded-lg p-4">
+                    <div class="flex items-start gap-2">
+                        <div class="flex-1">
+                            <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">RSS URL</label>
+                            <input type="text" class="input-field rss-url-input" placeholder="https://..." value="">
+                        </div>
+                        <div class="w-32">
+                            <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">类型</label>
+                            <select class="input-field rss-media-type-select">
+                                <option value="anime" selected>动漫</option>
+                                <option value="live_action">真人</option>
+                            </select>
+                        </div>
+                        <button onclick="toggleRssFilters(this)" class="mt-6 px-3 py-2 text-slate-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors" title="展开过滤设置">
+                            <i class="fa-solid fa-filter"></i>
+                        </button>
+                        <button onclick="removeRssFeed(this)" class="mt-6 px-3 py-2 text-slate-400 hover:text-red-500 transition-colors" title="删除">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                    <div class="rss-filters mt-4 hidden">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">屏蔽词 (每行一个)</label>
+                                <textarea class="input-field rss-keywords-input min-h-[100px]" placeholder="例如：简体&#10;1080p"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">正则表达式 (每行一个)</label>
+                                <textarea class="input-field rss-regex-input min-h-[100px]" placeholder="例如：.*\[1080p\].*"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            <button onclick="addRssField()" class="mt-4 flex items-center gap-2 text-sm text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors">
+                <i class="fa-solid fa-plus"></i> 添加 RSS 链接
+            </button>
+        </section>
+
+    </div>
+</div>
+
+<!-- 底部悬浮保存按钮 -->
+<div class="fixed bottom-6 right-6 z-50">
+    <button onclick="saveConfig()" class="group relative flex items-center gap-3 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-full shadow-lg hover:shadow-blue-500/30 transition-all">
+        <i class="fa-solid fa-floppy-disk"></i>
+        <span>保存配置</span>
+    </button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Flash Message Function (copied from other pages)
+    function showFlashMessage(category, message) {
+        // 创建flash消息容器
+        let flashContainer = document.getElementById('flash-messages');
+        if (!flashContainer) {
+            flashContainer = document.createElement('div');
+            flashContainer.id = 'flash-messages';
+            flashContainer.className = 'position-fixed top-0 end-0 p-3';
+            flashContainer.style.zIndex = '1050';
+            flashContainer.style.position = 'fixed';
+            flashContainer.style.top = '80px';
+            flashContainer.style.right = '16px';
+            flashContainer.style.zIndex = '50';
+            document.body.appendChild(flashContainer);
+        }
+
+        // 创建消息元素
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `glass-static rounded-lg p-4 border-l-4 max-w-sm mb-2 ${
+            category === 'success' ? 'border-green-500 bg-green-50 dark:bg-green-900/20' :
+            category === 'error' ? 'border-red-500 bg-red-50 dark:bg-red-900/20' :
+            'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20'
+        }`;
+        
+        messageDiv.innerHTML = `
+            <div class="flex items-center">
+                <i class="fas ${
+                    category === 'success' ? 'fa-check-circle text-green-500' :
+                    category === 'error' ? 'fa-exclamation-circle text-red-500' :
+                    'fa-exclamation-triangle text-yellow-500'
+                } mr-2"></i>
+                <span class="text-sm font-medium ${
+                    category === 'success' ? 'text-green-800 dark:text-green-200' :
+                    category === 'error' ? 'text-red-800 dark:text-red-200' :
+                    'text-yellow-800 dark:text-yellow-200'
+                }">${message}</span>
+            </div>
+        `;
+
+        flashContainer.appendChild(messageDiv);
+
+        // 5秒后自动隐藏
+        setTimeout(() => {
+            if (messageDiv.parentNode) {
+                messageDiv.style.opacity = '0';
+                messageDiv.style.transform = 'translateX(100%)';
+                messageDiv.style.transition = 'all 0.3s ease';
+                setTimeout(() => messageDiv.remove(), 300);
+            }
+        }, 5000);
+    }
+
+    // 将 showFlashMessage 暴露为全局函数
+    window.showFlashMessage = showFlashMessage;
+
+    // 1. 加载数据逻辑
+    async function loadConfig() {
+        try {
+            // 数据已通过 Flask 模板变量传递，无需额外加载
+            console.log("配置页面已加载");
+        } catch (error) {
+            console.error("Load Config Error:", error);
+        }
+    }
+
+    // 2. 辅助功能
+    function addRssField(url = '', keywords = '', regex = '', media_type = 'anime') {
+        const div = document.createElement('div');
+        div.className = 'rss-feed-item border border-slate-200 dark:border-white/10 rounded-lg p-4';
+        div.innerHTML = `
+            <div class="flex items-start gap-2">
+                <div class="flex-1">
+                    <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">RSS URL</label>
+                    <input type="text" class="input-field rss-url-input" placeholder="https://..." value="${url}">
+                </div>
+                <div class="w-32">
+                    <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">类型</label>
+                    <select class="input-field rss-media-type-select">
+                        <option value="anime" ${media_type === 'anime' ? 'selected' : ''}>动漫</option>
+                        <option value="live_action" ${media_type === 'live_action' ? 'selected' : ''}>真人</option>
+                    </select>
+                </div>
+                <button onclick="toggleRssFilters(this)" class="mt-6 px-3 py-2 text-slate-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors" title="展开过滤设置">
+                    <i class="fa-solid fa-filter"></i>
+                </button>
+                <button onclick="removeRssFeed(this)" class="mt-6 px-3 py-2 text-slate-400 hover:text-red-500 transition-colors" title="删除">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </div>
+            <div class="rss-filters mt-4 hidden">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">屏蔽词 (每行一个)</label>
+                        <textarea class="input-field rss-keywords-input min-h-[100px]" placeholder="例如：简体&#10;1080p">${keywords}</textarea>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">正则表达式 (每行一个)</label>
+                        <textarea class="input-field rss-regex-input min-h-[100px]" placeholder="例如：.*\\[1080p\\].*">${regex}</textarea>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.getElementById('rss_list').appendChild(div);
+    }
+
+    function toggleRssFilters(button) {
+        const feedItem = button.closest('.rss-feed-item');
+        const filtersDiv = feedItem.querySelector('.rss-filters');
+        filtersDiv.classList.toggle('hidden');
+
+        // 切换图标
+        const icon = button.querySelector('i');
+        if (filtersDiv.classList.contains('hidden')) {
+            icon.className = 'fa-solid fa-filter';
+            button.classList.remove('text-blue-500', 'dark:text-blue-400');
+            button.classList.add('text-slate-600', 'dark:text-gray-400');
+        } else {
+            icon.className = 'fa-solid fa-filter-circle-xmark';
+            button.classList.add('text-blue-500', 'dark:text-blue-400');
+            button.classList.remove('text-slate-600', 'dark:text-gray-400');
+        }
+    }
+
+    function removeRssFeed(button) {
+        const feedItem = button.closest('.rss-feed-item');
+        feedItem.remove();
+    }
+
+    function togglePassword(id) {
+        const input = document.getElementById(id);
+        input.type = input.type === 'password' ? 'text' : 'password';
+    }
+
+    // AI Key Pool helpers
+    function addAiKeyRow(purpose, initial = null) {
+        const container = purpose === 'title_parse'
+            ? document.getElementById('ai_title_parse_pool_list')
+            : document.getElementById('ai_multi_rename_pool_list');
+
+        const name = initial?.name ?? '';
+        const api_key = initial?.api_key ?? '';
+        const rpm = (initial?.rpm ?? 0);
+        const rpd = (initial?.rpd ?? 0);
+        const enabled = (initial?.enabled ?? true);
+
+        const div = document.createElement('div');
+        div.className = 'ai-key-item border border-slate-200 dark:border-white/10 rounded-lg p-3';
+        div.dataset.purpose = purpose;
+        div.innerHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+                <div class="md:col-span-3">
+                    <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">名称</label>
+                    <input type="text" class="input-field ai-key-name" value="${name}">
+                </div>
+                <div class="md:col-span-4">
+                    <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">API Key</label>
+                    <input type="password" class="input-field ai-key-value" value="${api_key}">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">RPM</label>
+                    <input type="number" class="input-field ai-key-rpm" value="${rpm}">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">RPD</label>
+                    <input type="number" class="input-field ai-key-rpd" value="${rpd}">
+                </div>
+                <div class="md:col-span-1 flex items-center justify-between gap-2">
+                    <label class="flex items-center gap-2 text-xs text-slate-600 dark:text-gray-300 cursor-pointer">
+                        <input type="checkbox" class="ai-key-enabled w-4 h-4" ${enabled ? 'checked' : ''}>
+                        启用
+                    </label>
+                    <button type="button" onclick="removeAiKeyRow(this)" class="text-slate-400 hover:text-red-500" title="删除">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // 绑定变化事件以刷新总量
+        div.querySelectorAll('input').forEach(inp => {
+            inp.addEventListener('input', () => updateAiPoolTotals(purpose));
+            inp.addEventListener('change', () => updateAiPoolTotals(purpose));
+        });
+
+        container.appendChild(div);
+        updateAiPoolTotals(purpose);
+    }
+
+    function removeAiKeyRow(btn) {
+        const item = btn.closest('.ai-key-item');
+        const purpose = item?.dataset?.purpose;
+        if (item) item.remove();
+        if (purpose) updateAiPoolTotals(purpose);
+    }
+
+    function updateAiPoolTotals(purpose) {
+        const items = document.querySelectorAll(`.ai-key-item[data-purpose="${purpose}"]`);
+        let totalRpm = 0;
+        let totalRpd = 0;
+        items.forEach(item => {
+            const enabled = item.querySelector('.ai-key-enabled')?.checked;
+            if (!enabled) return;
+            const rpm = parseInt(item.querySelector('.ai-key-rpm')?.value || '0', 10) || 0;
+            const rpd = parseInt(item.querySelector('.ai-key-rpd')?.value || '0', 10) || 0;
+            totalRpm += rpm;
+            totalRpd += rpd;
+        });
+        const rpmEl = document.getElementById(`${purpose}_total_rpm`);
+        const rpdEl = document.getElementById(`${purpose}_total_rpd`);
+        if (rpmEl) rpmEl.textContent = String(totalRpm);
+        if (rpdEl) rpdEl.textContent = String(totalRpd);
+    }
+
+    function collectAiPool(purpose) {
+        const items = document.querySelectorAll(`.ai-key-item[data-purpose="${purpose}"]`);
+        const pool = [];
+        items.forEach(item => {
+            const api_key = (item.querySelector('.ai-key-value')?.value || '').trim();
+            if (!api_key) return; // 空 key 不保存
+            pool.push({
+                name: (item.querySelector('.ai-key-name')?.value || '').trim(),
+                api_key,
+                rpm: parseInt(item.querySelector('.ai-key-rpm')?.value || '0', 10) || 0,
+                rpd: parseInt(item.querySelector('.ai-key-rpd')?.value || '0', 10) || 0,
+                enabled: !!item.querySelector('.ai-key-enabled')?.checked
+            });
+        });
+        return pool;
+    }
+
+    // 3. 联动逻辑
+    document.getElementById('discord_enabled').addEventListener('change', (e) => toggleDiscordInputs(e.target.checked));
+    function toggleDiscordInputs(enabled) {
+        const div = document.getElementById('discord_settings');
+        if(enabled) {
+            div.classList.remove('opacity-50', 'pointer-events-none');
+        } else {
+            div.classList.add('opacity-50', 'pointer-events-none');
+        }
+    }
+
+    document.getElementById('path_conv_enabled').addEventListener('change', (e) => togglePathConv(e.target.checked));
+    function togglePathConv(enabled) {
+        const div = document.getElementById('path_conv_fields');
+        if(enabled) {
+            div.classList.remove('opacity-50', 'pointer-events-none');
+        } else {
+            div.classList.add('opacity-50', 'pointer-events-none');
+        }
+    }
+
+    // 3.5 侧边栏导航高亮
+    document.addEventListener('DOMContentLoaded', () => {
+        const navLinks = document.querySelectorAll('aside nav a');
+
+        function setActive(id) {
+            navLinks.forEach(link => {
+                const active = link.getAttribute('href') === `#${id}`;
+                link.classList.toggle('bg-slate-200', active);
+                link.classList.toggle('dark:bg-white/10', active);
+                link.classList.toggle('text-slate-700', active);
+                link.classList.toggle('dark:text-white', active);
+                // 非激活状态样式
+                link.classList.toggle('text-slate-500', !active);
+                link.classList.toggle('dark:text-gray-400', !active);
+            });
+        }
+
+        // 点击导航时切换
+        navLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                const id = link.getAttribute('href').substring(1);
+                setActive(id);
+            });
+        });
+
+        // 滚动时根据 section 可见性更新
+        const observer = new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    setActive(entry.target.id);
+                }
+            });
+        }, {
+            rootMargin: '-50% 0px -50% 0px',
+            threshold: 0
+        });
+
+        document.querySelectorAll('section[id]').forEach(sec => observer.observe(sec));
+    });
+
+    // 4. 保存逻辑
+    async function saveConfig() {
+        const formData = new FormData();
+
+        // RSS 配置 - 收集新的结构
+        const rssFeeds = [];
+        document.querySelectorAll('.rss-feed-item').forEach(item => {
+            const url = item.querySelector('.rss-url-input').value.trim();
+            if (url) {
+                const keywords = item.querySelector('.rss-keywords-input').value.trim();
+                const regex = item.querySelector('.rss-regex-input').value.trim();
+                const media_type = item.querySelector('.rss-media-type-select').value;
+                rssFeeds.push({
+                    url: url,
+                    blocked_keywords: keywords,
+                    blocked_regex: regex,
+                    media_type: media_type
+                });
+            }
+        });
+        formData.append('rss_feeds', JSON.stringify(rssFeeds));
+        formData.append('rss_interval', document.getElementById('rss_interval').value);
+
+        // qBittorrent 配置
+        formData.append('qb_url', document.getElementById('qb_url').value);
+        formData.append('qb_username', document.getElementById('qb_username').value);
+        formData.append('qb_password', document.getElementById('qb_password').value);
+        formData.append('qb_download_path', document.getElementById('qb_path').value);
+        formData.append('qb_anime_folder', document.getElementById('qb_anime_folder').value);
+        formData.append('qb_liveaction_folder', document.getElementById('qb_liveaction_folder').value);
+        formData.append('qb_tv_folder', document.getElementById('qb_tv_folder').value);
+        formData.append('qb_movie_folder', document.getElementById('qb_movie_folder').value);
+        formData.append('qb_category', document.getElementById('qb_category').value);
+
+        // Discord 配置
+        if (document.getElementById('discord_enabled').checked) {
+            formData.append('discord_enabled', 'on');
+        }
+        formData.append('discord_rss_webhook', document.getElementById('discord_rss').value);
+        formData.append('discord_hardlink_webhook', document.getElementById('discord_hardlink').value);
+
+        // 标题解析配置
+        formData.append('openai_title_parse_key', document.getElementById('ai_title_parse_api_key').value);
+        formData.append('openai_title_parse_model', document.getElementById('ai_title_parse_model').value);
+        formData.append('openai_title_parse_base_url', document.getElementById('ai_title_parse_base_url').value);
+        formData.append('openai_title_parse_retries', document.getElementById('ai_title_parse_retries').value);
+        formData.append('openai_title_parse_extra_body', document.getElementById('ai_title_parse_extra_body').value);
+        formData.append('openai_title_parse_pool', JSON.stringify(collectAiPool('title_parse')));
+
+        // 多文件重命名配置
+        formData.append('openai_multi_rename_key', document.getElementById('ai_multi_rename_api_key').value);
+        formData.append('openai_multi_rename_model', document.getElementById('ai_multi_rename_model').value);
+        formData.append('openai_multi_rename_base_url', document.getElementById('ai_multi_rename_base_url').value);
+        formData.append('openai_multi_rename_extra_body', document.getElementById('ai_multi_rename_extra_body').value);
+        formData.append('openai_multi_rename_pool', JSON.stringify(collectAiPool('multi_file_rename')));
+
+        // AI 处理配置
+        formData.append('ai_max_batch_size', document.getElementById('ai_batch_size').value);
+        formData.append('ai_batch_processing_retries', document.getElementById('ai_batch_retries').value);
+
+        // 路径配置
+        formData.append('link_target_path', document.getElementById('link_target_tv').value);
+        formData.append('movie_link_target_path', document.getElementById('link_target_movie').value);
+        formData.append('live_action_tv_target_path', document.getElementById('live_action_link_target_tv').value);
+        formData.append('live_action_movie_target_path', document.getElementById('live_action_link_target_movie').value);
+
+        // 命名一致性配置
+        if (document.getElementById('naming_tv').checked) {
+            formData.append('use_consistent_naming_tv', 'on');
+        }
+        if (document.getElementById('naming_movie').checked) {
+            formData.append('use_consistent_naming_movie', 'on');
+        }
+
+        // WebUI 配置
+        if (document.getElementById('webui_enabled').checked) {
+            formData.append('webui_enabled', 'on');
+        }
+        formData.append('webui_port', document.getElementById('webui_port').value);
+
+        // 路径转换配置
+        if (document.getElementById('path_conv_enabled').checked) {
+            formData.append('path_conversion_enabled', 'on');
+        }
+        formData.append('path_conversion_source_base', document.getElementById('path_conv_src').value);
+        formData.append('path_conversion_target_base', document.getElementById('path_conv_target').value);
+
+        // Webhook 配置
+        if (document.getElementById('webhook_enabled').checked) {
+            formData.append('webhook_enabled', 'on');
+        }
+        formData.append('webhook_port', document.getElementById('webhook_port').value);
+
+        // TVDB 配置
+        if (document.getElementById('tvdb_enabled').checked) {
+            formData.append('tvdb_enabled', 'on');
+        }
+        formData.append('tvdb_api_key', document.getElementById('tvdb_key').value);
+
+        try {
+            const response = await fetch('{{ url_for("config.update_config") }}', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    showFlashMessage('success', data.message || '配置已保存成功');
+                } else {
+                    showFlashMessage('error', data.message || '保存配置失败');
+                }
+            } else {
+                // 嘗試解析錯誤響應
+                try {
+                    const errorData = await response.json();
+                    showFlashMessage('error', errorData.message || '保存配置失败');
+                } catch {
+                    showFlashMessage('error', '保存配置失败');
+                }
+            }
+        } catch (error) {
+            console.error('保存配置时出错:', error);
+            showFlashMessage('error', '保存配置时出错: ' + error.message);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadConfig);
+    document.addEventListener('DOMContentLoaded', () => {
+        // 初始化总量显示 & 绑定现有行事件
+        ['title_parse', 'multi_file_rename'].forEach(purpose => {
+            document.querySelectorAll(`.ai-key-item[data-purpose="${purpose}"] input`).forEach(inp => {
+                inp.addEventListener('input', () => updateAiPoolTotals(purpose));
+                inp.addEventListener('change', () => updateAiPoolTotals(purpose));
+            });
+            updateAiPoolTotals(purpose);
+        });
+    });
+</script>
+{% endblock %}

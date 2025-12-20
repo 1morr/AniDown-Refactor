@@ -1,0 +1,612 @@
+{% extends "base.html" %}
+
+{% block title %}AI / 队列状态 - AniDown{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+  <div class="flex items-start justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-bold text-slate-800 dark:text-white">AI / 队列状态</h1>
+      <p class="text-slate-500 dark:text-gray-500 text-sm mt-1">实时显示 Webhook 队列长度、熔断剩余时间、各 Key 冷却状态</p>
+    </div>
+    <div class="text-xs text-slate-500 dark:text-gray-400">
+      最后更新：<span id="ai-status-last-updated" class="font-mono">-</span>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Webhook Queue Summary -->
+    <section class="glass-card rounded-xl p-6">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="p-2 bg-orange-100 dark:bg-orange-500/10 rounded-lg text-orange-600 dark:text-orange-400">
+          <i class="fa-solid fa-list-check"></i>
+        </div>
+        <h2 class="text-lg font-bold text-slate-800 dark:text-white">Webhook 队列</h2>
+      </div>
+
+      <div class="space-y-3 text-sm">
+        <div class="flex items-center justify-between">
+          <span class="text-slate-500 dark:text-gray-400">队列长度</span>
+          <span id="queue-len" class="font-mono font-semibold text-slate-800 dark:text-white">0</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-slate-500 dark:text-gray-400">Worker 线程</span>
+          <span id="queue-thread" class="font-mono">-</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-slate-500 dark:text-gray-400">停止标记</span>
+          <span id="queue-stopped" class="font-mono">-</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-slate-500 dark:text-gray-400">连续失败</span>
+          <span id="queue-failures" class="font-mono">0</span>
+        </div>
+      </div>
+
+      <!-- Current Processing Item -->
+      <div class="mt-4 pt-4 border-t border-slate-200 dark:border-white/10">
+        <h3 class="text-sm font-semibold text-slate-700 dark:text-gray-300 mb-2">
+          <i class="fa-solid fa-spinner fa-spin mr-1"></i>当前处理
+        </h3>
+        <div id="current-event" class="text-xs text-slate-600 dark:text-gray-400">
+          <span class="italic">空闲</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- RSS Queue Summary -->
+    <section class="glass-card rounded-xl p-6">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="p-2 bg-blue-100 dark:bg-blue-500/10 rounded-lg text-blue-600 dark:text-blue-400">
+          <i class="fa-solid fa-rss"></i>
+        </div>
+        <h2 class="text-lg font-bold text-slate-800 dark:text-white">RSS 队列</h2>
+      </div>
+
+      <div class="space-y-3 text-sm">
+        <div class="flex items-center justify-between">
+          <span class="text-slate-500 dark:text-gray-400">队列长度</span>
+          <span id="rss-queue-len" class="font-mono font-semibold text-slate-800 dark:text-white">0</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-slate-500 dark:text-gray-400">Worker 线程</span>
+          <span id="rss-queue-thread" class="font-mono">-</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-slate-500 dark:text-gray-400">停止标记</span>
+          <span id="rss-queue-stopped" class="font-mono">-</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-slate-500 dark:text-gray-400">连续失败</span>
+          <span id="rss-queue-failures" class="font-mono">0</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-slate-500 dark:text-gray-400">统计（成功/失败/总计）</span>
+          <span id="rss-queue-stats" class="font-mono text-xs">0/0/0</span>
+        </div>
+      </div>
+
+      <!-- Current RSS Processing Item -->
+      <div class="mt-4 pt-4 border-t border-slate-200 dark:border-white/10">
+        <h3 class="text-sm font-semibold text-slate-700 dark:text-gray-300 mb-2">
+          <i class="fa-solid fa-spinner fa-spin mr-1"></i>当前处理
+        </h3>
+        <div id="rss-current-event" class="text-xs text-slate-600 dark:text-gray-400">
+          <span class="italic">空闲</span>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Circuit breaker - Full Width -->
+  <section class="glass-card rounded-xl p-6">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="p-2 bg-red-100 dark:bg-red-500/10 rounded-lg text-red-600 dark:text-red-400">
+        <i class="fa-solid fa-shield-halved"></i>
+      </div>
+      <h2 class="text-lg font-bold text-slate-800 dark:text-white">熔断状态</h2>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-slate-500 dark:text-gray-400 border-b border-slate-200 dark:border-white/10">
+            <th class="py-2 pr-3">Purpose</th>
+            <th class="py-2 pr-3">Model</th>
+            <th class="py-2 pr-3">熔断剩余</th>
+            <th class="py-2 pr-3">熔断截止(UTC)</th>
+            <th class="py-2 pr-3">RR 计数</th>
+          </tr>
+        </thead>
+        <tbody id="circuit-tbody" class="text-slate-700 dark:text-gray-200"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Webhook Pending Queue Items -->
+    <section class="glass-card rounded-xl p-6">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="p-2 bg-orange-100 dark:bg-orange-500/10 rounded-lg text-orange-600 dark:text-orange-400">
+          <i class="fa-solid fa-clock"></i>
+        </div>
+        <h2 class="text-lg font-bold text-slate-800 dark:text-white">Webhook 等待队列</h2>
+        <span id="pending-count" class="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-gray-300">0</span>
+      </div>
+
+      <div class="overflow-x-auto max-h-64 overflow-y-auto">
+        <table class="w-full text-sm">
+          <thead class="sticky top-0 bg-white dark:bg-slate-800">
+            <tr class="text-left text-slate-500 dark:text-gray-400 border-b border-slate-200 dark:border-white/10">
+              <th class="py-2 pr-3">#</th>
+              <th class="py-2 pr-3">事件类型</th>
+              <th class="py-2 pr-3">Hash</th>
+              <th class="py-2 pr-3">名称</th>
+              <th class="py-2 pr-3">接收时间(UTC)</th>
+            </tr>
+          </thead>
+          <tbody id="pending-tbody" class="text-slate-700 dark:text-gray-200"></tbody>
+        </table>
+      </div>
+      <div id="pending-empty" class="text-center text-slate-400 dark:text-gray-500 text-sm py-4 hidden">
+        队列为空
+      </div>
+    </section>
+
+    <!-- RSS Pending Queue Items -->
+    <section class="glass-card rounded-xl p-6">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="p-2 bg-blue-100 dark:bg-blue-500/10 rounded-lg text-blue-600 dark:text-blue-400">
+          <i class="fa-solid fa-clock"></i>
+        </div>
+        <h2 class="text-lg font-bold text-slate-800 dark:text-white">RSS 等待队列</h2>
+        <span id="rss-pending-count" class="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-gray-300">0</span>
+      </div>
+
+      <div class="overflow-x-auto max-h-64 overflow-y-auto">
+        <table class="w-full text-sm">
+          <thead class="sticky top-0 bg-white dark:bg-slate-800">
+            <tr class="text-left text-slate-500 dark:text-gray-400 border-b border-slate-200 dark:border-white/10">
+              <th class="py-2 pr-3">#</th>
+              <th class="py-2 pr-3">事件类型</th>
+              <th class="py-2 pr-3">RSS URL</th>
+              <th class="py-2 pr-3">触发来源</th>
+              <th class="py-2 pr-3">接收时间(UTC)</th>
+            </tr>
+          </thead>
+          <tbody id="rss-pending-tbody" class="text-slate-700 dark:text-gray-200"></tbody>
+        </table>
+      </div>
+      <div id="rss-pending-empty" class="text-center text-slate-400 dark:text-gray-500 text-sm py-4 hidden">
+        队列为空
+      </div>
+    </section>
+  </div>
+
+  <!-- Keys -->
+  <section class="glass-card rounded-xl p-6">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="p-2 bg-cyan-100 dark:bg-cyan-500/10 rounded-lg text-cyan-600 dark:text-neon-cyan">
+        <i class="fa-solid fa-key"></i>
+      </div>
+      <h2 class="text-lg font-bold text-slate-800 dark:text-white">Key 冷却 / 限额</h2>
+      <div class="ml-auto text-xs text-slate-500 dark:text-gray-400">
+        注：不显示原始 key，仅显示 key_id
+      </div>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-slate-500 dark:text-gray-400 border-b border-slate-200 dark:border-white/10">
+            <th class="py-2 pr-3">Purpose</th>
+            <th class="py-2 pr-3">Model</th>
+            <th class="py-2 pr-3">Key Name</th>
+            <th class="py-2 pr-3">Key ID</th>
+            <th class="py-2 pr-3">Cooldown</th>
+            <th class="py-2 pr-3">Cooldown Until(UTC)</th>
+            <th class="py-2 pr-3">RPM(used/limit)</th>
+            <th class="py-2 pr-3">RPD(used/limit)</th>
+            <th class="py-2 pr-3">历史</th>
+          </tr>
+        </thead>
+        <tbody id="keys-tbody" class="text-slate-700 dark:text-gray-200"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Error Detail Modal -->
+  <div id="error-detail-modal" class="fixed inset-0 hidden flex items-center justify-center p-4" style="z-index: 10001;">
+    <!-- Backdrop: keep it separate so it blurs everything (incl. sticky nav) -->
+    <div class="modal-backdrop" onclick="closeErrorDetailModal()" style="z-index: 10000; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);"></div>
+
+    <div class="modal-content bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[60vh] flex flex-col" style="z-index: 10001;">
+      <div class="flex items-center justify-between p-4 border-b border-slate-200 dark:border-white/10">
+        <h3 id="error-detail-title" class="text-lg font-bold text-red-600 dark:text-red-400">
+          <i class="fa-solid fa-exclamation-triangle mr-2"></i>错误详情
+        </h3>
+        <button onclick="closeErrorDetailModal()" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
+          <i class="fa-solid fa-xmark text-slate-500"></i>
+        </button>
+      </div>
+      <div class="flex-1 overflow-auto p-4">
+        <pre id="error-detail-content" class="text-sm text-slate-700 dark:text-gray-300 whitespace-pre-wrap break-words font-mono bg-slate-50 dark:bg-slate-900 p-4 rounded-lg"></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- Key History Modal -->
+  <div id="key-history-modal" class="fixed inset-0 hidden flex items-center justify-center p-4" style="z-index: 9999;">
+    <!-- Backdrop: keep it separate so it blurs everything (incl. sticky nav) -->
+    <div class="modal-backdrop" onclick="closeKeyHistoryModal()" style="z-index: 9998; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);"></div>
+
+    <div class="modal-content bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-4xl w-full max-h-[80vh] flex flex-col" style="z-index: 9999;">
+      <div class="flex items-center justify-between p-4 border-b border-slate-200 dark:border-white/10">
+        <h3 class="text-lg font-bold text-slate-800 dark:text-white">
+          <i class="fa-solid fa-history mr-2"></i>API Key 使用历史
+        </h3>
+        <button onclick="closeKeyHistoryModal()" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
+          <i class="fa-solid fa-xmark text-slate-500"></i>
+        </button>
+      </div>
+      <div class="p-4 border-b border-slate-200 dark:border-white/10">
+        <div class="flex gap-4 text-sm">
+          <div><span class="text-slate-500 dark:text-gray-400">Purpose:</span> <span id="modal-purpose" class="font-mono font-semibold">-</span></div>
+          <div><span class="text-slate-500 dark:text-gray-400">Key Name:</span> <span id="modal-key-name" class="font-semibold">-</span></div>
+          <div><span class="text-slate-500 dark:text-gray-400">Key ID:</span> <span id="modal-key-id" class="font-mono">-</span></div>
+        </div>
+      </div>
+      <div class="flex-1 overflow-auto">
+        <table class="w-full text-sm">
+          <thead class="sticky top-0 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm z-10 shadow-sm">
+            <tr class="text-left text-slate-500 dark:text-gray-400 border-b border-slate-200 dark:border-white/10">
+              <th class="py-3 pl-6 pr-2 font-medium">时间(UTC)</th>
+              <th class="py-3 px-2 font-medium">Model</th>
+              <th class="py-3 px-2 font-medium">Hash ID</th>
+              <th class="py-3 px-2 font-medium">上下文详情</th>
+              <th class="py-3 pl-2 pr-6 font-medium whitespace-nowrap text-right">调用结果</th>
+            </tr>
+          </thead>
+          <tbody id="key-history-tbody" class="text-slate-700 dark:text-gray-200"></tbody>
+        </table>
+        <div id="key-history-empty" class="text-center text-slate-400 dark:text-gray-500 text-sm py-8 hidden">
+          暂无调用记录
+        </div>
+        <div id="key-history-loading" class="text-center text-slate-400 dark:text-gray-500 text-sm py-8">
+          <i class="fa-solid fa-spinner fa-spin mr-2"></i>加载中...
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function fmtSeconds(sec) {
+    const s = Math.max(0, Math.floor(sec || 0));
+    if (s === 0) return '0s';
+    if (s < 60) return `${s}s`;
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    if (m < 60) return `${m}m ${r}s`;
+    const h = Math.floor(m / 60);
+    const mm = m % 60;
+    return `${h}h ${mm}m`;
+  }
+
+  function badge(text, kind) {
+    const cls = kind === 'ok'
+      ? 'bg-emerald-100/60 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/20'
+      : kind === 'warn'
+        ? 'bg-yellow-100/60 dark:bg-yellow-500/10 text-yellow-700 dark:text-yellow-300 border border-yellow-200 dark:border-yellow-500/20'
+        : 'bg-red-100/60 dark:bg-red-500/10 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-500/20';
+    return `<span class="px-2 py-0.5 rounded-full text-xs font-semibold ${cls}">${text}</span>`;
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function truncate(str, len = 40) {
+    if (!str) return '';
+    return str.length > len ? str.slice(0, len) + '...' : str;
+  }
+
+  async function refreshAiStatus() {
+    const res = await fetch('/api/system/ai-status');
+    const result = await res.json();
+    const data = result.data || result;
+
+    document.getElementById('ai-status-last-updated').textContent = new Date().toISOString();
+
+    // Webhook Queue Summary
+    const q = data.queue || {};
+    document.getElementById('queue-len').textContent = String(q.queue_len ?? 0);
+    document.getElementById('queue-thread').innerHTML = (q.thread_alive ? badge('alive', 'ok') : badge('down', 'bad'));
+    document.getElementById('queue-stopped').innerHTML = (q.stopped ? badge('true', 'bad') : badge('false', 'ok'));
+    document.getElementById('queue-failures').textContent = `${q.consecutive_failures ?? 0}/${q.max_consecutive_failures ?? 0}`;
+
+    // Webhook Current Event
+    const currentEl = document.getElementById('current-event');
+    if (q.current_event) {
+      const ce = q.current_event;
+      const name = ce.payload_summary?.name || '-';
+      currentEl.innerHTML = `
+        <div class="bg-orange-50 dark:bg-orange-500/10 rounded-lg p-2 space-y-1">
+          <div><span class="text-slate-500 dark:text-gray-500">类型:</span> <span class="font-mono">${escapeHtml(ce.event_type)}</span></div>
+          <div><span class="text-slate-500 dark:text-gray-500">Hash:</span> <span class="font-mono">${escapeHtml(truncate(ce.hash_id, 16))}</span></div>
+          <div><span class="text-slate-500 dark:text-gray-500">名称:</span> ${escapeHtml(truncate(name, 50))}</div>
+          <div><span class="text-slate-500 dark:text-gray-500">开始:</span> <span class="font-mono">${escapeHtml(ce.started_at_utc || '-')}</span></div>
+        </div>
+      `;
+    } else {
+      currentEl.innerHTML = '<span class="italic text-slate-400 dark:text-gray-500">空闲</span>';
+    }
+
+    // RSS Queue Summary
+    const rq = data.rss_queue || {};
+    document.getElementById('rss-queue-len').textContent = String(rq.queue_len ?? 0);
+    document.getElementById('rss-queue-thread').innerHTML = (rq.thread_alive ? badge('alive', 'ok') : badge('down', 'bad'));
+    document.getElementById('rss-queue-stopped').innerHTML = (rq.stopped ? badge('true', 'bad') : badge('false', 'ok'));
+    document.getElementById('rss-queue-failures').textContent = `${rq.consecutive_failures ?? 0}/${rq.max_consecutive_failures ?? 0}`;
+    const rqStats = rq.stats || {};
+    document.getElementById('rss-queue-stats').textContent = `${rqStats.total_success ?? 0}/${rqStats.total_failed ?? 0}/${rqStats.total_processed ?? 0}`;
+
+    // RSS Current Event
+    const rssCurrentEl = document.getElementById('rss-current-event');
+    if (rq.current_event) {
+      const ce = rq.current_event;
+      const shortTitle = ce.payload_summary?.short_title || '-';
+      rssCurrentEl.innerHTML = `
+        <div class="bg-blue-50 dark:bg-blue-500/10 rounded-lg p-2 space-y-1">
+          <div><span class="text-slate-500 dark:text-gray-500">类型:</span> <span class="font-mono">${escapeHtml(ce.event_type)}</span></div>
+          <div><span class="text-slate-500 dark:text-gray-500">URL:</span> <span class="font-mono text-xs">${escapeHtml(truncate(ce.rss_url, 40))}</span></div>
+          <div><span class="text-slate-500 dark:text-gray-500">触发:</span> ${escapeHtml(ce.triggered_by || '-')}</div>
+          ${shortTitle !== '-' ? `<div><span class="text-slate-500 dark:text-gray-500">标题:</span> ${escapeHtml(shortTitle)}</div>` : ''}
+          <div><span class="text-slate-500 dark:text-gray-500">开始:</span> <span class="font-mono">${escapeHtml(ce.started_at_utc || '-')}</span></div>
+        </div>
+      `;
+    } else {
+      rssCurrentEl.innerHTML = '<span class="italic text-slate-400 dark:text-gray-500">空闲</span>';
+    }
+
+    // Webhook Pending Queue
+    const pendingEvents = q.pending_events || [];
+    const pendingCountEl = document.getElementById('pending-count');
+    const pendingTbody = document.getElementById('pending-tbody');
+    const pendingEmpty = document.getElementById('pending-empty');
+
+    pendingCountEl.textContent = String(pendingEvents.length);
+
+    if (pendingEvents.length === 0) {
+      pendingTbody.innerHTML = '';
+      pendingEmpty.classList.remove('hidden');
+    } else {
+      pendingEmpty.classList.add('hidden');
+      const rows = pendingEvents.map((evt, idx) => {
+        const name = evt.payload_summary?.name || '-';
+        return `
+          <tr class="border-b border-slate-100 dark:border-white/5">
+            <td class="py-2 pr-3 text-slate-400">${idx + 1}</td>
+            <td class="py-2 pr-3 font-mono">${escapeHtml(evt.event_type)}</td>
+            <td class="py-2 pr-3 font-mono">${escapeHtml(truncate(evt.hash_id, 12))}</td>
+            <td class="py-2 pr-3">${escapeHtml(truncate(name, 40))}</td>
+            <td class="py-2 pr-3 font-mono text-xs">${escapeHtml(evt.received_at_utc)}</td>
+          </tr>
+        `;
+      }).join('');
+      pendingTbody.innerHTML = rows;
+    }
+
+    // RSS Pending Queue
+    const rssPendingEvents = rq.pending_events || [];
+    const rssPendingCountEl = document.getElementById('rss-pending-count');
+    const rssPendingTbody = document.getElementById('rss-pending-tbody');
+    const rssPendingEmpty = document.getElementById('rss-pending-empty');
+
+    rssPendingCountEl.textContent = String(rssPendingEvents.length);
+
+    if (rssPendingEvents.length === 0) {
+      rssPendingTbody.innerHTML = '';
+      rssPendingEmpty.classList.remove('hidden');
+    } else {
+      rssPendingEmpty.classList.add('hidden');
+      const rows = rssPendingEvents.map((evt, idx) => {
+        return `
+          <tr class="border-b border-slate-100 dark:border-white/5">
+            <td class="py-2 pr-3 text-slate-400">${idx + 1}</td>
+            <td class="py-2 pr-3 font-mono">${escapeHtml(evt.event_type)}</td>
+            <td class="py-2 pr-3 font-mono text-xs" title="${escapeHtml(evt.rss_url)}">${escapeHtml(truncate(evt.rss_url, 30))}</td>
+            <td class="py-2 pr-3">${escapeHtml(evt.triggered_by || '-')}</td>
+            <td class="py-2 pr-3 font-mono text-xs">${escapeHtml(evt.received_at_utc)}</td>
+          </tr>
+        `;
+      }).join('');
+      rssPendingTbody.innerHTML = rows;
+    }
+
+    // Circuit Breaker
+    const circuitPurposes = (data.ai && data.ai.purposes) ? data.ai.purposes : {};
+    const circuitRows = Object.entries(circuitPurposes).map(([purpose, ps]) => {
+      const remaining = ps.circuit_remaining_seconds || 0;
+      const until = ps.circuit_open_until_utc || '-';
+      const rr = ps.rr_counter ?? 0;
+      const model = ps.model || '-';
+      const remCell = remaining > 0 ? badge(fmtSeconds(remaining), 'bad') : badge('0s', 'ok');
+      return `
+        <tr class="border-b border-slate-100 dark:border-white/5">
+          <td class="py-2 pr-3 font-mono">${purpose}</td>
+          <td class="py-2 pr-3 font-mono text-xs">${escapeHtml(model)}</td>
+          <td class="py-2 pr-3">${remCell}</td>
+          <td class="py-2 pr-3 font-mono">${until}</td>
+          <td class="py-2 pr-3 font-mono">${rr}</td>
+        </tr>
+      `;
+    }).join('');
+    document.getElementById('circuit-tbody').innerHTML = circuitRows || `<tr><td class="py-2 text-slate-400" colspan="5">无数据</td></tr>`;
+
+    // Keys
+    const keys = (data.ai && data.ai.keys) ? data.ai.keys : [];
+    const purposes = (data.ai && data.ai.purposes) ? data.ai.purposes : {};
+    const keyRows = keys.map(k => {
+      const cooldownRem = k.cooldown_remaining_seconds || 0;
+      const cooldownCell = cooldownRem > 0 ? badge(fmtSeconds(cooldownRem), 'warn') : badge('0s', 'ok');
+      const until = k.cooldown_until_utc || '-';
+      const rpmLimit = k.rpm_limit || 0;
+      const rpdLimit = k.rpd_limit || 0;
+      const rpmText = `${k.rpm_in_window ?? 0}/${rpmLimit === 0 ? '∞' : rpmLimit}`;
+      const rpdText = `${k.rpd_count ?? 0}/${rpdLimit === 0 ? '∞' : rpdLimit}`;
+      // 获取当前 purpose 的 model
+      const purposeInfo = purposes[k.purpose] || {};
+      const model = purposeInfo.model || '-';
+      return `
+        <tr class="border-b border-slate-100 dark:border-white/5">
+          <td class="py-2 pr-3 font-mono">${k.purpose}</td>
+          <td class="py-2 pr-3 font-mono text-xs">${escapeHtml(model)}</td>
+          <td class="py-2 pr-3">${k.name || '-'}</td>
+          <td class="py-2 pr-3 font-mono">${k.key_id}</td>
+          <td class="py-2 pr-3">${cooldownCell}</td>
+          <td class="py-2 pr-3 font-mono">${until}</td>
+          <td class="py-2 pr-3 font-mono">${rpmText}</td>
+          <td class="py-2 pr-3 font-mono">${rpdText}</td>
+          <td class="py-2 pr-3">
+            <button onclick="showKeyHistory('${k.purpose}', '${k.key_id}', '${escapeHtml(k.name || '-')}')"
+                    class="px-2 py-1 text-xs bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded transition-colors">
+              <i class="fa-solid fa-clock-rotate-left"></i>
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+    document.getElementById('keys-tbody').innerHTML = keyRows || `<tr><td class="py-2 text-slate-400" colspan="9">未配置 Key Pool 或尚未加载</td></tr>`;
+  }
+
+  // 显示错误详情的函数
+  function showErrorDetail(errorCode, errorMessage) {
+    const modal = document.getElementById('error-detail-modal');
+    const titleEl = document.getElementById('error-detail-title');
+    const contentEl = document.getElementById('error-detail-content');
+    
+    if (errorCode && errorCode !== 0) {
+      titleEl.innerHTML = `<i class="fa-solid fa-exclamation-triangle mr-2"></i>错误 ${errorCode}`;
+    } else {
+      titleEl.innerHTML = `<i class="fa-solid fa-exclamation-triangle mr-2"></i>错误详情`;
+    }
+    
+    contentEl.textContent = errorMessage || '无详细信息';
+    modal.classList.remove('hidden');
+  }
+  
+  function closeErrorDetailModal() {
+    document.getElementById('error-detail-modal').classList.add('hidden');
+  }
+  
+  // Close error modal on backdrop click
+  document.getElementById('error-detail-modal')?.addEventListener('click', function(e) {
+    if (e.target === this) closeErrorDetailModal();
+  });
+
+  // 生成错误码徽章（可点击查看详情）
+  function errorBadge(errorCode, errorMessage) {
+    const escapedMsg = escapeHtml(errorMessage || '').replace(/'/g, "\\'").replace(/\n/g, '\\n');
+    return `<span onclick="showErrorDetail(${errorCode}, '${escapedMsg}')" 
+                  class="px-2 py-0.5 rounded-full text-xs font-semibold cursor-pointer
+                         bg-red-100/60 dark:bg-red-500/10 text-red-700 dark:text-red-300 
+                         border border-red-200 dark:border-red-500/20 hover:bg-red-200 dark:hover:bg-red-500/20">
+              ${errorCode}
+            </span>`;
+  }
+
+  // Key History Modal
+  async function showKeyHistory(purpose, keyId, keyName) {
+    const modal = document.getElementById('key-history-modal');
+    const tbody = document.getElementById('key-history-tbody');
+    const empty = document.getElementById('key-history-empty');
+    const loading = document.getElementById('key-history-loading');
+
+    document.getElementById('modal-purpose').textContent = purpose;
+    document.getElementById('modal-key-name').textContent = keyName;
+    document.getElementById('modal-key-id').textContent = keyId;
+
+    modal.classList.remove('hidden');
+    tbody.innerHTML = '';
+    empty.classList.add('hidden');
+    loading.classList.remove('hidden');
+
+    try {
+      const res = await fetch(`/api/system/ai-key-history?purpose=${encodeURIComponent(purpose)}&key_id=${encodeURIComponent(keyId)}&limit=100`);
+      const result = await res.json();
+      const records = (result.data && result.data.records) || [];
+
+      loading.classList.add('hidden');
+
+      if (records.length === 0) {
+        empty.classList.remove('hidden');
+      } else {
+        const rows = records.map(r => {
+          let resultCell;
+          if (r.success) {
+            resultCell = badge('成功', 'ok');
+          } else if (r.error_code) {
+            // 显示错误码，点击可查看完整错误信息
+            resultCell = errorBadge(r.error_code, r.error_message);
+          } else {
+            // 没有错误码的失败（如网络异常）
+            const escapedMsg = escapeHtml(r.error_message || '未知错误').replace(/'/g, "\\'").replace(/\n/g, '\\n');
+            resultCell = `<span onclick="showErrorDetail(0, '${escapedMsg}')" 
+                                class="px-2 py-0.5 rounded-full text-xs font-semibold cursor-pointer
+                                       bg-red-100/60 dark:bg-red-500/10 text-red-700 dark:text-red-300 
+                                       border border-red-200 dark:border-red-500/20 hover:bg-red-200 dark:hover:bg-red-500/20">
+                            失败
+                          </span>`;
+          }
+          return `
+            <tr class="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+              <td class="py-3 pl-6 pr-2 font-mono text-xs text-slate-500 dark:text-gray-400">${escapeHtml(r.created_at_utc)}</td>
+              <td class="py-3 px-2 font-mono text-xs">${escapeHtml(r.model || '-')}</td>
+              <td class="py-3 px-2 font-mono text-xs">${escapeHtml(truncate(r.hash_id || '-', 12))}</td>
+              <td class="py-3 px-2 text-xs text-slate-600 dark:text-gray-300">${escapeHtml(truncate(r.context_summary || '-', 50))}</td>
+              <td class="py-3 pl-2 pr-6 whitespace-nowrap text-right">${resultCell}</td>
+            </tr>
+          `;
+        }).join('');
+        tbody.innerHTML = rows;
+      }
+    } catch (e) {
+      console.error('Failed to load key history:', e);
+      loading.classList.add('hidden');
+      empty.textContent = '加载失败';
+      empty.classList.remove('hidden');
+    }
+  }
+
+  function closeKeyHistoryModal() {
+    document.getElementById('key-history-modal').classList.add('hidden');
+  }
+
+  // Close modal on backdrop click
+  document.getElementById('key-history-modal')?.addEventListener('click', function(e) {
+    if (e.target === this) closeKeyHistoryModal();
+  });
+
+  async function loop() {
+    try {
+      await refreshAiStatus();
+    } catch (e) {
+      console.error('AI status refresh failed:', e);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    loop();
+    setInterval(loop, 2000);
+  });
+</script>
+{% endblock %}
+
+
+
+
