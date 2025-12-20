@@ -16,6 +16,7 @@ from src.core.interfaces.adapters import (
     ITitleParser,
     IFileRenamer,
     IDownloadClient,
+    IMetadataClient,
 )
 from src.core.interfaces.notifications import (
     RSSNotification,
@@ -40,6 +41,7 @@ __all__ = [
     'ITitleParser',
     'IFileRenamer',
     'IDownloadClient',
+    'IMetadataClient',
     # Notification Data Classes
     'RSSNotification',
     'DownloadNotification',

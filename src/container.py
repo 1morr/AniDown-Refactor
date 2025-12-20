@@ -12,14 +12,19 @@ from src.infrastructure.repositories.anime_repository import AnimeRepository
 from src.infrastructure.repositories.download_repository import DownloadRepository
 from src.infrastructure.repositories.history_repository import HistoryRepository
 from src.infrastructure.downloader.qbit_adapter import QBitAdapter
+from src.infrastructure.metadata.tvdb_adapter import TVDBAdapter
+from src.services.filter_service import FilterService
+from src.services.metadata_service import MetadataService
+from src.services.anime_service import AnimeService
+from src.services.ai_debug_service import AIDebugService
+from src.services.log_rotation_service import LogRotationService
 
 
 class Container(containers.DeclarativeContainer):
     """依赖注入容器"""
 
     wiring_config = containers.WiringConfiguration(modules=[
-        # Webhook handlers - will be added when migrated
-        # 'src.interface.webhook.handler'
+        'src.interface.webhook.handler',
     ])
 
     # Configuration
@@ -35,16 +40,37 @@ class Container(containers.DeclarativeContainer):
 
     # Adapters
     qb_client = providers.Singleton(QBitAdapter)
+    tvdb_client = providers.Singleton(TVDBAdapter)
 
-    # Note: Additional adapters and services will be added as they are migrated:
+    # Services - Filter
+    filter_service = providers.Singleton(FilterService)
+
+    # Services - Metadata
+    metadata_service = providers.Singleton(
+        MetadataService,
+        metadata_client=tvdb_client
+    )
+
+    # Services - Anime
+    anime_service = providers.Singleton(
+        AnimeService,
+        anime_repo=anime_repo,
+        download_repo=download_repo,
+        download_client=qb_client
+    )
+
+    # Services - AI Debug
+    ai_debug_service = providers.Singleton(AIDebugService)
+
+    # Services - Log Rotation
+    log_rotation_service = providers.Singleton(LogRotationService)
+
+    # Note: Additional services will be added as they are migrated:
     # - ai_client (OpenAIAdapter)
     # - discord_client (DiscordAdapter)
-    # - tvdb_client (TVDBAdapter)
     # - rss_service (RSSService)
-    # - filter_service (FilterService)
     # - file_service (FileService)
     # - download_manager (DownloadManager)
-    # - anime_service (AnimeService)
 
 
 # 全局容器实例

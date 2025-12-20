@@ -286,3 +286,132 @@ class IDownloadClient(ABC):
             True if resume was successful, False otherwise.
         """
         pass
+
+
+class IMetadataClient(ABC):
+    """
+    Metadata client interface.
+
+    Defines the contract for fetching anime metadata from external sources.
+    """
+
+    @abstractmethod
+    def login(self) -> bool:
+        """
+        Authenticate with the metadata service.
+
+        Returns:
+            True if authentication was successful, False otherwise.
+        """
+        pass
+
+    @abstractmethod
+    def search_series(self, name: str) -> Optional[List[Dict[str, Any]]]:
+        """
+        Search for a series by name.
+
+        Args:
+            name: Series name to search for.
+
+        Returns:
+            List of search results if successful, None otherwise.
+        """
+        pass
+
+    @abstractmethod
+    def get_series_extended(self, series_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Get extended information for a series.
+
+        Args:
+            series_id: Series identifier.
+
+        Returns:
+            Series extended data if found, None otherwise.
+        """
+        pass
+
+    @abstractmethod
+    def get_series_episodes(
+        self,
+        series_id: int,
+        page: int = 0,
+        language: str = 'default'
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get episodes for a series.
+
+        Args:
+            series_id: Series identifier.
+            page: Page number for pagination.
+            language: Language code for translations.
+
+        Returns:
+            Episode data if found, None otherwise.
+        """
+        pass
+
+    @abstractmethod
+    def get_all_episodes(self, series_id: int) -> List[Dict[str, Any]]:
+        """
+        Get all episodes for a series.
+
+        Args:
+            series_id: Series identifier.
+
+        Returns:
+            List of all episodes.
+        """
+        pass
+
+    @abstractmethod
+    def find_exact_match(
+        self,
+        anime_name: str,
+        max_check: int = 5
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Find an exact match for an anime name.
+
+        Args:
+            anime_name: Anime name to search for.
+            max_check: Maximum number of results to check.
+
+        Returns:
+            Matched series data if found, None otherwise.
+        """
+        pass
+
+    @abstractmethod
+    def generate_ai_format(
+        self,
+        series_data: Dict[str, Any],
+        episodes: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """
+        Generate AI-friendly format for series data.
+
+        Args:
+            series_data: Series information.
+            episodes: List of episodes.
+
+        Returns:
+            AI-formatted data structure.
+        """
+        pass
+
+    @abstractmethod
+    def simplify_ai_format(
+        self,
+        ai_format_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Simplify AI format data for reduced token usage.
+
+        Args:
+            ai_format_data: Full AI format data.
+
+        Returns:
+            Simplified data structure.
+        """
+        pass
