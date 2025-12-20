@@ -201,9 +201,10 @@ class KeyPool:
     - 429: 限流冷却，服务正常
     - 500/503/504: 服务端错误，正常冷却
 
-    RPM 智能等待：
+    RPM/RPD 智能等待：
     - 当所有 Key 都达到 RPM 限制时，自动等待最短时间后重试
     - 可配置最大等待时间
+    - 支持可中断等待：当通过 API 重置 RPM/RPD 时，等待会被立即中断并重试
 
     Example:
         >>> pool = KeyPool('title_parse')
@@ -255,6 +256,8 @@ class KeyPool:
         self._lock = threading.Lock()
         self._rr_index = 0
         self._on_key_disabled: Optional[Callable[[str, str, str], None]] = None
+        # 用于中断等待的事件
+        self._wait_interrupt_event = threading.Event()
 
     @property
     def purpose(self) -> str:
@@ -329,7 +332,11 @@ class KeyPool:
                         f'⏳ [{self._purpose}] 所有 Key 达到 RPM 限制，'
                         f'等待 {wait_seconds:.1f}s 后重试...'
                     )
-                    time.sleep(wait_seconds)
+                    # 使用可中断的等待，reset_rpm/reset_rpd 可以提前唤醒
+                    self._wait_interrupt_event.clear()
+                    interrupted = self._wait_interrupt_event.wait(wait_seconds)
+                    if interrupted:
+                        logger.info(f'🔔 [{self._purpose}] 等待被中断，立即重试')
                     return self._try_reserve()
                 else:
                     logger.warning(
@@ -344,7 +351,11 @@ class KeyPool:
                         f'⏳ [{self._purpose}] 所有 Key 达到 RPD 限制，'
                         f'等待 {hours:.1f}h 后重试（UTC 0点重置）...'
                     )
-                    time.sleep(wait_seconds)
+                    # 使用可中断的等待，reset_rpm/reset_rpd 可以提前唤醒
+                    self._wait_interrupt_event.clear()
+                    interrupted = self._wait_interrupt_event.wait(wait_seconds)
+                    if interrupted:
+                        logger.info(f'🔔 [{self._purpose}] 等待被中断，立即重试')
                     return self._try_reserve()
                 else:
                     logger.warning(
@@ -733,6 +744,8 @@ class KeyPool:
             )).name
 
             logger.info(f'✅ [{self._purpose}] Key {key_name} 已重新启用')
+            # 唤醒等待中的线程
+            self._wait_interrupt_event.set()
             return True
 
     def reset_cooldown(self, key_id: str) -> bool:
@@ -754,6 +767,8 @@ class KeyPool:
                     key_id=key_id, name=key_id, api_key='', base_url='', model=''
                 )).name
                 logger.info(f'🔄 [{self._purpose}] Key {key_name} 冷却已重置')
+                # 唤醒等待中的线程
+                self._wait_interrupt_event.set()
                 return True
             return False
 
@@ -775,6 +790,8 @@ class KeyPool:
                     key_id=key_id, name=key_id, api_key='', base_url='', model=''
                 )).name
                 logger.info(f'🔄 [{self._purpose}] Key {key_name} RPM 计数已重置')
+                # 唤醒等待中的线程
+                self._wait_interrupt_event.set()
                 return True
             return False
 
@@ -796,6 +813,8 @@ class KeyPool:
                     key_id=key_id, name=key_id, api_key='', base_url='', model=''
                 )).name
                 logger.info(f'🔄 [{self._purpose}] Key {key_name} RPD 计数已重置')
+                # 唤醒等待中的线程
+                self._wait_interrupt_event.set()
                 return True
             return False
 
@@ -823,6 +842,8 @@ class KeyPool:
                     key_id=key_id, name=key_id, api_key='', base_url='', model=''
                 )).name
                 logger.info(f'🔄 [{self._purpose}] Key {key_name} 所有限制已重置')
+                # 唤醒等待中的线程
+                self._wait_interrupt_event.set()
                 return True
             return False
 
