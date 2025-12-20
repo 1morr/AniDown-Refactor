@@ -6,132 +6,167 @@ AI 响应 JSON Schema 模块。
 
 from typing import Any, Dict
 
+ResponseFormat = Dict[str, Any]
+
+
+def _number_or_null(description: str) -> Dict[str, Any]:
+    """Helper to describe numeric fields that may be null or fractional."""
+    return {
+        'description': description,
+        'anyOf': [
+            {'type': 'integer', 'minimum': 0},
+            {'type': 'number', 'minimum': 0},
+            {'type': 'null'}
+        ]
+    }
+
+
+def _string_field(description: str) -> Dict[str, Any]:
+    """Helper to describe common string fields."""
+    return {
+        'type': 'string',
+        'description': description
+    }
+
+
 # 标题解析响应格式
-TITLE_PARSE_RESPONSE_FORMAT: Dict[str, Any] = {
+TITLE_PARSE_RESPONSE_FORMAT: ResponseFormat = {
     'type': 'json_schema',
     'json_schema': {
-        'name': 'title_parse_result',
+        'name': 'anime_title_parse_result',
         'strict': True,
         'schema': {
             'type': 'object',
+            'additionalProperties': False,
+            'required': [
+                'original_title',
+                'anime_full_title',
+                'anime_clean_title',
+                'subtitle_group_name',
+                'episode',
+                'season',
+                'category'
+            ],
             'properties': {
-                'original_title': {
-                    'type': 'string',
-                    'description': '原始输入标题'
-                },
-                'anime_clean_title': {
-                    'type': 'string',
-                    'description': '干净的动漫短标题（中文优先）'
-                },
-                'anime_full_title': {
-                    'type': ['string', 'null'],
-                    'description': '完整的动漫标题（多语言版本）'
-                },
-                'subtitle_group_name': {
-                    'type': 'string',
-                    'description': '字幕组名称'
-                },
+                'original_title': _string_field('Input title to analyze'),
+                'anime_full_title': _string_field('Full multi-language anime title'),
+                'anime_clean_title': _string_field('Single-language clean anime title'),
+                'subtitle_group_name': _string_field(
+                    'Fansub or encoder name without brackets'
+                ),
+                'episode': _number_or_null(
+                    'Episode number, movie defaults to 1, null if unknown'
+                ),
                 'season': {
                     'type': 'integer',
-                    'description': '季度数字（默认 1，电影/OVA 为 0）'
-                },
-                'episode': {
-                    'type': ['integer', 'null'],
-                    'description': '集数（合集为 null）'
+                    'minimum': 0,
+                    'description': 'Season number, defaults to 1 when unknown'
                 },
                 'category': {
                     'type': 'string',
-                    'enum': ['tv', 'movie'],
-                    'description': '分类'
-                },
-                'quality': {
-                    'type': 'string',
-                    'description': '视频质量'
-                },
-                'codec': {
-                    'type': 'string',
-                    'description': '编码格式'
-                },
-                'source': {
-                    'type': 'string',
-                    'description': '来源'
+                    'description': 'Content category',
+                    'enum': ['tv', 'movie']
                 }
-            },
-            'required': [
-                'original_title',
-                'anime_clean_title',
-                'anime_full_title',
-                'subtitle_group_name',
-                'season',
-                'episode',
-                'category',
-                'quality',
-                'codec',
-                'source'
-            ],
-            'additionalProperties': False
+            }
         }
     }
 }
 
 
-# 文件重命名响应格式
-FILE_RENAME_RESPONSE_FORMAT: Dict[str, Any] = {
+# 多文件重命名响应格式
+MULTI_FILE_RENAME_RESPONSE_FORMAT: ResponseFormat = {
     'type': 'json_schema',
     'json_schema': {
-        'name': 'file_rename_result',
+        'name': 'multi_file_rename_response',
         'strict': True,
         'schema': {
             'type': 'object',
+            'additionalProperties': False,
+            'required': [
+                'main_files',
+                'skipped_files',
+                'seasons_info',
+                'anime_full_title',
+                'anime_clean_title',
+                'subtitle_group_name',
+                'subtitle_group_regex',
+                'full_title_regex',
+                'clean_title_regex',
+                'episode_regex',
+                'season',
+                'category',
+                'special_tag_regex',
+                'quality_regex',
+                'platform_regex',
+                'source_regex',
+                'codec_regex',
+                'subtitle_type_regex',
+                'format_regex'
+            ],
             'properties': {
-                'files': {
+                'main_files': {
                     'type': 'object',
-                    'description': '原文件名到新文件名的映射',
-                    'additionalProperties': {
-                        'type': 'string'
-                    }
+                    'description': 'Mappings of original paths to new file names',
+                    'additionalProperties': _string_field(
+                        'Target file path with season prefix when required'
+                    )
                 },
-                'skipped': {
+                'skipped_files': {
                     'type': 'array',
-                    'description': '跳过的文件列表',
-                    'items': {
-                        'type': 'string'
-                    }
+                    'description': 'Non-main content the AI skipped',
+                    'items': _string_field('Original file path that should be skipped')
                 },
-                'seasons': {
+                'seasons_info': {
                     'type': 'object',
-                    'description': '季度信息',
+                    'description': 'Season metadata keyed by season number',
                     'additionalProperties': {
                         'type': 'object',
+                        'additionalProperties': False,
+                        'required': ['type', 'count', 'description'],
                         'properties': {
-                            'count': {'type': 'integer'},
-                            'start': {'type': 'integer'},
-                            'end': {'type': 'integer'}
+                            'type': _string_field('tv / movie / special'),
+                            'count': {
+                                'type': 'integer',
+                                'minimum': 0,
+                                'description': 'Number of episodes identified'
+                            },
+                            'description': _string_field(
+                                'Human-readable description for the season'
+                            )
                         }
                     }
                 },
-                'patterns': {
-                    'type': 'object',
-                    'description': '检测到的模式信息',
-                    'properties': {
-                        'detected': {'type': 'string'},
-                        'method': {
-                            'type': 'string',
-                            'enum': ['regex', 'ai', 'manual']
-                        }
-                    },
-                    'required': ['detected', 'method'],
-                    'additionalProperties': False
-                }
-            },
-            'required': ['files', 'skipped', 'seasons', 'patterns'],
-            'additionalProperties': False
+                'anime_full_title': _string_field('Full anime title'),
+                'anime_clean_title': _string_field('Clean anime title'),
+                'subtitle_group_name': _string_field('Primary fansub or encoder name'),
+                'subtitle_group_regex': _string_field('Regex to capture subtitle group'),
+                'full_title_regex': _string_field('Regex to capture full title block'),
+                'clean_title_regex': _string_field('Regex to capture clean title'),
+                'episode_regex': _string_field('Regex to capture episode numbers'),
+                'season': {
+                    'type': 'integer',
+                    'minimum': 0,
+                    'description': 'Season number primarily represented by this batch'
+                },
+                'category': {
+                    'type': 'string',
+                    'description': 'Content category',
+                    'enum': ['tv', 'movie']
+                },
+                'special_tag_regex': _string_field('Regex for tags like V2, END, SP'),
+                'quality_regex': _string_field('Regex for quality markers (e.g., 1080p)'),
+                'platform_regex': _string_field('Regex for platform/source tags'),
+                'source_regex': _string_field('Regex targeting rip/source info'),
+                'codec_regex': _string_field('Regex for codec tagging'),
+                'subtitle_type_regex': _string_field('Regex for subtitle type tags'),
+                'format_regex': _string_field('Regex to capture extension/format')
+            }
         }
     }
 }
 
 
 # 简单 JSON 响应格式（用于不需要严格 schema 的场景）
-SIMPLE_JSON_RESPONSE_FORMAT: Dict[str, Any] = {
+SIMPLE_JSON_RESPONSE_FORMAT: ResponseFormat = {
     'type': 'json_object'
 }
