@@ -73,20 +73,20 @@ def create_webhook_blueprint(prefix: str = '/webhook') -> Blueprint:
             )
 
             # Enqueue the event using the convenience method
-            queue_len = queue_worker.enqueue_event(
+            queued_event = queue_worker.enqueue_event(
                 event_type=event_type,
                 payload=payload
             )
 
-            logger.info(f'✅ 已将事件加入队列 (队列长度: {queue_len})')
+            logger.info(f'✅ 已将事件加入队列 (queue_id: {queued_event.queue_id})')
 
             from datetime import datetime, timezone
             return jsonify({
                 'success': True,
                 'queued': True,
-                'queue_id': event_type,
+                'queue_id': queued_event.queue_id,
                 'received_at_utc': datetime.now(timezone.utc).isoformat(),
-                'queue_len': queue_len
+                'queue_len': queue_worker.qsize()
             }), 202
 
         except Exception as e:

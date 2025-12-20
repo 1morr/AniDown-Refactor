@@ -128,10 +128,10 @@ class WebhookQueueWorker(QueueWorker[WebhookPayload]):
 
     def enqueue(
         self,
+        event: QueueEvent[WebhookPayload] = None,
         event_type: str = None,
         hash_id: str = None,
-        payload: Dict[str, Any] = None,
-        event: QueueEvent[WebhookPayload] = None
+        payload: Dict[str, Any] = None
     ) -> QueueEvent[WebhookPayload]:
         """
         Add an event to the queue.
@@ -140,10 +140,10 @@ class WebhookQueueWorker(QueueWorker[WebhookPayload]):
         base class API (event object).
 
         Args:
+            event: Pre-built QueueEvent (base class compatibility).
             event_type: Event type string.
             hash_id: Torrent hash identifier.
             payload: Event payload as dictionary.
-            event: Pre-built QueueEvent (base class compatibility).
 
         Returns:
             The enqueued QueueEvent with queue_id.
