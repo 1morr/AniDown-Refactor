@@ -11,10 +11,10 @@ from src.core.config import config
 from src.container import Container
 from src.services.download_manager import DownloadManager
 from src.services.rss_service import RSSService
-from src.services import rss_queue
+from src.services.queue.rss_queue import get_rss_queue, RSSQueueWorker, RSSPayload
 from src.infrastructure.repositories.history_repository import HistoryRepository
 from src.infrastructure.repositories.download_repository import DownloadRepository
-from src.infrastructure.notification.discord_adapter import DiscordAdapter
+from src.infrastructure.notification.discord.webhook_client import DiscordWebhookClient
 from src.interface.web.utils import (
     APIResponse,
     handle_api_errors,
@@ -28,16 +28,9 @@ rss_bp = Blueprint('rss', __name__)
 logger = WebLogger(__name__)
 
 
-def _ensure_rss_queue(download_manager: DownloadManager) -> rss_queue.RSSQueueWorker:
+def _ensure_rss_queue() -> RSSQueueWorker:
     """确保 RSS 队列已初始化"""
-    if rss_queue.rss_queue_worker is None:
-        try:
-            discord_client = DiscordAdapter()
-            rss_queue.init_rss_queue(download_manager, discord_client=discord_client)
-        except Exception as e:
-            logger.processing_error("初始化RSS队列", e)
-            rss_queue.init_rss_queue(download_manager, discord_client=None)
-    return rss_queue.rss_queue_worker
+    return get_rss_queue()
 
 
 @rss_bp.route('/rss')
@@ -54,8 +47,7 @@ def rss_page():
 @handle_api_errors
 @validate_json('rss_url')
 def process_unified_rss(
-    download_manager: DownloadManager = Provide[Container.download_manager],
-    discord_client: DiscordAdapter = Provide[Container.discord_client]
+    download_manager: DownloadManager = Provide[Container.download_manager]
 ):
     """统一的RSS处理接口"""
     data = request.get_json()
@@ -70,7 +62,7 @@ def process_unified_rss(
     logger.api_request(f"处理RSS - URL:{rss_url}, 手动模式:{is_manual_mode}")
 
     # 确保队列已初始化
-    worker = _ensure_rss_queue(download_manager)
+    worker = _ensure_rss_queue()
 
     # 如果是手动模式，需要检查额外的参数
     if is_manual_mode:
@@ -262,8 +254,7 @@ def delete_rss_history_api(
 @inject
 @handle_api_errors
 def refresh_all_rss_api(
-    download_manager: DownloadManager = Provide[Container.download_manager],
-    discord_client: DiscordAdapter = Provide[Container.discord_client]
+    download_manager: DownloadManager = Provide[Container.download_manager]
 ):
     """API: 立即刷新所有配置的RSS"""
     # 获取配置中的所有RSS Feeds
@@ -275,7 +266,7 @@ def refresh_all_rss_api(
     logger.api_request(f"刷新所有RSS配置 - {len(rss_feeds)} 个链接")
 
     # 确保队列已初始化
-    worker = _ensure_rss_queue(download_manager)
+    worker = _ensure_rss_queue()
 
     # 将每个 RSS feed 单独加入队列，这样可以看到每个的处理进度
     for feed in rss_feeds:
@@ -412,8 +403,7 @@ def preview_filters_api(
 @handle_api_errors
 def fetch_all_bangumi_rss_api(
     rss_service: RSSService = Provide[Container.rss_service],
-    download_manager: DownloadManager = Provide[Container.download_manager],
-    discord_client: DiscordAdapter = Provide[Container.discord_client]
+    download_manager: DownloadManager = Provide[Container.download_manager]
 ):
     """API: 从配置的RSS链接中提取所有番组RSS"""
     import requests
@@ -533,7 +523,7 @@ def fetch_all_bangumi_rss_api(
         return APIResponse.bad_request('未能生成任何番组RSS链接')
 
     # 4. 确保队列已初始化，将每个番组RSS加入队列
-    worker = _ensure_rss_queue(download_manager)
+    worker = _ensure_rss_queue()
 
     for feed in bangumi_rss_feeds:
         feed_data = {

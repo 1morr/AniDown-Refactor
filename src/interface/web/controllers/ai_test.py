@@ -13,7 +13,6 @@ from datetime import datetime
 
 from src.core.config import config
 from src.container import Container
-from src.infrastructure.ai.openai_adapter import OpenAIAdapter
 from src.infrastructure.ai.prompts import (
     TITLE_PARSE_SYSTEM_PROMPT,
     MULTI_FILE_RENAME_WITH_TVDB_PROMPT,
@@ -60,7 +59,6 @@ def ai_test_page():
 @handle_api_errors
 @validate_json()
 def process_ai_test(
-    ai_client: OpenAIAdapter = Provide[Container.ai_client],
     rss_service: RSSService = Provide[Container.rss_service]
 ):
     """处理AI测试请求 (非流式)"""
@@ -285,7 +283,6 @@ def process_ai_test(
 @ai_test_bp.route('/ai_test/process_stream', methods=['POST'])
 @inject
 def process_ai_test_stream(
-    ai_client: OpenAIAdapter = Provide[Container.ai_client],
     rss_service: RSSService = Provide[Container.rss_service]
 ):
     """处理AI测试请求 (流式传输)"""

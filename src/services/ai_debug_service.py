@@ -224,3 +224,7 @@ def get_ai_debug_service() -> AIDebugService:
     if _ai_debug_service is None:
         _ai_debug_service = AIDebugService()
     return _ai_debug_service
+
+
+# 全局实例 (向后兼容)
+ai_debug_service = get_ai_debug_service()

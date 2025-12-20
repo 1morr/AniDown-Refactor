@@ -52,6 +52,7 @@ from src.services.metadata_service import MetadataService
 from src.services.anime_service import AnimeService
 from src.services.rss_service import RSSService
 from src.services.download_manager import DownloadManager
+from src.services.file_service import FileService
 
 # Utility Services
 from src.services.ai_debug_service import AIDebugService
@@ -201,6 +202,11 @@ class Container(containers.DeclarativeContainer):
         anime_repo=anime_repo,
         download_repo=download_repo,
         download_client=qb_client
+    )
+
+    file_service = providers.Singleton(
+        FileService,
+        history_repo=history_repo
     )
 
     # ===== Core Orchestrator =====
