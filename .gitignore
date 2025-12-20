@@ -30,3 +30,5 @@ htmlcov/
 # Misc
 *.log
 .DS_Store
+anime_downloader.db
+config.json
