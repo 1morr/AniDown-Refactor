@@ -90,8 +90,11 @@ class AITitleParser(ITitleParser):
         logger.info(f'🤖 开始解析标题: {title[:50]}...')
 
         for attempt in range(self._max_retries):
-            # 预留 Key
-            reservation = self._key_pool.reserve()
+            # 预留 Key（启用 RPM/RPD 等待）
+            reservation = self._key_pool.reserve(
+                wait_for_rpm=True,
+                wait_for_rpd=True
+            )
             if not reservation:
                 logger.error(f'❌ [{self._key_pool.purpose}] 没有可用的 API Key')
                 raise AIKeyExhaustedError(
