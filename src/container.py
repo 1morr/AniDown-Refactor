@@ -42,7 +42,6 @@ from src.services.file.hardlink_service import HardlinkService
 
 # Rename Services
 from src.services.rename.file_classifier import FileClassifier
-from src.services.rename.pattern_matcher import PatternMatcher
 from src.services.rename.filename_formatter import FilenameFormatter
 from src.services.rename.rename_service import RenameService
 
@@ -174,14 +173,14 @@ class Container(containers.DeclarativeContainer):
 
     # ===== Rename Services =====
     file_classifier = providers.Singleton(FileClassifier)
-    pattern_matcher = providers.Singleton(PatternMatcher)
     filename_formatter = providers.Singleton(FilenameFormatter)
 
     rename_service = providers.Singleton(
         RenameService,
         file_classifier=file_classifier,
-        pattern_matcher=pattern_matcher,
-        filename_formatter=filename_formatter
+        filename_formatter=filename_formatter,
+        anime_repo=anime_repo,
+        ai_file_renamer=file_renamer
     )
 
     # ===== Core Services =====

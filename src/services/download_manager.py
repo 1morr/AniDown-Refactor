@@ -1078,7 +1078,9 @@ class DownloadManager:
                 season=season,
                 category=category,
                 is_multi_season=is_multi_season,
-                tvdb_data=tvdb_data
+                tvdb_data=tvdb_data,
+                folder_structure=folder_structure,
+                torrent_hash=hash_id
             )
 
             if not rename_result or not rename_result.has_files:
