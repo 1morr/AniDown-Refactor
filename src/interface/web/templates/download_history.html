@@ -1,0 +1,582 @@
+{% extends 'base.html' %}
+
+{% block title %}AniDown{% endblock %}
+
+{% block styles %}
+<style>
+    /* 复用之前的 Select 修复样式 */
+    .form-control {
+        background-color: #ffffff;
+        border: 1px solid #e2e8f0;
+        color: #334155;
+    }
+    .dark .form-control {
+        background-color: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #E4E4E7;
+    }
+    .dark .form-control option {
+        background-color: #18181b;
+        color: #E4E4E7;
+    }
+    .form-control:focus {
+        border-color: #3B82F6;
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+    }
+
+    /* 表格行动画 */
+    tbody tr:hover { background-color: rgba(0, 0, 0, 0.02); }
+    .dark tbody tr:hover { background-color: rgba(255, 255, 255, 0.03); }
+
+    /* 可排序表头样式 */
+    .sortable-header {
+        cursor: pointer;
+        user-select: none;
+        position: relative;
+        padding-right: 20px !important;
+        transition: background-color 0.2s;
+    }
+    .sortable-header:hover {
+        background-color: rgba(59, 130, 246, 0.1);
+    }
+    .dark .sortable-header:hover {
+        background-color: rgba(59, 130, 246, 0.15);
+    }
+    .sort-indicator {
+        position: absolute;
+        right: 6px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 10px;
+        opacity: 0.5;
+        transition: opacity 0.2s;
+    }
+    .sortable-header:hover .sort-indicator {
+        opacity: 0.8;
+    }
+    .sort-indicator.active {
+        opacity: 1;
+        color: #3B82F6;
+    }
+    .dark .sort-indicator.active {
+        color: #60A5FA;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+    <!-- 1. 标题与摘要 -->
+    <div class="flex flex-col md:flex-row justify-between items-end gap-4">
+        <div>
+            <h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-3">
+                <i class="fa-solid fa-trash-can-arrow-up text-rose-500 dark:text-neon-rose"></i>
+                删除历史
+            </h1>
+            <p class="text-slate-500 dark:text-gray-500 text-sm">查看所有已删除的下载记录，支持重新加入下载队列</p>
+        </div>
+        <div class="text-right">
+            <p class="text-xs text-slate-400 dark:text-gray-500 font-mono">Deleted Records</p>
+            <p class="text-2xl font-bold text-slate-800 dark:text-white font-mono" id="total-records">0</p>
+        </div>
+    </div>
+
+    <!-- 2. 控制面板 -->
+    <section class="glass-card rounded-xl p-5 space-y-4">
+        <div class="flex flex-col lg:flex-row gap-4 justify-between">
+
+            <!-- 搜索与分页 -->
+            <div class="flex gap-2 flex-1">
+                <div class="relative flex-1 max-w-lg">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-500 text-sm"></i>
+                    <input type="text" id="search-input" placeholder="搜索动漫标题、文件名..."
+                        class="w-full pl-9 pr-10 py-2 rounded-lg text-sm font-medium form-control transition-all">
+                    <button onclick="document.getElementById('search-input').value=''; renderHistoryTable()" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-white">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <div class="relative w-24">
+                     <select id="page-size" onchange="renderHistoryTable()" class="w-full appearance-none pl-3 pr-8 py-2 rounded-lg text-sm font-medium form-control cursor-pointer">
+                        <option value="20">20条</option>
+                        <option value="50">50条</option>
+                        <option value="100">100条</option>
+                    </select>
+                    <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-500 text-xs pointer-events-none"></i>
+                </div>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="flex flex-wrap gap-2">
+                <button onclick="renderHistoryTable()" class="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 text-sm text-slate-600 dark:text-gray-300 transition-colors flex items-center gap-2">
+                    <i class="fa-solid fa-rotate"></i> 刷新列表
+                </button>
+
+                <button onclick="clearHistoryConfirm()" class="px-3 py-2 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-500/10 dark:hover:bg-rose-500/20 border border-rose-200 dark:border-rose-500/20 text-sm text-rose-600 dark:text-rose-400 transition-colors flex items-center gap-2">
+                    <i class="fa-solid fa-trash-can"></i> 清空历史
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- 3. 历史列表表格 -->
+    <section class="glass-card rounded-xl overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse table-fixed">
+                <thead>
+                    <tr class="border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-xs text-slate-500 dark:text-gray-400 uppercase font-semibold">
+                        <th class="py-3 pl-4 pr-2 sortable-header" style="width: 15%;" onclick="window.historyManager.toggleSort('anime_title')">
+                            动漫标题
+                            <span class="sort-indicator" id="sort-anime_title"></span>
+                        </th>
+                        <th class="py-3 px-2 sortable-header" style="width: 22%;" onclick="window.historyManager.toggleSort('original_filename')">
+                            文件名
+                            <span class="sort-indicator" id="sort-original_filename"></span>
+                        </th>
+                        <th class="py-3 px-2 sortable-header" style="width: 10%;" onclick="window.historyManager.toggleSort('subtitle_group')">
+                            字幕组
+                            <span class="sort-indicator" id="sort-subtitle_group"></span>
+                        </th>
+                        <th class="py-3 px-2 text-center sortable-header" style="width: 6%;" onclick="window.historyManager.toggleSort('season')">
+                            季度
+                            <span class="sort-indicator" id="sort-season"></span>
+                        </th>
+                        <th class="py-3 px-2 text-center sortable-header" style="width: 8%;" onclick="window.historyManager.toggleSort('media_type')">
+                            类型
+                            <span class="sort-indicator" id="sort-media_type"></span>
+                        </th>
+                        <th class="py-3 px-2 text-center sortable-header" style="width: 9%;" onclick="window.historyManager.toggleSort('status')">
+                            状态
+                            <span class="sort-indicator" id="sort-status"></span>
+                        </th>
+                        <th class="py-3 px-2 text-right sortable-header" style="width: 12%;" onclick="window.historyManager.toggleSort('download_time')">
+                            下载时间
+                            <span class="sort-indicator" id="sort-download_time"></span>
+                        </th>
+                        <th class="py-3 px-2 text-right text-rose-500 dark:text-rose-400 sortable-header" style="width: 12%;" onclick="window.historyManager.toggleSort('deleted_at')">
+                            删除时间
+                            <span class="sort-indicator" id="sort-deleted_at"></span>
+                        </th>
+                        <th class="py-3 pr-4 pl-2 text-center" style="width: 12%;">操作</th>
+                    </tr>
+                </thead>
+                <tbody class="text-sm divide-y divide-slate-200 dark:divide-white/5" id="history-table-body">
+                    <!-- JS 渲染 -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="flex items-center justify-between px-4 py-3 border-t border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-white/5" id="pagination-container">
+            <div class="text-xs text-slate-500 dark:text-gray-500" id="pagination-info">
+                显示 <span class="text-slate-900 dark:text-white font-bold" id="page-start">0</span> 到 <span class="text-slate-900 dark:text-white font-bold" id="page-end">0</span> 条
+            </div>
+            <div class="flex items-center gap-1" id="pagination-controls">
+                <!-- 分页控件将通过JavaScript动态生成 -->
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- 重新下载确认 Modal -->
+    <!-- ============================================ -->
+    <div id="modal-redownload" class="fixed inset-0 hidden flex items-center justify-center" style="z-index: 9999;">
+        <div class="modal-backdrop" onclick="closeModal('modal-redownload')" style="z-index: 9998; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);"></div>
+        <div class="modal-content bg-white dark:bg-[#1e1e20] w-full max-w-md rounded-xl shadow-2xl overflow-hidden" style="z-index: 9999;">
+            <div class="bg-emerald-600 px-6 py-4 flex justify-between items-center">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-cloud-arrow-down"></i> 重新下载</h3>
+                <button onclick="closeModal('modal-redownload')" class="text-white/80 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+
+            <div class="p-6 space-y-4">
+                <div class="text-center text-emerald-600 dark:text-emerald-400 mb-2">
+                    <i class="fa-solid fa-circle-question text-4xl"></i>
+                </div>
+                <p class="text-sm text-slate-600 dark:text-gray-300 text-center">
+                    确定要将 <span class="font-bold text-slate-800 dark:text-white" id="redownload-title">...</span> 重新添加到下载队列吗？
+                </p>
+                <div class="bg-slate-100 dark:bg-white/5 p-3 rounded text-xs font-mono text-slate-500 dark:text-gray-400 break-all" id="redownload-file">
+                    ...
+                </div>
+                <div class="text-[10px] text-slate-400 text-center">
+                    注意：如果文件仍然存在，可能会导致哈希校验或覆盖。
+                </div>
+            </div>
+
+            <div class="px-6 py-4 bg-slate-50 dark:bg-[#1e1e20] border-t border-slate-200 dark:border-white/10 flex justify-end gap-3">
+                <button onclick="closeModal('modal-redownload')" class="px-4 py-2 rounded bg-slate-500 hover:bg-slate-600 text-white text-sm font-medium transition-colors">取消</button>
+                <button onclick="confirmRedownload()" class="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium transition-colors"><i class="fa-solid fa-download mr-1"></i> 确认下载</button>
+            </div>
+        </div>
+    </div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    /*
+    ================================================================================
+    BACKEND INTEGRATION GUIDE (后端接入指南)
+    ================================================================================
+    1. Route: /download-history -> Renders this page.
+    2. API: /api/download-history -> Returns { history: [], total_count: 86, current_page: 1, total_pages: 5 }
+    3. API: /api/downloads/redownload -> POST request to restore download.
+    */
+
+    class DownloadHistoryManager {
+        constructor() {
+            this.currentPage = 1;
+            this.perPage = 20;
+            this.searchTerm = '';
+            this.sortColumn = 'deleted_at';
+            this.sortOrder = 'desc';
+
+            this.initializeEventListeners();
+            this.loadHistory();
+            this.updateSortIndicators();
+        }
+
+        initializeEventListeners() {
+            // 搜索功能
+            const searchInput = document.getElementById('search-input');
+            searchInput.addEventListener('input', (e) => {
+                this.searchTerm = e.target.value.trim();
+                this.currentPage = 1;
+                this.loadHistory();
+            });
+
+            // 每页显示数量改变
+            document.getElementById('page-size').addEventListener('change', (e) => {
+                this.perPage = parseInt(e.target.value);
+                this.currentPage = 1;
+                this.loadHistory();
+            });
+        }
+
+        toggleSort(column) {
+            if (this.sortColumn === column) {
+                // 同一列,切换排序顺序
+                this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                // 不同列,设置新列并默认降序
+                this.sortColumn = column;
+                this.sortOrder = 'desc';
+            }
+            this.currentPage = 1;
+            this.updateSortIndicators();
+            this.loadHistory();
+        }
+
+        updateSortIndicators() {
+            // 清除所有排序指示器
+            document.querySelectorAll('.sort-indicator').forEach(indicator => {
+                indicator.className = 'sort-indicator';
+                indicator.innerHTML = '<i class="fa-solid fa-sort"></i>';
+            });
+
+            // 设置当前排序列的指示器
+            const currentIndicator = document.getElementById(`sort-${this.sortColumn}`);
+            if (currentIndicator) {
+                currentIndicator.classList.add('active');
+                if (this.sortOrder === 'asc') {
+                    currentIndicator.innerHTML = '<i class="fa-solid fa-sort-up"></i>';
+                } else {
+                    currentIndicator.innerHTML = '<i class="fa-solid fa-sort-down"></i>';
+                }
+            }
+        }
+
+        async loadHistory() {
+            try {
+                const params = new URLSearchParams({
+                    page: this.currentPage,
+                    per_page: this.perPage,
+                    search: this.searchTerm,
+                    sort_column: this.sortColumn,
+                    sort_order: this.sortOrder
+                });
+
+                const response = await fetch(`{{ url_for('downloads.api_get_download_history') }}?${params}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    this.showError('加载失败: ' + data.error);
+                    return;
+                }
+
+                this.renderHistory(data);
+                this.updatePagination(data);
+                this.updateTotalRecords(data.total_count || 0);
+            } catch (error) {
+                this.showError('加载失败: ' + error.message);
+            }
+        }
+
+        renderHistory(data) {
+            const tbody = document.getElementById('history-table-body');
+            tbody.innerHTML = '';
+
+            if (!data.history || data.history.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="py-8 text-center text-slate-500 dark:text-gray-400">
+                            <i class="fa-solid fa-inbox text-3xl mb-2 block"></i>
+                            暂无历史记录
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            data.history.forEach((item) => {
+                let row = document.createElement('tr');
+                row.className = "group transition-colors hover:bg-slate-50 dark:hover:bg-white/5";
+                row.innerHTML = `
+                    <td class="py-3 pl-4 pr-2 w-[20%]">
+                        <div class="font-medium text-slate-700 dark:text-white truncate" title="${this.escapeHtml(item.anime_title || '-')}">${this.escapeHtml(item.anime_title || '-')}</div>
+                    </td>
+                    <td class="py-3 px-2 w-[25%]">
+                        <div class="font-mono text-xs text-slate-500 dark:text-gray-400 truncate" title="${this.escapeHtml(item.original_filename)}">${this.escapeHtml(item.original_filename)}</div>
+                    </td>
+                    <td class="py-3 px-2 w-24">
+                        <div class="truncate" title="${this.escapeHtml(item.subtitle_group || '-')}">${this.escapeHtml(item.subtitle_group || '-')}</div>
+                    </td>
+                    <td class="py-3 px-2 w-16 text-center">
+                        <span class="text-xs font-mono text-slate-600 dark:text-gray-500 bg-slate-100 dark:bg-white/5 px-1.5 py-0.5 rounded">S${item.season || 1}</span>
+                    </td>
+                    <td class="py-3 px-2 text-center">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${item.media_type === 'live_action' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'}">
+                            ${item.media_type === 'live_action' ? 'Live' : 'Anime'}
+                        </span>
+                    </td>
+                    <td class="py-3 px-2 w-20 text-center">
+                        <span class="badge-completed px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider opacity-80">
+                            ${item.status || 'completed'}
+                        </span>
+                    </td>
+                    <td class="py-3 px-2 w-[12%] text-right text-xs font-mono text-slate-500 dark:text-gray-500">
+                        <div class="truncate">${this.formatDate(item.download_time)}</div>
+                    </td>
+                    <td class="py-3 px-2 w-[12%] text-right text-xs font-mono text-rose-600 dark:text-rose-400 font-bold">
+                        <div class="truncate">${this.formatDate(item.deleted_at)}</div>
+                    </td>
+                    <td class="py-3 pr-4 pl-2 w-20 text-center">
+                        <button
+                            class="w-8 h-8 rounded-md inline-flex items-center justify-center bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 transition-colors redownload-btn"
+                            title="重新下载"
+                            data-hash-id="${this.escapeHtml(item.hash_id)}"
+                            data-title="${this.escapeHtml(item.anime_title || item.original_filename)}"
+                            data-filename="${this.escapeHtml(item.original_filename)}"
+                            data-directory="${this.escapeHtml(item.download_directory || '')}">
+                            <i class="fa-solid fa-download text-xs"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+
+                // 为按钮添加事件监听器
+                const redownloadBtn = row.querySelector('.redownload-btn');
+                if (redownloadBtn) {
+                    redownloadBtn.addEventListener('click', () => {
+                        this.openRedownloadModal(
+                            redownloadBtn.dataset.hashId,
+                            redownloadBtn.dataset.title,
+                            redownloadBtn.dataset.filename,
+                            redownloadBtn.dataset.directory
+                        );
+                    });
+                }
+            });
+        }
+
+        updatePagination(data) {
+            const totalCount = data.total_count || 0;
+            const currentPage = data.current_page || 1;
+            const totalPages = data.total_pages || 1;
+            const perPage = data.per_page || this.perPage;
+
+            // 更新分页信息
+            const startItem = totalCount === 0 ? 0 : (currentPage - 1) * perPage + 1;
+            const endItem = Math.min(currentPage * perPage, totalCount);
+
+            document.getElementById('page-start').textContent = startItem;
+            document.getElementById('page-end').textContent = endItem;
+
+            // 更新分页控件
+            const paginationControls = document.getElementById('pagination-controls');
+            let html = '';
+
+            // 上一页按钮
+            html += `
+                <button class="px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-white/10 text-slate-400 dark:text-gray-400 ${currentPage === 1 ? 'disabled:opacity-50 cursor-not-allowed' : ''}"
+                        onclick="historyManager.goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
+                    <i class="fa-solid fa-chevron-left text-xs"></i>
+                </button>
+            `;
+
+            // 页码按钮
+            const maxButtons = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+            let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+
+            if (endPage - startPage < maxButtons - 1) {
+                startPage = Math.max(1, endPage - maxButtons + 1);
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                html += `
+                    <button class="px-2.5 py-1 rounded text-xs ${i === currentPage ? 'bg-blue-600 text-white font-bold' : 'hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 dark:text-gray-400'}"
+                            onclick="historyManager.goToPage(${i})">${i}</button>
+                `;
+            }
+
+            // 下一页按钮
+            html += `
+                <button class="px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-white/10 text-slate-500 dark:text-gray-400 ${currentPage === totalPages ? 'disabled:opacity-50 cursor-not-allowed' : ''}"
+                        onclick="historyManager.goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
+                    <i class="fa-solid fa-chevron-right text-xs"></i>
+                </button>
+            `;
+
+            paginationControls.innerHTML = html;
+        }
+
+        updateTotalRecords(count) {
+            document.getElementById('total-records').textContent = count;
+        }
+
+        goToPage(page) {
+            this.currentPage = page;
+            this.loadHistory();
+        }
+
+        formatDate(dateString) {
+            // 使用全局的 formatDate（从 base.html）
+            return window.formatDate(dateString, 'full');
+        }
+
+        escapeHtml(text) {
+            // 使用全局的 escapeHtml（从 base.html）
+            return window.escapeHtml(text);
+        }
+
+        openRedownloadModal(hashId, title, filename, downloadDirectory) {
+            this.currentSelectedId = hashId;
+            this.currentDownloadDirectory = downloadDirectory;
+            document.getElementById('redownload-title').innerText = title;
+            document.getElementById('redownload-file').innerText = filename;
+            document.getElementById('modal-redownload').classList.remove('hidden');
+        }
+
+        async confirmRedownload() {
+            if (!this.currentSelectedId) return;
+
+            try {
+                const response = await fetch(`{{ url_for('downloads.api_redownload_from_history') }}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        hash_id: this.currentSelectedId,
+                        download_directory: this.currentDownloadDirectory
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    this.showError('重新下载失败: ' + data.error);
+                    return;
+                }
+
+                if (data.success) {
+                    // 使用 base.html 的 flash message 功能
+                    if (window.showFlashMessage) {
+                        window.showFlashMessage('success', '任务已重新添加到下载队列');
+                    } else {
+                        alert('✓ 重新下载成功！\n\n' + data.message);
+                    }
+                    this.loadHistory(); // 重新加载列表
+                } else {
+                    this.showError('重新下载失败: ' + (data.message || '未知错误'));
+                }
+            } catch (error) {
+                this.showError('重新下载失败: ' + error.message);
+            }
+
+            this.closeModal('modal-redownload');
+        }
+
+        showError(message) {
+            // 使用全局的 showError（从 base.html）
+            window.showError(message);
+        }
+
+        closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+    }
+
+    // 全局函数
+    function renderHistoryTable() {
+        if (window.historyManager) {
+            window.historyManager.loadHistory();
+        }
+    }
+
+    function closeModal(modalId) {
+        document.getElementById(modalId).classList.add('hidden');
+    }
+
+    function confirmRedownload() {
+        if (window.historyManager) {
+            window.historyManager.confirmRedownload();
+        }
+    }
+
+    async function clearHistoryConfirm() {
+        if (confirm('确定要清空所有删除历史记录吗？此操作不可撤销。')) {
+            try {
+                const response = await fetch(`{{ url_for('downloads.api_clear_download_history') }}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    if (window.showFlashMessage) {
+                        window.showFlashMessage('success', '历史记录已清空');
+                    } else {
+                        alert('历史记录已清空');
+                    }
+                    // 重新加载列表
+                    if (window.historyManager) {
+                        window.historyManager.loadHistory();
+                    }
+                } else {
+                    if (window.showFlashMessage) {
+                        window.showFlashMessage('error', data.error || '清空失败');
+                    } else {
+                        alert('清空失败: ' + (data.error || '未知错误'));
+                    }
+                }
+            } catch (error) {
+                if (window.showFlashMessage) {
+                    window.showFlashMessage('error', '清空失败: ' + error.message);
+                } else {
+                    alert('清空失败: ' + error.message);
+                }
+            }
+        }
+    }
+
+    // 初始化管理器
+    document.addEventListener('DOMContentLoaded', () => {
+        window.historyManager = new DownloadHistoryManager();
+    });
+</script>
+{% endblock %}

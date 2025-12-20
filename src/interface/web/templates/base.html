@@ -273,19 +273,19 @@
                         {% set inactive_class = "text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white transition-colors px-3 py-2" %}
 
                         <a href="{{ url_for('dashboard.dashboard') }}" class="{{ active_class if request.endpoint == 'dashboard.dashboard' else inactive_class }}">仪表板</a>
-                        <a href="{{ url_for('rss.rss_page') }}" class="{{ active_class if request.endpoint and request.endpoint.startswith('rss.') else inactive_class }}">RSS</a>
-                        <a href="{{ url_for('downloads.downloads_page') }}" class="{{ active_class if request.endpoint and request.endpoint.startswith('downloads.') else inactive_class }}">下载</a>
-                        <a href="{{ url_for('anime.anime_page') }}" class="{{ active_class if request.endpoint and request.endpoint.startswith('anime.') else inactive_class }}">动漫</a>
-                        <a href="{{ url_for('manual_upload.manual_upload_page') }}" class="{{ active_class if request.endpoint and request.endpoint.startswith('manual_upload.') else inactive_class }}">上传</a>
-                        <a href="{{ url_for('ai_queue.ai_queue_page') }}" class="{{ active_class if request.endpoint and request.endpoint.startswith('ai_queue.') else inactive_class }}">队列</a>
-                        <a href="{{ url_for('config.config_page') }}" class="{{ active_class if request.endpoint and request.endpoint.startswith('config.') else inactive_class }}">配置</a>
-                        <a href="{{ url_for('database.database_page') }}" class="{{ active_class if request.endpoint and request.endpoint.startswith('database.') else inactive_class }}">数据库</a>
-                        <a href="{{ url_for('ai_test.ai_test_page') }}" class="{{ active_class if request.endpoint and request.endpoint.startswith('ai_test.') else inactive_class }}">AI测试</a>
+                        <a href="{{ url_for('config.config_page') }}" class="{{ active_class if request.endpoint == 'config.config_page' else inactive_class }}">配置管理</a>
+                        <a href="{{ url_for('rss.rss_page') }}" class="{{ active_class if request.endpoint == 'rss.rss_page' else inactive_class }}">RSS处理</a>
+                        <a href="{{ url_for('manual_upload.manual_upload_page') }}" class="{{ active_class if request.endpoint == 'manual_upload.manual_upload_page' else inactive_class }}">手动上传</a>
+                        <a href="{{ url_for('anime.anime_page') }}" class="{{ active_class if request.endpoint == 'anime.anime_page' else inactive_class }}">动漫管理</a>
+                        <a href="{{ url_for('downloads.downloads_page') }}" class="{{ active_class if request.endpoint == 'downloads.downloads_page' else inactive_class }}">下载管理</a>
+                        <a href="{{ url_for('downloads.download_history_page') }}" class="{{ active_class if request.endpoint == 'downloads.download_history_page' else inactive_class }}">删除历史</a>
+                        <a href="{{ url_for('database.database_page') }}" class="{{ active_class if request.endpoint == 'database.database_page' else inactive_class }}">数据库</a>
+                        <a href="{{ url_for('ai_test.ai_test_page') }}" class="{{ active_class if request.endpoint == 'ai_test.ai_test_page' else inactive_class }}">AI测试</a>
                     </div>
                     <div class="h-4 w-[1px] bg-slate-300 dark:bg-white/20 mx-2"></div>
-                    <div id="system-status" class="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100/50 dark:bg-slate-500/10 border border-slate-200 dark:border-slate-500/20 text-slate-400 dark:text-slate-500 text-xs">
-                        <div class="w-2 h-2 rounded-full bg-slate-400"></div>
-                        <span id="status-text">检查中...</span>
+                    <div id="system-status" class="flex items-center gap-2 px-3 py-1 rounded-full w-[88px] justify-center bg-emerald-100/50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs">
+                        <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                        <span id="status-text">运行中</span>
                     </div>
                     <button id="theme-toggle" class="w-9 h-9 rounded-full flex items-center justify-center bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-600 dark:text-yellow-400 transition-all focus:outline-none ml-2">
                         <i class="fas fa-sun dark:hidden text-lg"></i>
@@ -348,8 +348,14 @@
         let statusCheckInterval = null;
 
         function updateSystemStatus() {
-            fetch('/api/system/status')
-                .then(response => response.json())
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 1000); // 1秒超时
+
+            fetch('/api/system/status', { signal: controller.signal })
+                .then(response => {
+                    clearTimeout(timeoutId);
+                    return response.json();
+                })
                 .then(result => {
                     // APIResponse 包装了数据在 data 字段中
                     const data = result.data || result;
@@ -360,17 +366,17 @@
 
                     if (data.overall === 'running') {
                         // 运行中状态
-                        statusContainer.className = 'flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100/50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs transition-all duration-300';
+                        statusContainer.className = 'flex items-center gap-2 px-3 py-1 rounded-full w-[88px] justify-center bg-emerald-100/50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs transition-all duration-300';
                         statusDot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
                         statusText.textContent = '运行中';
                     } else if (data.overall === 'stopped') {
                         // 停止状态
-                        statusContainer.className = 'flex items-center gap-2 px-3 py-1 rounded-full bg-red-100/50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 text-xs transition-all duration-300';
+                        statusContainer.className = 'flex items-center gap-2 px-3 py-1 rounded-full w-[88px] justify-center bg-red-100/50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 text-xs transition-all duration-300';
                         statusDot.className = 'w-2 h-2 rounded-full bg-red-500';
                         statusText.textContent = '已停止';
                     } else {
                         // 未知状态
-                        statusContainer.className = 'flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-100/50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20 text-yellow-600 dark:text-yellow-400 text-xs transition-all duration-300';
+                        statusContainer.className = 'flex items-center gap-2 px-3 py-1 rounded-full w-[88px] justify-center bg-yellow-100/50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20 text-yellow-600 dark:text-yellow-400 text-xs transition-all duration-300';
                         statusDot.className = 'w-2 h-2 rounded-full bg-yellow-500';
                         statusText.textContent = '状态未知';
                     }
@@ -381,13 +387,14 @@
                     statusContainer.setAttribute('title', tooltipText);
                 })
                 .catch(error => {
+                    clearTimeout(timeoutId);
                     console.error('获取系统状态失败:', error);
                     const statusContainer = document.getElementById('system-status');
                     const statusText = document.getElementById('status-text');
                     const statusDot = statusContainer.querySelector('.w-2.h-2');
 
-                    // 错误状态
-                    statusContainer.className = 'flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100/50 dark:bg-gray-500/10 border border-gray-200 dark:border-gray-500/20 text-gray-600 dark:text-gray-400 text-xs transition-all duration-300';
+                    // 错误状态（超时或连接失败）
+                    statusContainer.className = 'flex items-center gap-2 px-3 py-1 rounded-full w-[88px] justify-center bg-gray-100/50 dark:bg-gray-500/10 border border-gray-200 dark:border-gray-500/20 text-gray-600 dark:text-gray-400 text-xs transition-all duration-300';
                     statusDot.className = 'w-2 h-2 rounded-full bg-gray-500';
                     statusText.textContent = '连接失败';
                 });

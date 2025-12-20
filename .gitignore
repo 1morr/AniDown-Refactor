@@ -28,6 +28,7 @@ env/
 htmlcov/
 
 # Misc
+ai_debug_logs/
 *.log
 .DS_Store
 anime_downloader.db
