@@ -173,6 +173,88 @@
     </div>
   </section>
 
+  <!-- Key 详情模态框 -->
+  <div id="key-detail-modal" class="fixed inset-0 z-50 hidden overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+      <!-- 背景遮罩 -->
+      <div class="fixed inset-0 transition-opacity bg-slate-500 dark:bg-slate-900 bg-opacity-75 dark:bg-opacity-75" onclick="closeKeyDetailModal()"></div>
+
+      <!-- 模态框内容 -->
+      <div class="inline-block w-full max-w-4xl px-4 pt-5 pb-4 overflow-hidden text-left align-bottom transition-all transform bg-white dark:bg-slate-800 rounded-lg shadow-xl sm:my-8 sm:align-middle sm:p-6">
+        <!-- 头部 -->
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-bold text-slate-800 dark:text-white">
+            <i class="fa-solid fa-key mr-2 text-cyan-600 dark:text-cyan-400"></i>
+            <span id="modal-key-name">Key 详情</span>
+          </h3>
+          <button onclick="closeKeyDetailModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-gray-300">
+            <i class="fa-solid fa-times text-xl"></i>
+          </button>
+        </div>
+
+        <!-- 统计概览 -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+          <div class="bg-slate-50 dark:bg-slate-700 rounded-lg p-3 text-center">
+            <div class="text-xs text-slate-500 dark:text-gray-400">总调用</div>
+            <div id="modal-total-calls" class="text-xl font-bold text-slate-800 dark:text-white">0</div>
+          </div>
+          <div class="bg-green-50 dark:bg-green-500/10 rounded-lg p-3 text-center">
+            <div class="text-xs text-green-600 dark:text-green-400">成功率</div>
+            <div id="modal-success-rate" class="text-xl font-bold text-green-700 dark:text-green-400">0%</div>
+          </div>
+          <div class="bg-blue-50 dark:bg-blue-500/10 rounded-lg p-3 text-center">
+            <div class="text-xs text-blue-600 dark:text-blue-400">今日调用</div>
+            <div id="modal-today-calls" class="text-xl font-bold text-blue-700 dark:text-blue-400">0</div>
+          </div>
+          <div class="bg-purple-50 dark:bg-purple-500/10 rounded-lg p-3 text-center">
+            <div class="text-xs text-purple-600 dark:text-purple-400">平均响应</div>
+            <div id="modal-avg-response" class="text-xl font-bold text-purple-700 dark:text-purple-400">0ms</div>
+          </div>
+        </div>
+
+        <!-- 最近使用的项目 -->
+        <div class="mb-6">
+          <h4 class="text-sm font-semibold text-slate-600 dark:text-gray-400 mb-2">
+            <i class="fa-solid fa-film mr-1"></i>最近使用的项目 (<span id="modal-anime-count">0</span> 个)
+          </h4>
+          <div id="modal-recent-animes" class="flex flex-wrap gap-2">
+            <span class="text-slate-400 dark:text-gray-500 italic text-sm">暂无数据</span>
+          </div>
+        </div>
+
+        <!-- 调用历史 -->
+        <div>
+          <h4 class="text-sm font-semibold text-slate-600 dark:text-gray-400 mb-2">
+            <i class="fa-solid fa-history mr-1"></i>调用历史
+          </h4>
+          <div class="max-h-64 overflow-y-auto">
+            <table class="w-full text-xs">
+              <thead class="sticky top-0 bg-white dark:bg-slate-800">
+                <tr class="text-left text-slate-500 dark:text-gray-400 border-b border-slate-200 dark:border-white/10">
+                  <th class="py-1.5 pr-2">时间</th>
+                  <th class="py-1.5 pr-2">项目</th>
+                  <th class="py-1.5 pr-2">状态</th>
+                  <th class="py-1.5 pr-2">响应时间</th>
+                  <th class="py-1.5 pr-2">RPM/RPD</th>
+                </tr>
+              </thead>
+              <tbody id="modal-history-table" class="text-slate-700 dark:text-gray-200">
+                <tr><td colspan="5" class="py-4 text-center text-slate-400">加载中...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 底部按钮 -->
+        <div class="mt-6 flex justify-end">
+          <button onclick="closeKeyDetailModal()" class="px-4 py-2 text-sm bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-gray-300 rounded hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">
+            关闭
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- 熔断器状态 -->
   <section class="glass-card rounded-xl p-6">
     <div class="flex items-center gap-3 mb-4">
@@ -455,6 +537,12 @@ function updateKeysTable(keyPools) {
         actionBtn = '<span class="text-slate-400">-</span>';
       }
 
+      // 详情按钮
+      const detailBtn = `<button onclick="showKeyDetail('${purpose}', '${key.key_id}', '${escapeHtml(key.name)}')"
+                           class="px-2 py-1 text-xs bg-cyan-100 text-cyan-800 dark:bg-cyan-500/20 dark:text-cyan-400 rounded hover:bg-cyan-200 dark:hover:bg-cyan-500/30 transition-colors ml-1" title="查看详情">
+           <i class="fa-solid fa-chart-line"></i>
+         </button>`;
+
       rows.push(`
         <tr class="border-b border-slate-100 dark:border-white/5 ${key.disabled ? 'opacity-60' : ''}">
           <td class="py-2 pr-3 font-mono text-slate-500 dark:text-gray-400">${escapeHtml(purpose)}</td>
@@ -464,7 +552,7 @@ function updateKeysTable(keyPools) {
           <td class="py-2 pr-3">${rpdHtml}</td>
           <td class="py-2 pr-3">${lastResponseHtml}</td>
           <td class="py-2 pr-3 font-mono">${cooldownText}</td>
-          <td class="py-2 pr-3">${actionBtn}</td>
+          <td class="py-2 pr-3">${actionBtn}${detailBtn}</td>
         </tr>
       `);
     }
@@ -745,6 +833,103 @@ function showSuccess(message) {
 function showError(message) {
   // 简单的错误提示（可以根据项目实际情况替换为 toast 组件）
   alert('❌ ' + message);
+}
+
+// Key 详情模态框函数
+async function showKeyDetail(purpose, keyId, keyName) {
+  const modal = document.getElementById('key-detail-modal');
+  modal.classList.remove('hidden');
+
+  // 设置标题
+  document.getElementById('modal-key-name').textContent = `${keyName} (${purpose})`;
+
+  // 显示加载状态
+  document.getElementById('modal-total-calls').textContent = '...';
+  document.getElementById('modal-success-rate').textContent = '...';
+  document.getElementById('modal-today-calls').textContent = '...';
+  document.getElementById('modal-avg-response').textContent = '...';
+  document.getElementById('modal-anime-count').textContent = '...';
+  document.getElementById('modal-recent-animes').innerHTML = '<span class="text-slate-400 dark:text-gray-500 italic text-sm">加载中...</span>';
+  document.getElementById('modal-history-table').innerHTML = '<tr><td colspan="5" class="py-4 text-center text-slate-400">加载中...</td></tr>';
+
+  try {
+    // 并行加载统计和历史
+    const [statsRes, historyRes] = await Promise.all([
+      fetch(`/api/ai-queue/key/${purpose}/${keyId}/stats`),
+      fetch(`/api/ai-queue/key/${purpose}/${keyId}/history?limit=50`)
+    ]);
+
+    const statsResult = await statsRes.json();
+    const historyResult = await historyRes.json();
+
+    if (statsResult.success) {
+      const stats = statsResult.data;
+      document.getElementById('modal-total-calls').textContent = stats.total_calls.toLocaleString();
+      document.getElementById('modal-success-rate').textContent = `${stats.success_rate}%`;
+      document.getElementById('modal-today-calls').textContent = stats.today_calls.toLocaleString();
+      document.getElementById('modal-avg-response').textContent = `${stats.avg_response_time_ms}ms`;
+      document.getElementById('modal-anime-count').textContent = stats.anime_count;
+
+      // 显示最近使用的项目
+      if (stats.recent_animes && stats.recent_animes.length > 0) {
+        document.getElementById('modal-recent-animes').innerHTML = stats.recent_animes.map(a => `
+          <span class="px-2 py-1 text-xs bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-gray-200 rounded" title="最后使用: ${formatDateTime(a.last_used_utc)}">
+            ${escapeHtml(a.title)}
+          </span>
+        `).join('');
+      } else {
+        document.getElementById('modal-recent-animes').innerHTML = '<span class="text-slate-400 dark:text-gray-500 italic text-sm">暂无数据</span>';
+      }
+    }
+
+    if (historyResult.success) {
+      const history = historyResult.data.history;
+      if (history && history.length > 0) {
+        document.getElementById('modal-history-table').innerHTML = history.map(h => {
+          const statusClass = h.success
+            ? 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-400'
+            : 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400';
+          const statusText = h.success ? '成功' : `失败 (${h.error_code || 'ERR'})`;
+          const animeTitle = h.anime_title || h.context_summary || '-';
+          return `
+            <tr class="border-b border-slate-100 dark:border-white/5">
+              <td class="py-1.5 pr-2 font-mono text-slate-500 dark:text-gray-400">${formatDateTime(h.created_at_utc)}</td>
+              <td class="py-1.5 pr-2 truncate max-w-32" title="${escapeHtml(animeTitle)}">${escapeHtml(animeTitle.substring(0, 30))}</td>
+              <td class="py-1.5 pr-2"><span class="px-1.5 py-0.5 text-xs ${statusClass} rounded">${statusText}</span></td>
+              <td class="py-1.5 pr-2 font-mono">${h.response_time_ms || 0}ms</td>
+              <td class="py-1.5 pr-2 font-mono text-slate-500 dark:text-gray-400">${h.rpm_at_call || 0}/${h.rpd_at_call || 0}</td>
+            </tr>
+          `;
+        }).join('');
+      } else {
+        document.getElementById('modal-history-table').innerHTML = '<tr><td colspan="5" class="py-4 text-center text-slate-400 dark:text-gray-500">暂无历史记录</td></tr>';
+      }
+    }
+  } catch (e) {
+    console.error('加载 Key 详情失败:', e);
+    document.getElementById('modal-history-table').innerHTML = '<tr><td colspan="5" class="py-4 text-center text-red-500">加载失败</td></tr>';
+  }
+}
+
+function closeKeyDetailModal() {
+  const modal = document.getElementById('key-detail-modal');
+  modal.classList.add('hidden');
+}
+
+function formatDateTime(isoString) {
+  if (!isoString) return '-';
+  try {
+    const date = new Date(isoString);
+    return date.toLocaleString('zh-CN', {
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  } catch {
+    return isoString;
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {

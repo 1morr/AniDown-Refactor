@@ -12,6 +12,7 @@ from flask import Blueprint, render_template, request
 from src.interface.web.utils import APIResponse, handle_api_errors, WebLogger
 from src.infrastructure.ai.key_pool import get_pool, get_all_pools
 from src.infrastructure.ai.circuit_breaker import get_breaker, get_all_breakers
+from src.infrastructure.repositories.ai_key_repository import ai_key_repository
 from src.services.queue.webhook_queue import get_webhook_queue
 from src.services.queue.rss_queue import get_rss_queue
 
@@ -522,3 +523,106 @@ def _get_queue_worker(queue_name: str):
     elif queue_name == 'rss':
         return get_rss_queue()
     return None
+
+
+@ai_queue_bp.route('/api/ai-queue/key/<purpose>/<key_id>/history', methods=['GET'])
+@handle_api_errors
+def get_key_history(purpose: str, key_id: str):
+    """
+    获取指定 Key 的使用历史记录。
+
+    Args:
+        purpose: Key Pool 用途标识（如 'title_parse'）
+        key_id: Key 唯一标识
+
+    Query Parameters:
+        limit: 返回记录数量限制（默认 50，最大 100）
+        offset: 偏移量（用于分页）
+
+    Returns:
+        JSON 响应包含:
+        - history: 使用历史记录列表
+        - total: 返回的记录数
+    """
+    logger.api_request(f'/api/ai-queue/key/{purpose}/{key_id}/history', 'GET')
+
+    # 验证 Key Pool 存在
+    pool = get_pool(purpose)
+    if not pool:
+        logger.api_error_msg(
+            f'/api/ai-queue/key/{purpose}/{key_id}/history',
+            f'未找到 {purpose} 的 Key Pool'
+        )
+        return APIResponse.not_found(f'未找到 {purpose} 的 Key Pool')
+
+    # 获取分页参数
+    try:
+        limit = min(int(request.args.get('limit', 50)), 100)
+        offset = int(request.args.get('offset', 0))
+    except ValueError:
+        limit = 50
+        offset = 0
+
+    # 获取历史记录
+    history = ai_key_repository.get_usage_history(
+        purpose=purpose,
+        key_id=key_id,
+        limit=limit,
+        offset=offset
+    )
+
+    logger.api_success(
+        f'/api/ai-queue/key/{purpose}/{key_id}/history',
+        f'获取到 {len(history)} 条历史记录'
+    )
+
+    return APIResponse.success(data={
+        'history': history,
+        'total': len(history)
+    })
+
+
+@ai_queue_bp.route('/api/ai-queue/key/<purpose>/<key_id>/stats', methods=['GET'])
+@handle_api_errors
+def get_key_stats(purpose: str, key_id: str):
+    """
+    获取指定 Key 的使用统计信息。
+
+    Args:
+        purpose: Key Pool 用途标识（如 'title_parse'）
+        key_id: Key 唯一标识
+
+    Returns:
+        JSON 响应包含:
+        - total_calls: 总调用次数
+        - success_calls: 成功调用次数
+        - failed_calls: 失败调用次数
+        - success_rate: 成功率 (%)
+        - avg_response_time_ms: 平均响应时间 (ms)
+        - anime_count: 使用过的动漫项目数量
+        - today_calls: 今日调用次数
+        - recent_animes: 最近使用的动漫项目列表
+    """
+    logger.api_request(f'/api/ai-queue/key/{purpose}/{key_id}/stats', 'GET')
+
+    # 验证 Key Pool 存在
+    pool = get_pool(purpose)
+    if not pool:
+        logger.api_error_msg(
+            f'/api/ai-queue/key/{purpose}/{key_id}/stats',
+            f'未找到 {purpose} 的 Key Pool'
+        )
+        return APIResponse.not_found(f'未找到 {purpose} 的 Key Pool')
+
+    # 获取统计信息
+    stats = ai_key_repository.get_usage_stats(
+        purpose=purpose,
+        key_id=key_id
+    )
+
+    logger.api_success(
+        f'/api/ai-queue/key/{purpose}/{key_id}/stats',
+        f'获取统计信息成功'
+    )
+
+    return APIResponse.success(data=stats)

@@ -93,6 +93,8 @@ def init_key_pools():
         title_parse_pool.configure(keys)
         register_pool(title_parse_pool)
         register_breaker(title_parse_breaker)
+        # 从数据库恢复 RPD 计数
+        title_parse_pool.restore_counts_from_db()
         logger.info(f'🔑 Title Parse Key Pool 已配置: {len(keys)} 个 Key')
     else:
         logger.warning('⚠️ Title Parse 未配置 API Key')
@@ -132,6 +134,8 @@ def init_key_pools():
         rename_pool.configure(rename_keys)
         register_pool(rename_pool)
         register_breaker(rename_breaker)
+        # 从数据库恢复 RPD 计数
+        rename_pool.restore_counts_from_db()
         logger.info(f'🔑 Rename Key Pool 已配置: {len(rename_keys)} 个 Key')
     else:
         logger.warning('⚠️ Multi-File Rename 未配置 API Key')

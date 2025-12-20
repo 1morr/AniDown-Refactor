@@ -13,6 +13,7 @@ from src.core.exceptions import (
     AIKeyExhaustedError,
 )
 from src.core.interfaces.adapters import IFileRenamer, RenameResult
+from src.infrastructure.repositories.ai_key_repository import ai_key_repository
 from src.services.ai_debug_service import ai_debug_service
 
 from .api_client import OpenAIClient
@@ -299,6 +300,30 @@ class AIFileRenamer(IFileRenamer):
                 # 报告成功给熔断器（用于半开状态探测）
                 self._circuit_breaker.report_success()
 
+                # 获取 Key 信息和当前 RPM/RPD 计数
+                pool_status = self._key_pool.get_status()
+                key_info = next(
+                    (k for k in pool_status.get('keys', []) if k['key_id'] == reservation.key_id),
+                    {}
+                )
+
+                # 解析响应
+                result = self._parse_response(response.content)
+
+                # 记录到数据库
+                ai_key_repository.log_usage(
+                    purpose=self._key_pool.purpose,
+                    key_id=reservation.key_id,
+                    key_name=key_info.get('name', ''),
+                    model=reservation.model,
+                    anime_title=anime_title or '',
+                    context_summary=f'{len(files)} files: {files[0][:50]}...' if files else '',
+                    success=True,
+                    response_time_ms=response.response_time_ms,
+                    rpm_at_call=key_info.get('rpm_count', 0),
+                    rpd_at_call=key_info.get('rpd_count', 0),
+                )
+
                 # 记录 AI 调试日志
                 if ai_debug_service.enabled:
                     ai_debug_service.log_ai_interaction(
@@ -318,8 +343,6 @@ class AIFileRenamer(IFileRenamer):
                         success=True
                     )
 
-                # 解析响应
-                result = self._parse_response(response.content)
                 if result:
                     logger.info(
                         f'✅ 文件重命名成功: {result.file_count} 个文件 '
@@ -330,6 +353,29 @@ class AIFileRenamer(IFileRenamer):
                     logger.warning('⚠️ 响应解析失败，尝试重试')
                     continue
             else:
+                # 获取 Key 信息和当前 RPM/RPD 计数
+                pool_status = self._key_pool.get_status()
+                key_info = next(
+                    (k for k in pool_status.get('keys', []) if k['key_id'] == reservation.key_id),
+                    {}
+                )
+
+                # 记录到数据库
+                ai_key_repository.log_usage(
+                    purpose=self._key_pool.purpose,
+                    key_id=reservation.key_id,
+                    key_name=key_info.get('name', ''),
+                    model=reservation.model,
+                    anime_title=anime_title or '',
+                    context_summary=f'{len(files)} files: {files[0][:50]}...' if files else '',
+                    success=False,
+                    error_code=response.error_code,
+                    error_message=response.error_message or 'Unknown error',
+                    response_time_ms=response.response_time_ms,
+                    rpm_at_call=key_info.get('rpm_count', 0),
+                    rpd_at_call=key_info.get('rpd_count', 0),
+                )
+
                 # 记录 AI 调试日志（失败）
                 if ai_debug_service.enabled:
                     ai_debug_service.log_ai_interaction(
@@ -363,7 +409,6 @@ class AIFileRenamer(IFileRenamer):
                 self._circuit_breaker.report_failure(response.error_message)
 
                 # 检查是否需要触发熔断
-                pool_status = self._key_pool.get_status()
                 if pool_status['all_in_long_cooling']:
                     self._circuit_breaker.trip(
                         reason='所有 Key 都不可用（长冷却或已禁用）'

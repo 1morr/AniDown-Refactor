@@ -32,11 +32,14 @@ class AIKeyRepository:
         key_name: str = '',
         model: str = '',
         hash_id: str = '',
+        anime_title: str = '',
         context_summary: str = '',
         success: bool = True,
         error_code: Optional[int] = None,
         error_message: str = '',
         response_time_ms: int = 0,
+        rpm_at_call: int = 0,
+        rpd_at_call: int = 0,
     ) -> Optional[int]:
         """
         记录一次 AI Key 使用
@@ -47,30 +50,62 @@ class AIKeyRepository:
             key_name: Key 名称
             model: 使用的 AI 模型名称
             hash_id: 相关 torrent 的 hash
+            anime_title: 关联的动漫标题
             context_summary: 简短上下文描述
             success: 是否成功
             error_code: HTTP 错误码 (429, 403, 404 等)
             error_message: 完整错误信息
             response_time_ms: 响应时间（毫秒）
+            rpm_at_call: 调用时的 RPM 计数
+            rpd_at_call: 调用时的 RPD 计数
 
         Returns:
             新记录的 ID，失败返回 None
         """
+        today = _utc_date_str()
+
         try:
             with db_manager.session() as session:
+                # 记录使用日志
                 log_entry = AIKeyUsageLog(
                     purpose=purpose,
                     key_id=key_id,
                     key_name=key_name or '',
                     model=model or '',
                     hash_id=hash_id or '',
+                    anime_title=(anime_title or '')[:500],
                     context_summary=(context_summary or '')[:500],
                     success=1 if success else 0,
                     error_code=error_code,
                     error_message=(error_message or '')[:1000] if not success else '',
                     response_time_ms=response_time_ms,
+                    rpm_at_call=rpm_at_call,
+                    rpd_at_call=rpd_at_call,
                 )
                 session.add(log_entry)
+
+                # 同步更新每日计数表（用于启动时恢复）
+                daily_record = (
+                    session.query(AIKeyDailyCount)
+                    .filter(
+                        AIKeyDailyCount.purpose == purpose,
+                        AIKeyDailyCount.key_id == key_id,
+                        AIKeyDailyCount.date_utc == today,
+                    )
+                    .first()
+                )
+
+                if daily_record:
+                    daily_record.count = rpd_at_call
+                else:
+                    daily_record = AIKeyDailyCount(
+                        purpose=purpose,
+                        key_id=key_id,
+                        date_utc=today,
+                        count=rpd_at_call,
+                    )
+                    session.add(daily_record)
+
                 session.flush()
                 return log_entry.id
         except SQLAlchemyError as e:
@@ -111,11 +146,14 @@ class AIKeyRepository:
                         'key_name': r.key_name,
                         'model': r.model,
                         'hash_id': r.hash_id,
+                        'anime_title': r.anime_title,
                         'context_summary': r.context_summary,
                         'success': bool(r.success),
                         'error_code': r.error_code,
                         'error_message': r.error_message,
                         'response_time_ms': r.response_time_ms,
+                        'rpm_at_call': r.rpm_at_call,
+                        'rpd_at_call': r.rpd_at_call,
                         'created_at_utc': r.created_at.isoformat() if r.created_at else None,
                     }
                     for r in records
@@ -123,6 +161,129 @@ class AIKeyRepository:
         except SQLAlchemyError as e:
             logger.error(f'Failed to get AI key usage history: {e}')
             return []
+
+    def get_usage_stats(
+        self,
+        purpose: str,
+        key_id: str,
+    ) -> Dict[str, Any]:
+        """
+        获取指定 Key 的使用统计信息
+
+        Args:
+            purpose: 用途
+            key_id: Key ID
+
+        Returns:
+            包含统计信息的字典
+        """
+        try:
+            with db_manager.session() as session:
+                from sqlalchemy import func as sql_func, distinct
+
+                # 总调用次数和成功/失败次数
+                total_calls = (
+                    session.query(sql_func.count(AIKeyUsageLog.id))
+                    .filter(
+                        AIKeyUsageLog.purpose == purpose,
+                        AIKeyUsageLog.key_id == key_id,
+                    )
+                    .scalar() or 0
+                )
+
+                success_calls = (
+                    session.query(sql_func.count(AIKeyUsageLog.id))
+                    .filter(
+                        AIKeyUsageLog.purpose == purpose,
+                        AIKeyUsageLog.key_id == key_id,
+                        AIKeyUsageLog.success == 1,
+                    )
+                    .scalar() or 0
+                )
+
+                failed_calls = total_calls - success_calls
+
+                # 平均响应时间
+                avg_response_time = (
+                    session.query(sql_func.avg(AIKeyUsageLog.response_time_ms))
+                    .filter(
+                        AIKeyUsageLog.purpose == purpose,
+                        AIKeyUsageLog.key_id == key_id,
+                        AIKeyUsageLog.success == 1,
+                    )
+                    .scalar() or 0
+                )
+
+                # 使用过的动漫项目数量（去重）
+                anime_count = (
+                    session.query(sql_func.count(distinct(AIKeyUsageLog.anime_title)))
+                    .filter(
+                        AIKeyUsageLog.purpose == purpose,
+                        AIKeyUsageLog.key_id == key_id,
+                        AIKeyUsageLog.anime_title.isnot(None),
+                        AIKeyUsageLog.anime_title != '',
+                    )
+                    .scalar() or 0
+                )
+
+                # 最近使用的动漫项目列表（去重，最近 10 个）
+                recent_animes = (
+                    session.query(
+                        AIKeyUsageLog.anime_title,
+                        sql_func.max(AIKeyUsageLog.created_at).label('last_used')
+                    )
+                    .filter(
+                        AIKeyUsageLog.purpose == purpose,
+                        AIKeyUsageLog.key_id == key_id,
+                        AIKeyUsageLog.anime_title.isnot(None),
+                        AIKeyUsageLog.anime_title != '',
+                    )
+                    .group_by(AIKeyUsageLog.anime_title)
+                    .order_by(desc('last_used'))
+                    .limit(10)
+                    .all()
+                )
+
+                # 今日调用次数
+                today = datetime.now(timezone.utc).date().isoformat()
+                today_calls = (
+                    session.query(sql_func.count(AIKeyUsageLog.id))
+                    .filter(
+                        AIKeyUsageLog.purpose == purpose,
+                        AIKeyUsageLog.key_id == key_id,
+                        sql_func.date(AIKeyUsageLog.created_at) == today,
+                    )
+                    .scalar() or 0
+                )
+
+                return {
+                    'total_calls': total_calls,
+                    'success_calls': success_calls,
+                    'failed_calls': failed_calls,
+                    'success_rate': round(success_calls / total_calls * 100, 1) if total_calls > 0 else 0,
+                    'avg_response_time_ms': round(avg_response_time),
+                    'anime_count': anime_count,
+                    'today_calls': today_calls,
+                    'recent_animes': [
+                        {
+                            'title': a.anime_title,
+                            'last_used_utc': a.last_used.isoformat() if a.last_used else None
+                        }
+                        for a in recent_animes
+                    ],
+                }
+        except SQLAlchemyError as e:
+            logger.error(f'Failed to get AI key usage stats: {e}')
+            return {
+                'total_calls': 0,
+                'success_calls': 0,
+                'failed_calls': 0,
+                'success_rate': 0,
+                'avg_response_time_ms': 0,
+                'anime_count': 0,
+                'today_calls': 0,
+                'recent_animes': [],
+            }
 
     def get_daily_count(self, purpose: str, key_id: str, date_utc: str = None) -> int:
         """

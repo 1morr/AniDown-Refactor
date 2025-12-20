@@ -956,6 +956,45 @@ class KeyPool:
                 'all_in_long_cooling': all_unavailable,
             }
 
+    def restore_counts_from_db(self) -> None:
+        """
+        从数据库恢复 RPD 计数。
+
+        在程序启动时调用，从 AIKeyDailyCount 表恢复今日的请求计数。
+        RPM 计数不恢复（基于 60 秒时间窗口，重启后通常已过期）。
+        """
+        from src.infrastructure.repositories.ai_key_repository import ai_key_repository
+
+        today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+
+        with self._lock:
+            restored_count = 0
+
+            for key_id in self._keys:
+                if key_id not in self._usage:
+                    self._usage[key_id] = KeyUsage()
+
+                # 从数据库获取今日计数
+                db_count = ai_key_repository.get_daily_count(
+                    purpose=self._purpose,
+                    key_id=key_id,
+                    date_utc=today
+                )
+
+                if db_count > 0:
+                    usage = self._usage[key_id]
+                    usage.rpd_count = db_count
+                    usage.rpd_date = today
+                    restored_count += 1
+                    logger.info(
+                        f'🔄 [{self._purpose}] 恢复 Key {key_id} RPD 计数: {db_count}'
+                    )
+
+            if restored_count > 0:
+                logger.info(
+                    f'✅ [{self._purpose}] 已从数据库恢复 {restored_count} 个 Key 的 RPD 计数'
+                )
+
 
 # 全局 Key Pool 实例（按用途）
 _pools: Dict[str, KeyPool] = {}
