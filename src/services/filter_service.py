@@ -135,6 +135,8 @@ class FilterService:
             ]
             title_lower = title.lower()
 
+            logger.debug(f'🔍 过滤器检查: title={title[:50]}..., keywords={keyword_filters}')
+
             for keyword in keyword_filters:
                 if keyword in title_lower:
                     logger.info(f'⏭️ 过滤项目: {title} - 匹配屏蔽词: {keyword}')

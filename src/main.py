@@ -49,6 +49,89 @@ def init_database():
     logger.info('✅ 数据库初始化完成')
 
 
+def init_key_pools():
+    """初始化 API Key Pool"""
+    from src.core.config import config
+    from src.container import container
+    from src.infrastructure.ai.key_pool import KeySpec, register_pool
+
+    # 初始化 title_parse key pool
+    title_parse_pool = container.title_parse_pool()
+    title_parse_config = config.openai.title_parse
+
+    keys = []
+    # 优先使用 api_key_pool
+    if title_parse_config.api_key_pool:
+        for idx, key_entry in enumerate(title_parse_config.api_key_pool):
+            if key_entry.enabled and key_entry.api_key:
+                keys.append(KeySpec(
+                    key_id=f'tp_key_{idx}',
+                    name=key_entry.name or f'Key {idx + 1}',
+                    api_key=key_entry.api_key,
+                    base_url=title_parse_config.base_url,
+                    model=title_parse_config.model,
+                    rpm_limit=key_entry.rpm,
+                    rpd_limit=key_entry.rpd,
+                    enabled=True
+                ))
+    # 回退到单个 api_key
+    elif title_parse_config.api_key:
+        keys.append(KeySpec(
+            key_id='tp_key_0',
+            name='Primary Key',
+            api_key=title_parse_config.api_key,
+            base_url=title_parse_config.base_url,
+            model=title_parse_config.model,
+            rpm_limit=0,
+            rpd_limit=0,
+            enabled=True
+        ))
+
+    if keys:
+        title_parse_pool.configure(keys)
+        register_pool(title_parse_pool)
+        logger.info(f'🔑 Title Parse Key Pool 已配置: {len(keys)} 个 Key')
+    else:
+        logger.warning('⚠️ Title Parse 未配置 API Key')
+
+    # 初始化 multi_file_rename key pool
+    rename_pool = container.rename_pool()
+    rename_config = config.openai.multi_file_rename
+
+    rename_keys = []
+    if rename_config.api_key_pool:
+        for idx, key_entry in enumerate(rename_config.api_key_pool):
+            if key_entry.enabled and key_entry.api_key:
+                rename_keys.append(KeySpec(
+                    key_id=f'rn_key_{idx}',
+                    name=key_entry.name or f'Key {idx + 1}',
+                    api_key=key_entry.api_key,
+                    base_url=rename_config.base_url,
+                    model=rename_config.model,
+                    rpm_limit=key_entry.rpm,
+                    rpd_limit=key_entry.rpd,
+                    enabled=True
+                ))
+    elif rename_config.api_key:
+        rename_keys.append(KeySpec(
+            key_id='rn_key_0',
+            name='Primary Key',
+            api_key=rename_config.api_key,
+            base_url=rename_config.base_url,
+            model=rename_config.model,
+            rpm_limit=0,
+            rpd_limit=0,
+            enabled=True
+        ))
+
+    if rename_keys:
+        rename_pool.configure(rename_keys)
+        register_pool(rename_pool)
+        logger.info(f'🔑 Rename Key Pool 已配置: {len(rename_keys)} 个 Key')
+    else:
+        logger.warning('⚠️ Multi-File Rename 未配置 API Key')
+
+
 def init_discord_webhook():
     """初始化 Discord Webhook 客户端"""
     from src.core.config import config
@@ -250,6 +333,11 @@ def init_queue_workers(download_manager):
         WebhookQueueWorker.EVENT_TORRENT_COMPLETED,
         handle_torrent_completed
     )
+    # 兼容 qBittorrent 的 torrent_finished 事件
+    webhook_queue.register_handler(
+        'torrent_finished',
+        handle_torrent_completed
+    )
     webhook_queue.register_handler(
         WebhookQueueWorker.EVENT_TORRENT_ADDED,
         handle_torrent_added
@@ -271,29 +359,185 @@ def init_queue_workers(download_manager):
     rss_queue = get_rss_queue()
 
     def handle_rss_event(payload):
-        """处理 RSS 事件"""
+        """处理 RSS Feed 事件 - 解析 Feed 并将项目加入队列"""
         try:
-            from src.core.config import config, RSSFeed
+            from src.core.config import RSSFeed
+            from src.container import container
 
             # 从 extra_data 获取完整的 feed 配置
             feed_data = payload.extra_data.get('feed_data', {})
 
-            # 构建 RSSFeed 对象
-            if feed_data:
-                feed = RSSFeed(
-                    url=payload.rss_url,
-                    blocked_keywords=feed_data.get('blocked_keywords', ''),
-                    blocked_regex=feed_data.get('blocked_regex', ''),
-                    media_type=feed_data.get('media_type', 'anime')
-                )
-            else:
-                feed = RSSFeed(url=payload.rss_url)
+            # 优先使用 feed_data，如果没有则从 extra_data 根层级获取
+            blocked_keywords = feed_data.get('blocked_keywords', '') or payload.extra_data.get('blocked_keywords', '')
+            blocked_regex = feed_data.get('blocked_regex', '') or payload.extra_data.get('blocked_regex', '')
+            media_type = feed_data.get('media_type', '') or payload.extra_data.get('media_type', 'anime')
 
-            # 调用 DownloadManager 处理
-            download_manager.process_rss_feeds([feed], payload.trigger_type)
+            logger.info(f'📡 解析 RSS Feed: {payload.rss_url[:50]}...')
+
+            # 从容器获取服务
+            rss_service = container.rss_service()
+            history_repo = container.history_repo()
+            download_repo = container.download_repo()
+
+            # 创建历史记录
+            history_id = history_repo.insert_rss_history(
+                rss_url=payload.rss_url,
+                triggered_by=payload.trigger_type
+            )
+
+            # 解析 RSS Feed
+            items = rss_service.parse_feed(payload.rss_url)
+
+            if not items:
+                logger.info(f'📭 RSS Feed 没有新项目: {payload.rss_url[:50]}...')
+                history_repo.update_rss_history_stats(
+                    history_id,
+                    items_found=0,
+                    items_attempted=0,
+                    items_processed=0,
+                    status='completed'
+                )
+                return
+
+            logger.info(f'📥 发现 {len(items)} 个项目，正在过滤和加入队列...')
+
+            # 过滤器配置
+            filter_config = {
+                'blocked_keywords': blocked_keywords,
+                'blocked_regex': blocked_regex,
+            }
+
+            # 将每个项目加入队列
+            enqueued_count = 0
+            filtered_count = 0
+            exists_count = 0
+            filter_service = container.filter_service()
+
+            for item in items:
+                # 检查是否已存在
+                if item.hash:
+                    existing = download_repo.get_by_hash(item.hash)
+                    if existing:
+                        history_repo.insert_rss_detail(
+                            history_id, item.title, 'exists', '已存在于数据库'
+                        )
+                        exists_count += 1
+                        continue
+
+                # 检查过滤器
+                if blocked_keywords or blocked_regex:
+                    if filter_service.should_filter(item.title, blocked_keywords, blocked_regex):
+                        logger.info(f'⏭️ 过滤跳过: {item.title[:50]}...')
+                        history_repo.insert_rss_detail(
+                            history_id, item.title, 'filtered', '匹配过滤规则'
+                        )
+                        filtered_count += 1
+                        continue
+
+                # 加入队列
+                rss_queue.enqueue_single_item(
+                    item_title=item.title,
+                    torrent_url=item.torrent_url or item.link,
+                    hash_id=item.hash or '',
+                    rss_url=payload.rss_url,
+                    media_type=media_type,
+                    extra_data={
+                        'trigger_type': payload.trigger_type,
+                        'description': item.description,
+                        'pub_date': item.pub_date,
+                        'history_id': history_id,
+                        **filter_config
+                    }
+                )
+                enqueued_count += 1
+
+            # 更新历史记录统计
+            history_repo.update_rss_history_stats(
+                history_id,
+                items_found=len(items),
+                items_attempted=enqueued_count,
+                status='processing' if enqueued_count > 0 else 'completed'
+            )
+
+            logger.info(
+                f'✅ RSS处理完成: 总数={len(items)}, '
+                f'已存在={exists_count}, 过滤={filtered_count}, '
+                f'加入队列={enqueued_count}'
+            )
 
         except Exception as e:
-            logger.error(f'❌ 处理 RSS 事件失败: {e}', exc_info=True)
+            logger.error(f'❌ 处理 RSS Feed 事件失败: {e}', exc_info=True)
+
+    def handle_single_item(payload):
+        """处理单个 RSS 项目"""
+        try:
+            from src.container import container
+
+            logger.info(f'🔄 处理项目: {payload.item_title[:50]}...')
+
+            # 获取 history_id（如果有）
+            history_id = payload.extra_data.get('history_id')
+            history_repo = container.history_repo() if history_id else None
+
+            # 检查是否已存在
+            download_repo = container.download_repo()
+
+            if payload.hash_id:
+                existing = download_repo.get_by_hash(payload.hash_id)
+                if existing:
+                    logger.info(f'⏭️ 项目已存在: {payload.item_title[:50]}...')
+                    if history_repo and history_id:
+                        history_repo.insert_rss_detail(
+                            history_id, payload.item_title, 'exists', '已存在于数据库'
+                        )
+                    return
+
+            # 调用 DownloadManager 处理单个项目
+            item_data = {
+                'title': payload.item_title,
+                'torrent_url': payload.torrent_url,
+                'hash': payload.hash_id,
+                'link': payload.torrent_url,
+                'media_type': payload.media_type,
+                'description': payload.extra_data.get('description', ''),
+                'pub_date': payload.extra_data.get('pub_date'),
+            }
+
+            success = download_manager.process_single_rss_item(
+                item_data,
+                payload.extra_data.get('trigger_type', 'queue')
+            )
+
+            # 记录处理结果
+            if history_repo and history_id:
+                if success:
+                    history_repo.insert_rss_detail(
+                        history_id, payload.item_title, 'success'
+                    )
+                    # 更新处理计数
+                    history_repo.increment_rss_history_processed(history_id)
+                else:
+                    history_repo.insert_rss_detail(
+                        history_id, payload.item_title, 'failed', '处理失败'
+                    )
+
+            if success:
+                logger.info(f'✅ 项目处理成功: {payload.item_title[:50]}...')
+            else:
+                logger.warning(f'⚠️ 项目处理失败: {payload.item_title[:50]}...')
+
+        except Exception as e:
+            logger.error(f'❌ 处理单个项目失败: {e}', exc_info=True)
+            # 记录失败
+            try:
+                if history_id:
+                    from src.container import container
+                    history_repo = container.history_repo()
+                    history_repo.insert_rss_detail(
+                        history_id, payload.item_title, 'failed', str(e)
+                    )
+            except Exception:
+                pass
 
     # 注册 RSS 处理器
     rss_queue.register_handler(
@@ -311,6 +555,10 @@ def init_queue_workers(download_manager):
     rss_queue.register_handler(
         RSSQueueWorker.EVENT_FIXED_SUBSCRIPTION,
         handle_rss_event
+    )
+    rss_queue.register_handler(
+        RSSQueueWorker.EVENT_SINGLE_ITEM,
+        handle_single_item
     )
 
     # 启动 RSS 队列
@@ -529,6 +777,9 @@ def main():
 
     # 初始化 Discord Webhook
     init_discord_webhook()
+
+    # 初始化 API Key Pool
+    init_key_pools()
 
     # 获取 DownloadManager 实例
     download_manager = container.download_manager()

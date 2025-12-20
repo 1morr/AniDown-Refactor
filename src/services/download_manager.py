@@ -289,6 +289,39 @@ class DownloadManager:
 
         return result
 
+    def process_single_rss_item(
+        self,
+        item: Dict[str, Any],
+        trigger_type: str = 'queue'
+    ) -> bool:
+        """
+        处理单个 RSS 项目（从队列调用）。
+
+        Args:
+            item: RSS 项目字典，包含 title, torrent_url, hash, media_type 等。
+            trigger_type: 触发类型。
+
+        Returns:
+            处理成功返回 True，否则返回 False。
+        """
+        title = item.get('title', '')
+        logger.info(f'🔄 [队列] 处理项目: {title[:50]}...')
+
+        try:
+            # 调用内部处理方法
+            success = self._process_single_item(item)
+
+            if success:
+                logger.info(f'✅ [队列] 项目处理成功: {title[:50]}...')
+            else:
+                logger.warning(f'⚠️ [队列] 项目处理失败: {title[:50]}...')
+
+            return success
+
+        except Exception as e:
+            logger.error(f'❌ [队列] 处理项目失败: {title[:50]}... - {e}', exc_info=True)
+            return False
+
     def process_manual_anime_rss(
         self,
         rss_url: str,
@@ -482,6 +515,18 @@ class DownloadManager:
     ) -> List[Dict[str, Any]]:
         """Filter and process feed items."""
         new_items = []
+
+        # 调试日志：显示过滤器配置
+        if feed.blocked_keywords or feed.blocked_regex:
+            logger.info(f'🔍 过滤器已启用:')
+            if feed.blocked_keywords:
+                keywords_preview = feed.blocked_keywords.replace('\n', ', ')[:100]
+                logger.info(f'  屏蔽词: {keywords_preview}')
+            if feed.blocked_regex:
+                regex_preview = feed.blocked_regex.replace('\n', ', ')[:100]
+                logger.info(f'  正则: {regex_preview}')
+        else:
+            logger.debug(f'📋 未配置过滤器')
 
         for item in items:
             title = item.title

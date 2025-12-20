@@ -279,10 +279,14 @@ function updateQueueCard(prefix, queueData) {
   const currentEl = document.getElementById(`${prefix}-current`);
   if (queueData.current_event) {
     const evt = queueData.current_event;
+    const displayName = evt.display_name || evt.event_type;
     currentEl.innerHTML = `
       <div class="space-y-1">
-        <div><span class="text-slate-500 dark:text-gray-400">类型:</span> <span class="font-mono">${escapeHtml(evt.event_type)}</span></div>
-        <div><span class="text-slate-500 dark:text-gray-400">开始:</span> <span class="font-mono">${formatTime(evt.started_at_utc)}</span></div>
+        <div class="font-medium text-slate-800 dark:text-white truncate" title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</div>
+        <div class="flex gap-4 text-xs">
+          <span class="text-slate-500 dark:text-gray-400">类型: <span class="font-mono">${escapeHtml(evt.event_type)}</span></span>
+          <span class="text-slate-500 dark:text-gray-400">开始: <span class="font-mono">${formatTime(evt.started_at_utc)}</span></span>
+        </div>
       </div>
     `;
   } else {
@@ -292,12 +296,20 @@ function updateQueueCard(prefix, queueData) {
   // 更新等待队列
   const pendingEl = document.getElementById(`${prefix}-pending`);
   if (queueData.pending_events && queueData.pending_events.length > 0) {
-    pendingEl.innerHTML = queueData.pending_events.map((evt, i) => `
-      <div class="flex justify-between items-center text-sm bg-slate-100 dark:bg-slate-700 rounded px-2 py-1">
-        <span class="text-slate-600 dark:text-gray-300">${i + 1}. ${escapeHtml(evt.event_type)}</span>
-        <span class="text-xs text-slate-500 dark:text-gray-400 font-mono">${formatTime(evt.received_at_utc)}</span>
-      </div>
-    `).join('');
+    pendingEl.innerHTML = queueData.pending_events.map((evt, i) => {
+      const displayName = evt.display_name || evt.event_type;
+      return `
+        <div class="flex flex-col gap-1 text-sm bg-slate-100 dark:bg-slate-700 rounded px-2 py-1.5">
+          <div class="flex justify-between items-center">
+            <span class="text-slate-800 dark:text-gray-200 truncate font-medium" title="${escapeHtml(displayName)}">${i + 1}. ${escapeHtml(displayName)}</span>
+          </div>
+          <div class="flex justify-between text-xs text-slate-500 dark:text-gray-400">
+            <span class="font-mono">${escapeHtml(evt.event_type)}</span>
+            <span class="font-mono">${formatTime(evt.received_at_utc)}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
   } else {
     pendingEl.innerHTML = '<span class="text-slate-400 dark:text-gray-500 italic text-sm">队列为空</span>';
   }

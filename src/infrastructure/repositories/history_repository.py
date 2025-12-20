@@ -236,6 +236,19 @@ class HistoryRepository(IHardlinkRepository):
                 return True
             return False
 
+    def increment_rss_history_processed(self, history_id: int) -> bool:
+        """递增RSS处理历史的已处理计数"""
+        with db_manager.session() as session:
+            history = session.query(RssProcessingHistory).filter_by(id=history_id).first()
+            if history:
+                history.items_processed = (history.items_processed or 0) + 1
+                # 检查是否所有项目都已处理完成
+                if history.items_attempted and history.items_processed >= history.items_attempted:
+                    history.status = 'completed'
+                    history.completed_at = datetime.now(timezone.utc)
+                return True
+            return False
+
     # ==================== 手动上传历史相关 ====================
 
     def insert_manual_upload(
