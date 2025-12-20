@@ -6,6 +6,7 @@ Provides CRUD operations, file management, and batch operations for anime.
 
 import logging
 import os
+import re
 import shutil
 from typing import Any, Dict, List, Optional
 
@@ -406,6 +407,45 @@ class AnimeService:
             logger.error(f'获取动漫文件夹路径失败: {e}')
             return {'error': str(e)}
 
+    def _sanitize_title(self, name: str) -> str:
+        """
+        Sanitize anime title for use in file/directory names.
+
+        Replaces illegal filesystem characters with fullwidth equivalents,
+        matching the behavior used when creating download paths.
+
+        Args:
+            name: Original title string.
+
+        Returns:
+            Sanitized title safe for filesystem use.
+        """
+        if not name:
+            return ''
+
+        # Replace invalid characters with fullwidth equivalents
+        # Invalid chars in Windows/Unix: < > : " / \ | ? *
+        illegal_chars = {
+            '<': '＜', '>': '＞', ':': '：', '"': '"', '/': '／',
+            '\\': '＼', '|': '｜', '?': '？', '*': '＊'
+        }
+
+        sanitized = name
+        for char, replacement in illegal_chars.items():
+            sanitized = sanitized.replace(char, replacement)
+
+        # Replace multiple spaces with single space
+        sanitized = re.sub(r'\s+', ' ', sanitized)
+
+        # Remove leading/trailing spaces and dots
+        sanitized = sanitized.strip(' .')
+
+        # Truncate to reasonable length (255 chars max on most filesystems)
+        if len(sanitized) > 200:
+            sanitized = sanitized[:200]
+
+        return sanitized
+
     def _get_original_folder_path(
         self,
         anime_title: str,
@@ -414,6 +454,7 @@ class AnimeService:
     ) -> str:
         """Get original file folder path."""
         base_path = config.qbittorrent.base_download_path.rstrip('/')
+        sanitized_title = self._sanitize_title(anime_title)
 
         # Select folder based on media type
         if media_type == 'live_action':
@@ -427,7 +468,7 @@ class AnimeService:
         else:
             type_folder = config.qbittorrent.tv_folder_name
 
-        return f'{base_path}/{media_folder}/{type_folder}/{anime_title}'
+        return f'{base_path}/{media_folder}/{type_folder}/{sanitized_title}'
 
     def _get_hardlink_folder_path(
         self,
@@ -436,6 +477,8 @@ class AnimeService:
         category: str
     ) -> str:
         """Get hardlink folder path."""
+        sanitized_title = self._sanitize_title(anime_title)
+
         if media_type == 'live_action':
             if category == 'movie':
                 target_base = config.live_action_movie_target_path
@@ -449,7 +492,7 @@ class AnimeService:
             else:
                 target_base = config.link_target_path
 
-        return f'{target_base}/{anime_title}'
+        return f'{target_base}/{sanitized_title}'
 
     def delete_anime_files(
         self,
