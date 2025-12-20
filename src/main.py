@@ -2,14 +2,20 @@
 AniDown Application Entry Point.
 
 This module serves as the main entry point for the AniDown application.
-It initializes the core infrastructure and can run basic validation tests.
+It initializes the core infrastructure, starts the web server, webhook handler,
+and RSS scheduler.
 """
 
 import argparse
+import base64
 import logging
 import os
 import sys
-from datetime import datetime
+import time
+import schedule
+from datetime import datetime, timedelta, timezone
+from threading import Thread
+from typing import Optional
 
 # 設置日誌路徑
 log_path = os.getenv('LOG_PATH', 'logs')
@@ -111,12 +117,26 @@ def test_container():
     logger.info('  ✓ DownloadRepository')
     logger.info('  ✓ HistoryRepository')
     logger.info('  ✓ QBitAdapter')
+
+    # 测试新增的服务
+    try:
+        title_parser = container.title_parser()
+        logger.info('  ✓ AITitleParser')
+    except Exception as e:
+        logger.warning(f'  ⚠ AITitleParser (可能未配置API Key): {e}')
+
+    try:
+        download_manager = container.download_manager()
+        logger.info('  ✓ DownloadManager')
+    except Exception as e:
+        logger.warning(f'  ⚠ DownloadManager: {e}')
+
     logger.info('✅ 依赖注入容器测试通过')
 
 
 def run_all_tests():
     """运行所有测试"""
-    logger.info('🚀 AniDown 阶段 A 验证开始...')
+    logger.info('🚀 AniDown 验证测试开始...')
     logger.info(f'📁 配置文件路径: {os.getenv("CONFIG_PATH", "config.json")}')
     logger.info(f'📝 日志文件路径: {log_file}')
     logger.info('')
@@ -138,7 +158,7 @@ def run_all_tests():
         logger.info('')
 
         logger.info('=' * 50)
-        logger.info('🎉 阶段 A 所有验证通过！')
+        logger.info('🎉 所有验证通过！')
         logger.info('=' * 50)
         return True
 
@@ -147,33 +167,416 @@ def run_all_tests():
         return False
 
 
+def init_queue_workers(download_manager):
+    """
+    初始化队列工作者并注册处理器。
+
+    Args:
+        download_manager: DownloadManager 实例
+    """
+    from src.services.queue.webhook_queue import get_webhook_queue, WebhookQueueWorker
+    from src.services.queue.rss_queue import get_rss_queue, RSSQueueWorker
+
+    # 初始化 Webhook 队列
+    webhook_queue = get_webhook_queue()
+
+    def handle_torrent_completed(payload):
+        """处理种子完成事件"""
+        try:
+            logger.info(f'🔔 处理种子完成事件: {payload.hash_id[:8]}...')
+            download_manager.handle_torrent_completed(payload.hash_id)
+        except Exception as e:
+            logger.error(f'❌ 处理种子完成事件失败: {e}', exc_info=True)
+
+    def handle_torrent_added(payload):
+        """处理种子添加事件"""
+        try:
+            logger.info(f'📥 种子已添加: {payload.name}')
+            download_manager.handle_torrent_added(payload.hash_id)
+        except Exception as e:
+            logger.error(f'❌ 处理种子添加事件失败: {e}', exc_info=True)
+
+    def handle_torrent_error(payload):
+        """处理种子错误事件"""
+        try:
+            logger.warning(f'⚠️ 种子错误: {payload.name}')
+            download_manager.handle_torrent_error(
+                payload.hash_id,
+                payload.extra_data.get('error', '未知错误')
+            )
+        except Exception as e:
+            logger.error(f'❌ 处理种子错误事件失败: {e}', exc_info=True)
+
+    def handle_torrent_paused(payload):
+        """处理种子暂停事件"""
+        try:
+            logger.info(f'⏸️ 种子已暂停: {payload.name}')
+            download_manager.handle_torrent_paused(payload.hash_id)
+        except Exception as e:
+            logger.error(f'❌ 处理种子暂停事件失败: {e}', exc_info=True)
+
+    # 注册 Webhook 处理器
+    webhook_queue.register_handler(
+        WebhookQueueWorker.EVENT_TORRENT_COMPLETED,
+        handle_torrent_completed
+    )
+    webhook_queue.register_handler(
+        WebhookQueueWorker.EVENT_TORRENT_ADDED,
+        handle_torrent_added
+    )
+    webhook_queue.register_handler(
+        WebhookQueueWorker.EVENT_TORRENT_ERROR,
+        handle_torrent_error
+    )
+    webhook_queue.register_handler(
+        WebhookQueueWorker.EVENT_TORRENT_PAUSED,
+        handle_torrent_paused
+    )
+
+    # 启动 Webhook 队列
+    webhook_queue.start()
+    logger.info('✅ Webhook 队列 worker 已启动')
+
+    # 初始化 RSS 队列
+    rss_queue = get_rss_queue()
+
+    def handle_rss_event(payload):
+        """处理 RSS 事件"""
+        try:
+            from src.core.config import config, RSSFeed
+
+            # 从 extra_data 获取完整的 feed 配置
+            feed_data = payload.extra_data.get('feed_data', {})
+
+            # 构建 RSSFeed 对象
+            if feed_data:
+                feed = RSSFeed(
+                    url=payload.rss_url,
+                    blocked_keywords=feed_data.get('blocked_keywords', ''),
+                    blocked_regex=feed_data.get('blocked_regex', ''),
+                    media_type=feed_data.get('media_type', 'anime')
+                )
+            else:
+                feed = RSSFeed(url=payload.rss_url)
+
+            # 调用 DownloadManager 处理
+            download_manager.process_rss_feeds([feed], payload.trigger_type)
+
+        except Exception as e:
+            logger.error(f'❌ 处理 RSS 事件失败: {e}', exc_info=True)
+
+    # 注册 RSS 处理器
+    rss_queue.register_handler(
+        RSSQueueWorker.EVENT_SCHEDULED_CHECK,
+        handle_rss_event
+    )
+    rss_queue.register_handler(
+        RSSQueueWorker.EVENT_MANUAL_CHECK,
+        handle_rss_event
+    )
+    rss_queue.register_handler(
+        RSSQueueWorker.EVENT_SINGLE_FEED,
+        handle_rss_event
+    )
+    rss_queue.register_handler(
+        RSSQueueWorker.EVENT_FIXED_SUBSCRIPTION,
+        handle_rss_event
+    )
+
+    # 启动 RSS 队列
+    rss_queue.start()
+    logger.info('✅ RSS 队列 worker 已启动')
+
+    return webhook_queue, rss_queue
+
+
+def run_schedule(download_manager):
+    """
+    运行定时任务。
+
+    Args:
+        download_manager: DownloadManager 实例
+    """
+    from src.core.config import config
+    from src.interface.web.controllers.system_status import system_status_manager
+    from src.services.queue.rss_queue import get_rss_queue, RSSQueueWorker, RSSPayload
+
+    logger.info('🔔 启动定时任务调度器...')
+    logger.info(f'📋 RSS检查间隔: {config.rss.check_interval} 秒')
+
+    rss_feeds = config.rss.get_feeds()
+    logger.info(f'📡 已配置 {len(rss_feeds)} 个RSS订阅源')
+
+    # 标记 RSS 调度器为运行中
+    system_status_manager.set_rss_scheduler_status(True)
+
+    # 获取 RSS 队列 worker
+    rss_queue = get_rss_queue()
+
+    def enqueue_rss_feeds(triggered_by: str):
+        """将所有配置的 RSS feeds 加入队列"""
+        feeds = config.rss.get_feeds()
+        if not feeds:
+            logger.info('📭 没有配置RSS链接')
+            return
+
+        for feed in feeds:
+            feed_data = {
+                'url': feed.url,
+                'blocked_keywords': feed.blocked_keywords,
+                'blocked_regex': feed.blocked_regex,
+                'media_type': feed.media_type,
+            }
+            payload = RSSPayload(
+                rss_url=feed.url,
+                trigger_type=triggered_by,
+                extra_data={'feed_data': feed_data}
+            )
+            rss_queue.enqueue_event(
+                event_type=RSSQueueWorker.EVENT_SINGLE_FEED,
+                payload=payload
+            )
+        logger.info(f'📥 已将 {len(feeds)} 个RSS链接加入处理队列')
+
+    # 立即执行一次
+    logger.info('⚡ 立即执行首次RSS检查...')
+    enqueue_rss_feeds('启动时触发')
+
+    # 设置定时任务
+    def scheduled_task():
+        enqueue_rss_feeds('定时触发')
+        next_run = datetime.now() + timedelta(seconds=config.rss.check_interval)
+        logger.info(f"⏰ 下次RSS检查时间: {next_run.strftime('%Y-%m-%d %H:%M:%S')}")
+
+    schedule.every(config.rss.check_interval).seconds.do(scheduled_task)
+
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
+
+
+def handle_rss_command(args, download_manager):
+    """
+    处理RSS命令。
+
+    Args:
+        args: 命令行参数
+        download_manager: DownloadManager 实例
+    """
+    from src.core.config import RSSFeed
+
+    logger.info(f'🔄 处理RSS链接: {args.url}')
+    feed = RSSFeed(url=args.url)
+    download_manager.process_rss_feeds([feed], '命令行触发')
+
+
+def handle_magnet_command(args, download_manager):
+    """
+    处理磁力链接命令。
+
+    Args:
+        args: 命令行参数
+        download_manager: DownloadManager 实例
+    """
+    logger.info(f'🔄 处理磁力链接: {args.hash}')
+    magnet_link = f'magnet:?xt=urn:btih:{args.hash}'
+    data = {
+        'upload_type': 'magnet',
+        'magnet_link': magnet_link,
+        'anime_title': args.title,
+        'subtitle_group': args.group,
+        'season': args.season,
+        'category': args.category
+    }
+    success = download_manager.process_manual_upload(data)
+    if success:
+        logger.info('✅ 磁力链接处理成功')
+    else:
+        logger.error('❌ 磁力链接处理失败')
+
+
+def handle_torrent_command(args, download_manager):
+    """
+    处理Torrent文件命令。
+
+    Args:
+        args: 命令行参数
+        download_manager: DownloadManager 实例
+    """
+    logger.info(f'🔄 处理Torrent文件: {args.file}')
+
+    try:
+        with open(args.file, 'rb') as f:
+            torrent_content = base64.b64encode(f.read()).decode('utf-8')
+
+        data = {
+            'upload_type': 'torrent',
+            'torrent_file': torrent_content,
+            'anime_title': args.title,
+            'subtitle_group': args.group,
+            'season': args.season,
+            'category': args.category
+        }
+        success = download_manager.process_manual_upload(data)
+        if success:
+            logger.info('✅ Torrent文件处理成功')
+        else:
+            logger.error('❌ Torrent文件处理失败')
+    except Exception as e:
+        logger.error(f'❌ 读取Torrent文件失败: {e}')
+
+
+def start_webhook_server(host: str, port: int):
+    """
+    启动 Webhook 服务器。
+
+    Args:
+        host: 监听地址
+        port: 监听端口
+    """
+    from flask import Flask
+    from src.interface.webhook.handler import create_webhook_blueprint
+
+    app = Flask(__name__)
+    app.register_blueprint(create_webhook_blueprint())
+
+    # 使用 Werkzeug 静默模式
+    import logging as werkzeug_logging
+    werkzeug_logging.getLogger('werkzeug').setLevel(werkzeug_logging.WARNING)
+
+    app.run(host=host, port=port, debug=False, use_reloader=False)
+
+
 def main():
     """主程序入口"""
+    from src.core.config import config
+    from src.container import container
+    from src.services.ai_debug_service import ai_debug_service
+
     parser = argparse.ArgumentParser(description='AniDown - 动漫下载管理器')
-    parser.add_argument('--test', action='store_true', help='运行阶段 A 验证测试')
     parser.add_argument('--debug', action='store_true', help='启用debug模式')
+    parser.add_argument('--test', action='store_true', help='运行验证测试')
+    subparsers = parser.add_subparsers(dest='command', help='可用命令')
+
+    # RSS命令
+    rss_parser = subparsers.add_parser('rss', help='处理RSS链接')
+    rss_parser.add_argument('url', help='RSS链接')
+
+    # 磁力链接命令
+    magnet_parser = subparsers.add_parser('magnet', help='处理磁力链接')
+    magnet_parser.add_argument('hash', help='磁力链接hash')
+    magnet_parser.add_argument('title', help='动漫名称')
+    magnet_parser.add_argument('group', help='字幕组')
+    magnet_parser.add_argument('--season', type=int, default=1, help='季数')
+    magnet_parser.add_argument('--category', default='tv', choices=['tv', 'movie'])
+
+    # Torrent文件命令
+    torrent_parser = subparsers.add_parser('torrent', help='处理Torrent文件')
+    torrent_parser.add_argument('file', help='Torrent文件路径')
+    torrent_parser.add_argument('title', help='动漫名称')
+    torrent_parser.add_argument('group', help='字幕组')
+    torrent_parser.add_argument('--season', type=int, default=1, help='季数')
+    torrent_parser.add_argument('--category', default='tv', choices=['tv', 'movie'])
 
     args = parser.parse_args()
 
+    # 启用debug模式
     if args.debug:
-        logging.getLogger().setLevel(logging.DEBUG)
+        ai_debug_service.enable()
         logger.info('🐛 DEBUG模式已启用')
+        logging.getLogger().setLevel(logging.DEBUG)
 
+    # 验证测试模式
     if args.test:
         success = run_all_tests()
         sys.exit(0 if success else 1)
+
+    logger.info('🚀 AniDown 启动中...')
+    logger.info(f'📁 配置文件路径: {os.getenv("CONFIG_PATH", "config.json")}')
+
+    # 初始化数据库
+    init_database()
+
+    # 获取 DownloadManager 实例
+    download_manager = container.download_manager()
+
+    # 处理命令行参数
+    if args.command == 'rss':
+        handle_rss_command(args, download_manager)
+        return
+    elif args.command == 'magnet':
+        handle_magnet_command(args, download_manager)
+        return
+    elif args.command == 'torrent':
+        handle_torrent_command(args, download_manager)
+        return
+
+    # 默认启动服务器模式
+    logger.info('🎬 启动服务器模式...')
+
+    # 导入状态管理器
+    from src.interface.web.controllers.system_status import system_status_manager
+
+    # 初始化队列工作者
+    webhook_queue, rss_queue = init_queue_workers(download_manager)
+
+    # 启动 Webhook 服务器 (后台线程)
+    if config.webhook.enabled:
+        logger.info(f'🔗 正在启动 Webhook 服务器...')
+        logger.info(f'📍 Webhook 地址: http://{config.webhook.host}:{config.webhook.port}')
+        webhook_thread = Thread(
+            target=start_webhook_server,
+            kwargs={'host': config.webhook.host, 'port': config.webhook.port},
+            daemon=True
+        )
+        webhook_thread.start()
+        system_status_manager.set_webhook_status(True)
+        logger.info('✅ Webhook 服务器已在后台启动')
     else:
-        logger.info('🚀 AniDown 启动中...')
-        logger.info('📌 阶段 A 完成 - 核心运行时迁移')
-        logger.info('💡 使用 --test 参数运行验证测试')
-        logger.info('')
+        logger.info('⏭️ Webhook 服务器已禁用')
 
-        # 初始化数据库
-        init_database()
+    # 启动 Web UI 服务器 (后台线程)
+    if config.webui.enabled:
+        logger.info(f'🌐 正在启动 Web UI 服务器...')
 
-        logger.info('✅ 核心组件初始化完成')
-        logger.info('')
-        logger.info('等待后续阶段迁移完成...')
+        def run_webui():
+            from src.interface.web.app import create_app
+
+            # 使用 Werkzeug 静默模式
+            import logging as werkzeug_logging
+            werkzeug_logging.getLogger('werkzeug').setLevel(werkzeug_logging.WARNING)
+
+            app = create_app(container)
+            system_status_manager.set_webui_status(True)
+            app.run(
+                host=config.webui.host,
+                port=config.webui.port,
+                debug=False,
+                use_reloader=False
+            )
+
+        webui_thread = Thread(target=run_webui, daemon=True)
+        webui_thread.start()
+        logger.info(f'✅ Web UI 服务器已启动: http://{config.webui.host}:{config.webui.port}')
+    else:
+        logger.info('⏭️ Web UI 服务器已禁用')
+
+    # 启动定时任务 (主线程)
+    try:
+        run_schedule(download_manager)
+    except KeyboardInterrupt:
+        logger.info('🛑 接收到停止信号，正在退出...')
+        system_status_manager.set_rss_scheduler_status(False)
+        system_status_manager.set_webui_status(False)
+        system_status_manager.set_webhook_status(False)
+
+        # 停止队列工作者
+        webhook_queue.stop()
+        rss_queue.stop()
+        logger.info('✅ 已优雅关闭')
+    except Exception as e:
+        logger.error(f'❌ 发生未预期错误: {e}', exc_info=True)
+        system_status_manager.set_rss_scheduler_status(False)
 
 
 if __name__ == '__main__':
