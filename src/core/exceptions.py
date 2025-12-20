@@ -351,3 +351,39 @@ class TitleParseError(ParseError):
             ctx['title'] = title[:200]  # Truncate for logging
         super().__init__(message, 'TITLE_PARSE_ERROR', ctx)
         self.title = title
+
+
+# RSS exceptions
+
+class RSSError(AniDownError):
+    """
+    Base exception for RSS-related errors.
+
+    Attributes:
+        feed_url: URL of the RSS feed (if applicable).
+    """
+
+    def __init__(
+        self,
+        message: str,
+        feed_url: Optional[str] = None,
+        context: Optional[Dict[str, Any]] = None
+    ):
+        ctx = context or {}
+        if feed_url:
+            ctx['feed_url'] = feed_url
+        super().__init__(message, 'RSS_ERROR', ctx)
+        self.feed_url = feed_url
+
+
+class RSSFetchError(RSSError):
+    """Exception raised when fetching RSS feed fails."""
+
+    def __init__(
+        self,
+        message: str,
+        feed_url: Optional[str] = None,
+        context: Optional[Dict[str, Any]] = None
+    ):
+        super().__init__(message, feed_url, context)
+        self.code = 'RSS_FETCH_ERROR'
