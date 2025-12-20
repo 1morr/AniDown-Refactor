@@ -759,10 +759,11 @@ class RenameService(IFileRenamer):
                     continue
 
             # Handle Season prefix in new_name
-            if '/' in new_name:
-                path_parts = new_name.rsplit('/', 1)
-                season_prefix = path_parts[0]
-                filename_only = path_parts[1]
+            # Check for "Season X/" prefix pattern, not just any "/"
+            season_match = re.match(r'^(Season \d+)/', new_name)
+            if season_match:
+                season_prefix = season_match.group(1)
+                filename_only = new_name[len(season_prefix) + 1:]  # Skip "Season X/"
                 clean_filename = self._sanitize_filename(filename_only)
                 clean_new_name = f'{season_prefix}/{clean_filename}'
                 logger.info(f'  ✓ AI重命名（带Season目录）: {key_to_use} -> {clean_new_name}')

@@ -14,6 +14,7 @@ from src.core.exceptions import (
     AIResponseParseError,
 )
 from src.core.interfaces.adapters import ITitleParser, TitleParseResult
+from src.services.ai_debug_service import ai_debug_service
 
 from .api_client import OpenAIClient
 from .circuit_breaker import CircuitBreaker
@@ -121,6 +122,18 @@ class AITitleParser(ITitleParser):
                     response_time_ms=response.response_time_ms
                 )
 
+                # 记录 AI 调试日志
+                if ai_debug_service.enabled:
+                    ai_debug_service.log_ai_interaction(
+                        operation='title_parse',
+                        input_data={'title': title},
+                        output_data=response.content,
+                        model=reservation.model,
+                        response_time_ms=response.response_time_ms,
+                        key_id=reservation.key_id,
+                        success=True
+                    )
+
                 # 解析响应
                 result = self._parse_response(response.content, title)
                 if result:
@@ -148,6 +161,19 @@ class AITitleParser(ITitleParser):
                     is_rate_limit=is_rate_limit,
                     retry_after=retry_after
                 )
+
+                # 记录 AI 调试日志（失败）
+                if ai_debug_service.enabled:
+                    ai_debug_service.log_ai_interaction(
+                        operation='title_parse',
+                        input_data={'title': title},
+                        output_data=None,
+                        model=reservation.model,
+                        response_time_ms=response.response_time_ms,
+                        key_id=reservation.key_id,
+                        success=False,
+                        error_message=response.error_message
+                    )
 
                 # 检查是否需要触发熔断
                 pool_status = self._key_pool.get_status()

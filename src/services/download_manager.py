@@ -1018,9 +1018,10 @@ class DownloadManager:
             # Determine category
             category = 'movie' if season == 0 else 'tv'
 
-            # Determine target base path
+            # Determine target base path and sanitize anime title
             target_base = self._get_target_base_path(media_type, category)
-            target_dir = os.path.join(target_base, anime_title)
+            safe_anime_title = self._path_builder._sanitize_filename(anime_title)
+            target_dir = os.path.join(target_base, safe_anime_title)
 
             # Classify files
             download_directory = (

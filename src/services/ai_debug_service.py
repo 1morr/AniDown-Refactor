@@ -54,6 +54,11 @@ class AIDebugService:
         return self._enabled
 
     @property
+    def enabled(self) -> bool:
+        """Alias for is_enabled for convenience."""
+        return self._enabled
+
+    @property
     def debug_dir(self) -> Path:
         """Get the debug directory path."""
         return self._debug_dir
@@ -78,21 +83,40 @@ class AIDebugService:
 
     def log_ai_interaction(
         self,
-        system_prompt: str,
-        user_prompt: str,
-        ai_response: Optional[Dict[str, Any]],
-        model: str,
+        operation: Optional[str] = None,
+        input_data: Optional[Dict[str, Any]] = None,
+        output_data: Optional[Any] = None,
+        model: Optional[str] = None,
+        response_time_ms: Optional[float] = None,
+        key_id: Optional[str] = None,
+        success: bool = True,
+        error_message: Optional[str] = None,
+        # Legacy parameters for backward compatibility
+        system_prompt: Optional[str] = None,
+        user_prompt: Optional[str] = None,
+        ai_response: Optional[Dict[str, Any]] = None,
         context: Optional[Dict[str, Any]] = None,
         error: Optional[str] = None
     ) -> None:
         """
         Log an AI interaction.
 
-        Args:
+        Supports both new-style and legacy parameters.
+
+        New-style Args:
+            operation: Operation type (e.g., 'title_parse', 'multi_file_rename').
+            input_data: Input data dictionary.
+            output_data: Output from AI.
+            model: AI model name.
+            response_time_ms: Response time in milliseconds.
+            key_id: API key identifier.
+            success: Whether the operation was successful.
+            error_message: Error message if any.
+
+        Legacy Args (for backward compatibility):
             system_prompt: System prompt text.
             user_prompt: User prompt text.
             ai_response: Parsed AI response.
-            model: AI model name.
             context: Additional context information.
             error: Error message if any.
         """
@@ -104,16 +128,31 @@ class AIDebugService:
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
             log_file = self._debug_dir / f'ai_debug_{timestamp}.json'
 
-            # Build log data
-            log_data = {
-                'timestamp': datetime.now(timezone.utc).isoformat(),
-                'model': model,
-                'system_prompt': system_prompt,
-                'user_prompt': user_prompt,
-                'ai_response': ai_response,
-                'context': context or {},
-                'error': error
-            }
+            # Build log data - support both new and legacy formats
+            if operation is not None:
+                # New-style call
+                log_data = {
+                    'timestamp': datetime.now(timezone.utc).isoformat(),
+                    'operation': operation,
+                    'model': model,
+                    'key_id': key_id,
+                    'response_time_ms': response_time_ms,
+                    'success': success,
+                    'input_data': input_data,
+                    'output_data': output_data,
+                    'error_message': error_message
+                }
+            else:
+                # Legacy call
+                log_data = {
+                    'timestamp': datetime.now(timezone.utc).isoformat(),
+                    'model': model,
+                    'system_prompt': system_prompt,
+                    'user_prompt': user_prompt,
+                    'ai_response': ai_response,
+                    'context': context or {},
+                    'error': error
+                }
 
             # Write log file
             with open(log_file, 'w', encoding='utf-8') as f:

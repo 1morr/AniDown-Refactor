@@ -198,9 +198,16 @@ class PathBuilder:
         if not name:
             return ''
 
-        # Remove characters invalid in Windows/Unix file names
-        # Invalid chars: < > : " / \ | ? *
-        sanitized = re.sub(r'[<>:"/\\|?*]', '', name)
+        # Replace invalid characters with fullwidth equivalents
+        # Invalid chars in Windows/Unix: < > : " / \ | ? *
+        illegal_chars = {
+            '<': '＜', '>': '＞', ':': '：', '"': '"', '/': '／',
+            '\\': '＼', '|': '｜', '?': '？', '*': '＊'
+        }
+
+        sanitized = name
+        for char, replacement in illegal_chars.items():
+            sanitized = sanitized.replace(char, replacement)
 
         # Replace multiple spaces with single space
         sanitized = re.sub(r'\s+', ' ', sanitized)

@@ -13,6 +13,7 @@ from src.core.exceptions import (
     AIKeyExhaustedError,
 )
 from src.core.interfaces.adapters import IFileRenamer, RenameResult
+from src.services.ai_debug_service import ai_debug_service
 
 from .api_client import OpenAIClient
 from .circuit_breaker import CircuitBreaker
@@ -291,6 +292,25 @@ class AIFileRenamer(IFileRenamer):
                     response_time_ms=response.response_time_ms
                 )
 
+                # 记录 AI 调试日志
+                if ai_debug_service.enabled:
+                    ai_debug_service.log_ai_interaction(
+                        operation='multi_file_rename',
+                        input_data={
+                            'files': files,
+                            'category': category,
+                            'anime_title': anime_title,
+                            'folder_structure': folder_structure,
+                            'tvdb_data': tvdb_data,
+                            'previous_hardlinks': previous_hardlinks
+                        },
+                        output_data=response.content,
+                        model=reservation.model,
+                        response_time_ms=response.response_time_ms,
+                        key_id=reservation.key_id,
+                        success=True
+                    )
+
                 # 解析响应
                 result = self._parse_response(response.content)
                 if result:
@@ -303,6 +323,23 @@ class AIFileRenamer(IFileRenamer):
                     logger.warning('⚠️ 响应解析失败，尝试重试')
                     continue
             else:
+                # 记录 AI 调试日志（失败）
+                if ai_debug_service.enabled:
+                    ai_debug_service.log_ai_interaction(
+                        operation='multi_file_rename',
+                        input_data={
+                            'files': files,
+                            'category': category,
+                            'anime_title': anime_title
+                        },
+                        output_data=None,
+                        model=reservation.model,
+                        response_time_ms=response.response_time_ms,
+                        key_id=reservation.key_id,
+                        success=False,
+                        error_message=response.error_message
+                    )
+
                 # 报告错误
                 is_rate_limit = response.error_code == 429
                 retry_after = None

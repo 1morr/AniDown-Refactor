@@ -1,10 +1,9 @@
 """
-AI 系统提示词模块。
-
-定义用于 AI API 调用的系统提示词常量。
+AI提示词配置文件
+将所有AI交互的提示词集中管理，便于维护和更新
 """
 
-# 标题解析系统提示词（与原始代码一致）
+# 标题解析提示词
 TITLE_PARSE_SYSTEM_PROMPT = r"""
 你是一位专业的动漫标题分析专家。你的任务是分析动漫文件名，提取出基本的动漫信息。
 
@@ -70,6 +69,21 @@ TITLE_PARSE_SYSTEM_PROMPT = r"""
   "episode": 1,
   "season": 1,
   "category": "movie"
+}
+```
+
+处理特殊字符示例：
+输入："[LoliHouse] 差点在迷宫深处被信任的伙伴杀掉，但靠着天赐技能"无限扭蛋"获得等级9999的伙伴 / Mugen Gacha - 01 [WebRip 1080p HEVC-10bit AAC][简繁内封字幕]"
+输出：
+```json
+{
+  "original_title": "[LoliHouse] 差点在迷宫深处被信任的伙伴杀掉，但靠着天赐技能\\"无限扭蛋\\"获得等级9999的伙伴 / Mugen Gacha - 01 [WebRip 1080p HEVC-10bit AAC][简繁内封字幕]",
+  "anime_full_title": "差点在迷宫深处被信任的伙伴杀掉，但靠着天赐技能\\"无限扭蛋\\"获得等级9999的伙伴 / Mugen Gacha",
+  "anime_clean_title": "差点在迷宫深处被信任的伙伴杀掉，但靠着天赐技能\\"无限扭蛋\\"获得等级9999的伙伴",
+  "subtitle_group_name": "LoliHouse",
+  "episode": 1,
+  "season": 1,
+  "category": "tv"
 }
 ```
 """
@@ -145,7 +159,7 @@ MULTI_FILE_RENAME_WITH_TVDB_PROMPT = r"""你是一位顶尖的动漫档案分析
 ### 2. 预测性 Special Tag 策略（数量守恒法）
 **目标**：防止正则将第一个技术标签（如 `[1080P]`）误判为 Special Tag，同时为未来可能出现的 `[V2]` 预留位置。
 **逻辑**：
-   1. **计算 N**：计算当前文件在"集数"之后，一共有多少个括号内的技术标签（Quality, Source, Subgroup 等）。
+   1. **计算 N**：计算当前文件在“集数”之后，一共有多少个括号内的技术标签（Quality, Source, Subgroup 等）。
    2. **构建正则**：Lookahead 部分必须断言其后方**依然存在 N 个括号**。
    3. **公式**：`(?<=集数及分隔符)\s*\[([^\]]+)\](?=(?:\s*\[[^\]]+\]){N})`
    *解释*：如果后面有 5 个标签，正则必须包含 `(?=(?:...){5})`。这样如果不加 `[V2]`，尝试匹配 `[1080P]` 时会因为后面只剩 4 个而失败（正确行为）。
@@ -168,23 +182,150 @@ MULTI_FILE_RENAME_WITH_TVDB_PROMPT = r"""你是一位顶尖的动漫档案分析
 - **`main_files`**: 正片重命名映射。**key**是原路径，**value**是新文件名。
 - **`previous_hardlinks`**: 注意检查此列表，防止重命名冲突。
 - **`seasons_info`**: 季度元数据。
-- **`special_tag_regex`**: **必须提供**。即便当前返回 "无"，也必须生成基于"数量守恒法"的正则。
+- **`special_tag_regex`**: **必须提供**。即便当前返回 "无"，也必须生成基于“数量守恒法”的正则。
 
 ## 结构化输出
 
 系统将强制应用 Schema `multi_file_rename_response` 来解析你的结果：
 - 仅输出 schema 中定义的字段（`main_files`、`skipped_files`、`seasons_info` 以及所有正则字段），不要添加 Markdown 或额外解释。
 - `main_files` 中的值必须已经按照 TV/SP 添加 `Season X/` 目录，Movie 绝不包含 Season 前缀；Season 0 统一用于 Specials。
-- `special_tag_regex`、`quality_regex` 等正则必须继续遵守"数量守恒法"，并落实 Full/Clean Title 分离逻辑与 category 校验。
+- `special_tag_regex`、`quality_regex` 等正则必须继续遵守“数量守恒法”，并落实 Full/Clean Title 分离逻辑与 category 校验。
 - 必须充分利用 TVDB 数据进行智能纠错，处理 Season 0 与 Season N+1 的越界集数。
+
+## 输出示例
+
+对于输入（劇場版）：
+```json
+{
+  "files": [
+    "[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/SPs/[VCB-Studio] OVERLORD Sei Oukoku Hen [Audio Guide Menu][Ma10p_1080p][x265_flac].mkv",
+	"[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p][x265_flac].mka",
+	"[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p][x265_flac].mkv",
+	"[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/SPs/[VCB-Studio] OVERLORD Sei Oukoku Hen [CM04][Ma10p_1080p][x265_flac].mkv"
+  ]
+}
+```
+
+正确输出（劇場版）：
+```json
+{
+  "main_files": {
+    "[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p][x265_flac].mkv": "OVERLORD Sei Oukoku Hen - VCB-Studio.mkv"
+  },
+  "skipped_files": [
+    "[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/SPs/[VCB-Studio] OVERLORD Sei Oukoku Hen [Audio Guide Menu][Ma10p_1080p][x265_flac].mkv",
+	"[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p][x265_flac].mka",
+	"[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/SPs/[VCB-Studio] OVERLORD Sei Oukoku Hen [CM04][Ma10p_1080p][x265_flac].mkv"
+  ],
+  "seasons_info": {
+    "1": {"type": "movie", "count": 1, "description": "劇場版"}
+  },
+  "anime_full_title": "OVERLORD Sei Oukoku Hen",
+  "anime_clean_title": "OVERLORD Sei Oukoku Hen",
+  "subtitle_group_name": "VCB-Studio",
+  "subtitle_group_regex": "^\\[(.*?)\\]",
+  "full_title_regex": "^\\[[^\\]]+\\]\\s*(.*?)\\s*(?=\\[)",
+  "clean_title_regex": "^\\[[^\\]]+\\]\\s*(.*?)\\s*(?=\\[)",
+  "episode_regex": "无",
+  "season": 1,
+  "category": "movie",
+  "special_tag_regex": "\\[([^\\]]+)\\](?=(?:\\s*\\[[^\\]]+\\]){2}\\.[a-zA-Z0-9]+$)",
+  "quality_regex": "\\[([^\\]]+)\\](?=(?:\\s*\\[[^\\]]+\\]){1}\\.[a-zA-Z0-9]+$)",
+  "platform_regex": "无",
+  "source_regex": "无",
+  "codec_regex": "\\[([^\\]]+)\\](?=(?:\\s*\\[[^\\]]+\\]){0}\\.[a-zA-Z0-9]+$)",
+  "subtitle_type_regex": "无",
+  "format_regex": "\\.(\\w+)$"
+}
+```
+
+对于输入（多季+特别篇+TVDB纠错）：
+```json
+{
+  "files": [
+    "Season 1/[ANi] 动漫标题 - 13 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4",
+    "Season 1/[ANi] 动漫标题 - 14 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4"
+  ]
+}
+```
+
+正确输出（假设TVDB S1只有12集，E13-14识别为Season 0）：
+```json
+{
+  "main_files": {
+    "Season 1/[ANi] 动漫标题 - 13 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4": "Season 0/动漫标题 - S00E01 - ANi [CHT].mp4",
+    "Season 1/[ANi] 动漫标题 - 14 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4": "Season 0/动漫标题 - S00E02 - ANi [CHT].mp4"
+  },
+  "skipped_files": [],
+  "seasons_info": {
+    "0": {"type": "special", "count": 2, "description": "特别篇"}
+  },
+  "anime_full_title": "动漫标题",
+  "anime_clean_title": "动漫标题",
+  "subtitle_group_name": "ANi",
+  "subtitle_group_regex": "^\\[(.*?)\\]",
+  "full_title_regex": "^\\[[^\\]]+\\]\\s*(.*?)\\s*(?:SP|OVA|\\d+)?\\s*-",
+  "clean_title_regex": "^\\[[^\\]]+\\]\\s*(.*?)\\s*(?=(?:SP|OVA|\\d+)?\\s*-)",
+  "episode_regex": "-\\s*(\\d+(?:\\.\\d+)?)\\s*\\[",
+  "season": 0,
+  "category": "tv",
+  "special_tag_regex": "(?<=-\\s\\d{2}\\s)\\[([^\\]]+)\\](?=(?:\\s*\\[[^\\]]+\\]){5})",
+  "quality_regex": "\\[([^\\]]+)\\](?=(?:\\s*\\[[^\\]]+\\]){4}\\.[a-zA-Z0-9]+$)",
+  "platform_regex": "\\[([^\\]]+)\\](?=(?:\\s*\\[[^\\]]+\\]){3}\\.[a-zA-Z0-9]+$)",
+  "source_regex": "\\[([^\\]]+)\\](?=(?:\\s*\\[[^\\]]+\\]){2}\\.[a-zA-Z0-9]+$)",
+  "codec_regex": "\\[([^\\]]+)\\](?=(?:\\s*\\[[^\\]]+\\]){1}\\.[a-zA-Z0-9]+$)",
+  "subtitle_type_regex": "\\[([^\\]]+)\\](?=(?:\\s*\\[[^\\]]+\\]){0}\\.[a-zA-Z0-9]+$)",
+  "format_regex": "\\.(\\w+)$"
+}
+```
+
+对于输入（CRC排除测试）：
+```json
+{
+  "files": [
+    "[Erai-raws] Black Clover (TV) - 001 [1080p][Multiple Subtitle][284B3626].mkv",
+    "[Erai-raws] Black Clover (TV) - 002 [1080p][Multiple Subtitle][FC678D67].mkv"
+  ]
+}
+```
+
+正确输出（CRC排除测试）：
+```json
+{
+  "main_files": {
+    "[Erai-raws] Black Clover (TV) - 001 [1080p][Multiple Subtitle][284B3626].mkv": "Season 1/Black Clover (TV) - S01E01 - Erai-raws [Multiple Subtitle].mkv",
+    "[Erai-raws] Black Clover (TV) - 002 [1080p][Multiple Subtitle][FC678D67].mkv": "Season 1/Black Clover (TV) - S01E02 - Erai-raws [Multiple Subtitle].mkv"
+  },
+  "skipped_files": [],
+  "seasons_info": {
+    "1": {"type": "tv", "count": 2, "description": "第一季"}
+  },
+  "anime_full_title": "Black Clover (TV)",
+  "anime_clean_title": "Black Clover",
+  "subtitle_group_name": "Erai-raws",
+  "subtitle_group_regex": "^\\[(.*?)\\]",
+  "full_title_regex": "^\\[[^\\]]+\\]\\s*(.*?)\\s*-\\s*\\d+",
+  "clean_title_regex": "^\\[[^\\]]+\\]\\s*(.*?)\\s*(?=\\s*\\((?:TV|BD|Web)\\)|\\s*-)",
+  "episode_regex": "-\\s*(\\d+(?:\\.\\d+)?)\\s*\\[",
+  "season": 1,
+  "category": "tv",
+  "special_tag_regex": "(?<=-\\s\\d{3}\\s)\\[([^\\]]+)\\](?=(?:\\s*\\[[^\\]]+\\]){3})",
+  "quality_regex": "\\[([^\\]]+)\\](?=(?:\\s*\\[[^\\]]+\\]){2}\\.[a-zA-Z0-9]+$)",
+  "platform_regex": "无",
+  "source_regex": "无",
+  "codec_regex": "无",
+  "subtitle_type_regex": "\\[([^\\]]+)\\](?=(?:\\s*\\[[^\\]]+\\]){1}\\.[a-zA-Z0-9]+$)",
+  "format_regex": "\\.(\\w+)$"
+}
+```
 
 ## 最终输出提醒
 
-1. **务必应用"数量守恒法"**：计算 Tag 数量 N，并应用 `(?=(?:\s*\[[^\]]+\]){N})` 到 `special_tag_regex`。
+1. **务必应用“数量守恒法”**：计算 Tag 数量 N，并应用 `(?=(?:\s*\[[^\]]+\]){N})` 到 `special_tag_regex`。
 2. **务必增强正则容错性**：`episode_regex` 必须使用 `{N,}` 或其他方式兼容 `v2` 等版本标签。
 3. **务必应用 Full/Clean 分离逻辑**：Clean Title 截断英文。
 4. **务必检查 category**：Movie 绝不带 Season 前缀。
-5. **务必排除CRC**：末尾的8位十六进制码是CRC，不是Codec，请将其设为"无"或跳过它。
+5. **务必排除CRC**：末尾的8位十六进制码是CRC，不是Codec，请将其设为“无”或跳过它。
 6. **智能利用TVDB数据**：当集数异常时，优先考虑Season 0或Season N+1。
 """
 
@@ -213,7 +354,7 @@ MULTI_FILE_RENAME_STANDARD_PROMPT = r"""你是一位顶尖的动漫档案分析�
      * category="tv": 可能包含多集或多季，重命名**必须包含** `Season X/` 前缀
      * category="movie": 通常只有一集，重命名**绝不包含** Season 前缀
    - **季数识别**：从文件名/目录名识别（Season 2, S02等），默认为 Season 1
-   - **批次冲突检测**：检查生成的重命名路径是否与 `previous_hardlinks` 冲突。
+   - **批次冲突检测**：检查生成的重命名路径是否与 `previous_hardlinks` 冲突。如果冲突（例如 S01E01 已存在），则需要智能跳过或调整（但在本任务中通常意味着你是处理后续集数，只需确保文件名正确即可）。
 
 3. **动漫名称使用指南（强制）**：
    - **必须使用 provided `anime_title`** 作为重命名后的主标题。
@@ -252,7 +393,7 @@ MULTI_FILE_RENAME_STANDARD_PROMPT = r"""你是一位顶尖的动漫档案分析�
 ### 2. 预测性 Special Tag 策略（数量守恒法）
 **目标**：防止正则将第一个技术标签（如 `[1080P]`）误判为 Special Tag，同时为未来可能出现的 `[V2]` 预留位置。
 **逻辑**：
-   1. **计算 N**：计算当前文件在"集数"之后，一共有多少个括号内的技术标签（Quality, Source, Subgroup 等）。
+   1. **计算 N**：计算当前文件在“集数”之后，一共有多少个括号内的技术标签（Quality, Source, Subgroup 等）。
    2. **构建正则**：Lookahead 部分必须断言其后方**依然存在 N 个括号**。
    3. **公式**：`(?<=集数及分隔符)\s*\[([^\]]+)\](?=(?:\s*\[[^\]]+\]){N})`
    *解释*：如果后面有 5 个标签，正则必须包含 `(?=(?:...){5})`。这样如果不加 `[V2]`，尝试匹配 `[1080P]` 时会因为后面只剩 4 个而失败（正确行为）。
@@ -260,12 +401,14 @@ MULTI_FILE_RENAME_STANDARD_PROMPT = r"""你是一位顶尖的动漫档案分析�
 ### 3. 位置锚定策略
 - **反向锚定与容错**：对于 `[Tag1][Tag2][Tag3]` 结构，使用倒数计数。但**必须**为可选的 `v2/v3` 版本号预留空间。
   - **错误示范**：`(?=(?:\[[^\]]+\]){4}\.[a-zA-Z0-9]+$)` （严格匹配4个，遇到v2变成5个时会失效）
-  - **正确示范**：`(?=(?:\[[^\]]+\]){4,}\.[a-zA-Z0-9]+$)` （匹配至少4个，允许更多）
+  - **正确示范**：`(?=(?:\[[^\]]+\]){4,}\.[a-zA-Z0-9]+$)` （匹配至少4个，允许更多）或者明确处理 `(?=(?:\[v\d+\])?(?:\[[^\]]+\]){4}\.[a-zA-Z0-9]+$)`
 - **LoliHouse模式**：对于 `[Source Quality Codec]` 单括号结构，使用 `(?<=\[)[^\s\]]+\s+([^\s\]]+)` 定位内部第2个词。
 
 ### 4. 噪音标签排除（CRC/Hash）
 - **识别规则**：文件名末尾的 `[A-F0-9]{8}` 通常是 CRC32 校验码（如 `[284B3626]`），绝对**不要**将其识别为 Codec、Source 或 Group。
 - **正则策略**：生成正则时，如果发现末尾有 CRC，应将其视为无意义后缀。
+  - *错误*：将 `[284B3626]` 识别为 Codec。
+  - *正确*：Codec 正则应跳过 CRC，例如匹配倒数第二个标签（如果倒数第一是 CRC）。
   - 确保 `codec_regex` 等不匹配形如 `[0-9A-F]{8}` 的内容。
 
 ## 字段说明
@@ -273,20 +416,240 @@ MULTI_FILE_RENAME_STANDARD_PROMPT = r"""你是一位顶尖的动漫档案分析�
 - **`main_files`**: 正片重命名映射。**key**是原路径，**value**是新文件名。
 - **`previous_hardlinks`**: 注意检查此列表，防止重命名冲突。
 - **`seasons_info`**: 季度元数据。
-- **`special_tag_regex`**: **必须提供**。即便当前返回 "无"，也必须生成基于"数量守恒法"的正则。
+- **`special_tag_regex`**: **必须提供**。即便当前返回 "无"，也必须生成基于“数量守恒法”的正则。
 
 ## 结构化输出
 
 系统同样启用了 Schema `multi_file_rename_response` 用于解析返回值：
 - 仅填写 schema 规定的字段（`main_files`、`skipped_files`、`seasons_info` 及所有正则字段），不要输出 Markdown 或额外解释。
 - `main_files` 的值必须事先包含正确的 Season 目录前缀（TV/SP）或在电影场景下省略前缀；Season 0 统一代表 Specials。
-- 所有 regex 字段都要遵守"数量守恒法"，同时保持 Full/Clean Title 分离与 category 校验一致。
+- 所有 regex 字段都要遵守“数量守恒法”，同时保持 Full/Clean Title 分离与 category 校验一致。
+
+## 输出示例
+
+对于输入（劇場版）：
+```json
+{
+  "files": [
+    "[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/SPs/[VCB-Studio] OVERLORD Sei Oukoku Hen [Audio Guide Menu][Ma10p_1080p][x265_flac].mkv",
+	"[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p][x265_flac].mka",
+	"[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p][x265_flac].mkv",
+	"[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/SPs/[VCB-Studio] OVERLORD Sei Oukoku Hen [CM04][Ma10p_1080p][x265_flac].mkv"
+  ]
+}
+```
+
+正确输出（劇場版）：
+```json
+{
+  "main_files": {
+    "[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p][x265_flac].mkv": "OVERLORD Sei Oukoku Hen - VCB-Studio.mkv"
+  },
+  "skipped_files": [
+    "[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/SPs/[VCB-Studio] OVERLORD Sei Oukoku Hen [Audio Guide Menu][Ma10p_1080p][x265_flac].mkv",
+	"[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p][x265_flac].mka",
+	"[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/SPs/[VCB-Studio] OVERLORD Sei Oukoku Hen [CM04][Ma10p_1080p][x265_flac].mkv"
+  ],
+  "seasons_info": {
+    "1": {"type": "movie", "count": 1, "description": "劇場版"}
+  },
+  "anime_full_title": "OVERLORD Sei Oukoku Hen",
+  "anime_clean_title": "OVERLORD Sei Oukoku Hen",
+  "subtitle_group_name": "VCB-Studio",
+  "subtitle_group_regex": "^\\[(.*?)\\]",
+  "full_title_regex": "^\\[[^\\]]+\\]\\s*(.*?)\\s*(?=\\[)",
+  "clean_title_regex": "^\\[[^\\]]+\\]\\s*(.*?)\\s*(?=\\[)",
+  "episode_regex": "无",
+  "season": 1,
+  "category": "movie",
+  "special_tag_regex": "\\[([^\\]]+)\\](?=(?:\\s*\\[[^\\]]+\\]){2}\\.[a-zA-Z0-9]+$)",
+  "quality_regex": "\\[([^\\]]+)\\](?=(?:\\s*\\[[^\\]]+\\]){1}\\.[a-zA-Z0-9]+$)",
+  "platform_regex": "无",
+  "source_regex": "无",
+  "codec_regex": "\\[([^\\]]+)\\](?=(?:\\s*\\[[^\\]]+\\]){0}\\.[a-zA-Z0-9]+$)",
+  "subtitle_type_regex": "无",
+  "format_regex": "\\.(\\w+)$"
+}
+```
+
+对于输入（劇集1）：
+```json
+{
+  "files": [
+    "[ANi] 地縛少年花子君 2 - 15 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4",
+	"[ANi] 地縛少年花子君 2 - 13 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4",
+	"[ANi] 地縛少年花子君 2 - 14 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4"
+  ]
+}
+```
+
+正确输出（劇集1 - 第二季）：
+```json
+{
+  "main_files": {
+    "[ANi] 地縛少年花子君 2 - 15 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4": "Season 2/地縛少年花子君 - S02E15 - ANi [CHT].mp4",
+	"[ANi] 地縛少年花子君 2 - 13 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4": "Season 2/地縛少年花子君 - S02E13 - ANi [CHT].mp4",
+	"[ANi] 地縛少年花子君 2 - 14 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4": "Season 2/地縛少年花子君 - S02E14 - ANi [CHT].mp4"
+  },
+  "skipped_files": [],
+  "seasons_info": {
+    "2": {"type": "tv", "count": 3, "description": "第二季"}
+  },
+  "anime_full_title": "地縛少年花子君 2",
+  "anime_clean_title": "地縛少年花子君",
+  "subtitle_group_name": "ANi",
+  "subtitle_group_regex": "^\\[(.*?)\\]",
+  "full_title_regex": "^\\[[^\\]]+\\]\\s*(.*?)\\s*-\\s*\\d+",
+  "clean_title_regex": "^\\[[^\\]]+\\]\\s*(.*?)\\s*(?=\\d+)",
+  "episode_regex": "-\\s*(\\d+(?:\\.\\d+)?)\\s*\\[",
+  "season": 2,
+  "category": "tv",
+  "special_tag_regex": "(?<=-\\s\\d{2}\\s)\\[([^\\]]+)\\](?=(?:\\s*\\[[^\\]]+\\]){5})",
+  "quality_regex": "\\[([^\\]]+)\\](?=(?:\\s*\\[[^\\]]+\\]){4}\\.[a-zA-Z0-9]+$)",
+  "platform_regex": "\\[([^\\]]+)\\](?=(?:\\s*\\[[^\\]]+\\]){3}\\.[a-zA-Z0-9]+$)",
+  "source_regex": "\\[([^\\]]+)\\](?=(?:\\s*\\[[^\\]]+\\]){2}\\.[a-zA-Z0-9]+$)",
+  "codec_regex": "\\[([^\\]]+)\\](?=(?:\\s*\\[[^\\]]+\\]){1}\\.[a-zA-Z0-9]+$)",
+  "subtitle_type_regex": "\\[([^\\]]+)\\](?=(?:\\s*\\[[^\\]]+\\]){0}\\.[a-zA-Z0-9]+$)",
+  "format_regex": "\\.(\\w+)$"
+}
+```
+*注意：在上述示例中，special_tag_regex 的 Lookahead `{5}` 是因为后面正好有 5 个标签 (1080P, Baha, WEB-DL, AAC AVC, CHT)，确保不会误抓 1080P。*
+
+对于输入（劇集2）：
+```json
+{
+  "files": [
+    "[SweetSub&LoliHouse] CITY THE ANIMATION - 13 [WebRip 1080p HEVC-10bit AAC ASSx2].mkv",
+	"[SweetSub&LoliHouse] CITY THE ANIMATION - 12 [WebRip 1080p HEVC-10bit AAC ASSx2].mkv"
+  ]
+}
+```
+
+正确输出（劇集2 - 第一季）：
+```json
+{
+  "main_files": {
+    "[SweetSub&LoliHouse] CITY THE ANIMATION - 13 [WebRip 1080p HEVC-10bit AAC ASSx2].mkv": "Season 1/CITY THE ANIMATION - S01E13 - SweetSub&LoliHouse.mkv",
+	"[SweetSub&LoliHouse] CITY THE ANIMATION - 12 [WebRip 1080p HEVC-10bit AAC ASSx2].mkv": "Season 1/CITY THE ANIMATION - S01E12 - SweetSub&LoliHouse.mkv"
+  },
+  "skipped_files": [],
+  "seasons_info": {
+    "1": {"type": "tv", "count": 2, "description": "第一季"}
+  },
+  "anime_full_title": "CITY THE ANIMATION",
+  "anime_clean_title": "CITY THE ANIMATION",
+  "subtitle_group_name": "SweetSub&LoliHouse",
+  "subtitle_group_regex": "^\\[(.*?)\\]",
+  "full_title_regex": "^\\[[^\\]]+\\]\\s*(.*?)\\s*-\\s*\\d+",
+  "clean_title_regex": "^\\[[^\\]]+\\]\\s*(.*?)\\s*(?=-)",
+  "episode_regex": "-\\s*(\\d+(?:\\.\\d+)?)\\s*\\[",
+  "season": 1,
+  "category": "tv",
+  "special_tag_regex": "(?<=-\\s\\d{2}\\s)\\[([^\\]]+)\\](?=\\[)",
+  "quality_regex": "(?<=\\[)[^\\s\\]]+\\s+([^\\s\\]]+)",
+  "platform_regex": "无",
+  "source_regex": "(?<=\\[)([^\\s\\]]+)(?=\\s)",
+  "codec_regex": "(?<=\\[)[^\\s\\]]+\\s+[^\\s\\]]+\\s+([^\\s\\]]+)",
+  "subtitle_type_regex": "无",
+  "format_regex": "\\.(\\w+)$"
+}
+```
+
+对于输入（多季+特别篇）：
+```json
+{
+  "files": [
+    "Season 1/[ANi] 动漫标题 - 01 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4",
+    "Season 1/[ANi] 动漫标题 - 02 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4",
+    "Season 2/[ANi] 动漫标题 2 - 01 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4",
+    "Season 2/[ANi] 动漫标题 2 - 02 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4",
+    "SP/[ANi] 动漫标题 SP - 01 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4",
+    "SP/[ANi] 动漫标题 OVA [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4"
+  ]
+}
+```
+
+正确输出（多季+特别篇）：
+```json
+{
+  "main_files": {
+    "Season 1/[ANi] 动漫标题 - 01 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4": "Season 1/动漫标题 - S01E01 - ANi [CHT].mp4",
+    "Season 1/[ANi] 动漫标题 - 02 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4": "Season 1/动漫标题 - S01E02 - ANi [CHT].mp4",
+    "Season 2/[ANi] 动漫标题 2 - 01 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4": "Season 2/动漫标题 - S02E01 - ANi [CHT].mp4",
+    "Season 2/[ANi] 动漫标题 2 - 02 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4": "Season 2/动漫标题 - S02E02 - ANi [CHT].mp4",
+    "SP/[ANi] 动漫标题 SP - 01 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4": "Season 0/动漫标题 - S00E01 - ANi [CHT].mp4",
+    "SP/[ANi] 动漫标题 OVA [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4": "Season 0/动漫标题 - S00E02 - ANi [CHT].mp4"
+  },
+  "skipped_files": [],
+  "seasons_info": {
+    "0": {"type": "special", "count": 2, "description": "特别篇"},
+    "1": {"type": "tv", "count": 2, "description": "第一季"},
+    "2": {"type": "tv", "count": 2, "description": "第二季"}
+  },
+  "anime_full_title": "动漫标题",
+  "anime_clean_title": "动漫标题",
+  "subtitle_group_name": "ANi",
+  "subtitle_group_regex": "^\\[(.*?)\\]",
+  "full_title_regex": "^\\[[^\\]]+\\]\\s*(.*?)\\s*(?:SP|OVA|\\d+)?\\s*-",
+  "clean_title_regex": "^\\[[^\\]]+\\]\\s*(.*?)\\s*(?=(?:SP|OVA|\\d+)?\\s*-)",
+  "episode_regex": "-\\s*(\\d+(?:\\.\\d+)?)\\s*\\[",
+  "season": 1,
+  "category": "tv",
+  "special_tag_regex": "(?<=-\\s\\d{2}\\s)\\[([^\\]]+)\\](?=(?:\\s*\\[[^\\]]+\\]){5})",
+  "quality_regex": "\\[([^\\]]+)\\](?=(?:\\s*\\[[^\\]]+\\]){4}\\.[a-zA-Z0-9]+$)",
+  "platform_regex": "\\[([^\\]]+)\\](?=(?:\\s*\\[[^\\]]+\\]){3}\\.[a-zA-Z0-9]+$)",
+  "source_regex": "\\[([^\\]]+)\\](?=(?:\\s*\\[[^\\]]+\\]){2}\\.[a-zA-Z0-9]+$)",
+  "codec_regex": "\\[([^\\]]+)\\](?=(?:\\s*\\[[^\\]]+\\]){1}\\.[a-zA-Z0-9]+$)",
+  "subtitle_type_regex": "\\[([^\\]]+)\\](?=(?:\\s*\\[[^\\]]+\\]){0}\\.[a-zA-Z0-9]+$)",
+  "format_regex": "\\.(\\w+)$"
+}
+```
+
+对于输入（CRC排除测试）：
+```json
+{
+  "files": [
+    "[Erai-raws] Black Clover (TV) - 001 [1080p][Multiple Subtitle][284B3626].mkv",
+    "[Erai-raws] Black Clover (TV) - 002 [1080p][Multiple Subtitle][FC678D67].mkv"
+  ]
+}
+```
+
+正确输出（CRC排除测试）：
+```json
+{
+  "main_files": {
+    "[Erai-raws] Black Clover (TV) - 001 [1080p][Multiple Subtitle][284B3626].mkv": "Season 1/Black Clover (TV) - S01E01 - Erai-raws [Multiple Subtitle].mkv",
+    "[Erai-raws] Black Clover (TV) - 002 [1080p][Multiple Subtitle][FC678D67].mkv": "Season 1/Black Clover (TV) - S01E02 - Erai-raws [Multiple Subtitle].mkv"
+  },
+  "skipped_files": [],
+  "seasons_info": {
+    "1": {"type": "tv", "count": 2, "description": "第一季"}
+  },
+  "anime_full_title": "Black Clover (TV)",
+  "anime_clean_title": "Black Clover",
+  "subtitle_group_name": "Erai-raws",
+  "subtitle_group_regex": "^\\[(.*?)\\]",
+  "full_title_regex": "^\\[[^\\]]+\\]\\s*(.*?)\\s*-\\s*\\d+",
+  "clean_title_regex": "^\\[[^\\]]+\\]\\s*(.*?)\\s*(?=\\s*\\((?:TV|BD|Web)\\)|\\s*-)",
+  "episode_regex": "-\\s*(\\d+(?:\\.\\d+)?)\\s*\\[",
+  "season": 1,
+  "category": "tv",
+  "special_tag_regex": "(?<=-\\s\\d{3}\\s)\\[([^\\]]+)\\](?=(?:\\s*\\[[^\\]]+\\]){3})",
+  "quality_regex": "\\[([^\\]]+)\\](?=(?:\\s*\\[[^\\]]+\\]){2}\\.[a-zA-Z0-9]+$)",
+  "platform_regex": "无",
+  "source_regex": "无",
+  "codec_regex": "无",
+  "subtitle_type_regex": "\\[([^\\]]+)\\](?=(?:\\s*\\[[^\\]]+\\]){1}\\.[a-zA-Z0-9]+$)",
+  "format_regex": "\\.(\\w+)$"
+}
+```
 
 ## 最终输出提醒
 
-1. **务必应用"数量守恒法"**：计算 Tag 数量 N，并应用 `(?=(?:\s*\[[^\]]+\]){N})` 到 `special_tag_regex`。
+1. **务必应用“数量守恒法”**：计算 Tag 数量 N，并应用 `(?=(?:\s*\[[^\]]+\]){N})` 到 `special_tag_regex`。
 2. **务必增强正则容错性**：`episode_regex` 必须使用 `{N,}` 或其他方式兼容 `v2` 等版本标签。
 3. **务必应用 Full/Clean 分离逻辑**：Clean Title 截断英文。
 4. **务必检查 category**：Movie 绝不带 Season 前缀。
-5. **务必排除CRC**：末尾的8位十六进制码是CRC，不是Codec，请将其设为"无"或跳过它。
+5. **务必排除CRC**：末尾的8位十六进制码是CRC，不是Codec，请将其设为“无”或跳过它。
 """

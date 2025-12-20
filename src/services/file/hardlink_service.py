@@ -56,7 +56,7 @@ class HardlinkService:
         Args:
             source_path: Full path to the source file.
             target_dir: Target directory for the hardlink.
-            new_name: New filename for the hardlink.
+            new_name: New filename for the hardlink (may include subdirectory like "Season 1/file.mkv").
             anime_id: Optional anime ID for record keeping.
             torrent_hash: Optional torrent hash for record keeping.
 
@@ -71,13 +71,17 @@ class HardlinkService:
             logger.error(f'❌ Source file does not exist: {source_path}')
             return False
 
-        # Ensure target directory exists
-        if not self._path_builder.ensure_directory(target_dir):
-            logger.error(f'❌ Failed to create target directory: {target_dir}')
-            return False
+        # Normalize path separators to OS-specific
+        new_name = new_name.replace('/', os.sep).replace('\\', os.sep)
 
-        # Build target path
+        # Build target path - handle subdirectory in new_name (e.g., "Season 1/file.mkv")
         target_path = os.path.join(target_dir, new_name)
+
+        # Ensure full target directory exists (including any subdirectory in new_name)
+        target_file_dir = os.path.dirname(target_path)
+        if not self._path_builder.ensure_directory(target_file_dir):
+            logger.error(f'❌ Failed to create target directory: {target_file_dir}')
+            return False
 
         # Skip if target already exists
         if os.path.exists(target_path):
