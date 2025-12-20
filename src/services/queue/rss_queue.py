@@ -326,7 +326,8 @@ class RSSQueueWorker(QueueWorker[RSSPayload]):
 
 
 # Global RSS queue instance (singleton pattern)
-_rss_queue: Optional[RSSQueueWorker] = None
+# Public variable for legacy API compatibility
+rss_queue_worker: Optional[RSSQueueWorker] = None
 
 
 def get_rss_queue() -> RSSQueueWorker:
@@ -338,10 +339,10 @@ def get_rss_queue() -> RSSQueueWorker:
     Returns:
         RSSQueueWorker instance.
     """
-    global _rss_queue
-    if _rss_queue is None:
-        _rss_queue = RSSQueueWorker()
-    return _rss_queue
+    global rss_queue_worker
+    if rss_queue_worker is None:
+        rss_queue_worker = RSSQueueWorker()
+    return rss_queue_worker
 
 
 def init_rss_queue(

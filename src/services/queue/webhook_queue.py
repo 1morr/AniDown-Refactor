@@ -50,6 +50,7 @@ class WebhookQueueWorker(QueueWorker[WebhookPayload]):
 
     # Event type constants
     EVENT_TORRENT_COMPLETED = 'torrent_completed'
+    EVENT_TORRENT_FINISHED = 'torrent_finished'
     EVENT_TORRENT_ADDED = 'torrent_added'
     EVENT_TORRENT_PAUSED = 'torrent_paused'
     EVENT_TORRENT_RESUMED = 'torrent_resumed'
@@ -59,7 +60,9 @@ class WebhookQueueWorker(QueueWorker[WebhookPayload]):
     def __init__(
         self,
         name: str = 'WebhookQueue',
-        max_failures: int = 5
+        max_failures: int = 5,
+        download_manager: Optional[Any] = None,
+        discord_client: Optional[Any] = None
     ):
         """
         Initialize the webhook queue worker.
@@ -67,9 +70,13 @@ class WebhookQueueWorker(QueueWorker[WebhookPayload]):
         Args:
             name: Worker name for logging.
             max_failures: Maximum consecutive failures.
+            download_manager: Download manager instance for processing.
+            discord_client: Discord client for notifications.
         """
         super().__init__(name=name, max_failures=max_failures)
         self._handlers: Dict[str, Callable[[WebhookPayload], None]] = {}
+        self._download_manager = download_manager
+        self._discord_client = discord_client
 
     def register_handler(
         self,
@@ -119,13 +126,56 @@ class WebhookQueueWorker(QueueWorker[WebhookPayload]):
                 f'⚠️ [{self._name}] No handler for event type: {event.event_type}'
             )
 
+    def enqueue(
+        self,
+        event_type: str = None,
+        hash_id: str = None,
+        payload: Dict[str, Any] = None,
+        event: QueueEvent[WebhookPayload] = None
+    ) -> QueueEvent[WebhookPayload]:
+        """
+        Add an event to the queue.
+
+        Supports both new API (event_type, hash_id, payload) and
+        base class API (event object).
+
+        Args:
+            event_type: Event type string.
+            hash_id: Torrent hash identifier.
+            payload: Event payload as dictionary.
+            event: Pre-built QueueEvent (base class compatibility).
+
+        Returns:
+            The enqueued QueueEvent with queue_id.
+        """
+        if event is not None:
+            # Base class API - use provided event
+            return super().enqueue(event)
+
+        # New API - build event from parameters
+        webhook_payload = WebhookPayload(
+            hash_id=hash_id or '',
+            name=payload.get('name', '') if payload else '',
+            category=payload.get('category', '') if payload else '',
+            status=payload.get('status', '') if payload else '',
+            save_path=payload.get('save_path', '') if payload else '',
+            extra_data=payload or {}
+        )
+
+        # Create QueueEvent and call parent's enqueue directly to avoid recursion
+        queue_event = QueueEvent(
+            event_type=event_type or self.EVENT_TORRENT_FINISHED,
+            payload=webhook_payload
+        )
+        return super().enqueue(queue_event)
+
     def enqueue_completion(
         self,
         hash_id: str,
         name: str = '',
         category: str = '',
         save_path: str = ''
-    ) -> int:
+    ) -> QueueEvent[WebhookPayload]:
         """
         Enqueue a torrent completion event.
 
@@ -138,7 +188,7 @@ class WebhookQueueWorker(QueueWorker[WebhookPayload]):
             save_path: Save path.
 
         Returns:
-            Current queue size.
+            The enqueued event.
         """
         payload = WebhookPayload(
             hash_id=hash_id,
@@ -157,7 +207,7 @@ class WebhookQueueWorker(QueueWorker[WebhookPayload]):
         hash_id: str,
         error_message: str,
         name: str = ''
-    ) -> int:
+    ) -> QueueEvent[WebhookPayload]:
         """
         Enqueue a torrent error event.
 
@@ -167,7 +217,7 @@ class WebhookQueueWorker(QueueWorker[WebhookPayload]):
             name: Torrent name.
 
         Returns:
-            Current queue size.
+            The enqueued event.
         """
         payload = WebhookPayload(
             hash_id=hash_id,
@@ -182,7 +232,8 @@ class WebhookQueueWorker(QueueWorker[WebhookPayload]):
 
 
 # Global webhook queue instance (singleton pattern)
-_webhook_queue: Optional[WebhookQueueWorker] = None
+# Public variable for legacy API compatibility
+webhook_queue_worker: Optional[WebhookQueueWorker] = None
 
 
 def get_webhook_queue() -> WebhookQueueWorker:
@@ -194,30 +245,68 @@ def get_webhook_queue() -> WebhookQueueWorker:
     Returns:
         WebhookQueueWorker instance.
     """
-    global _webhook_queue
-    if _webhook_queue is None:
-        _webhook_queue = WebhookQueueWorker()
-    return _webhook_queue
+    global webhook_queue_worker
+    if webhook_queue_worker is None:
+        webhook_queue_worker = WebhookQueueWorker()
+    return webhook_queue_worker
 
 
 def init_webhook_queue(
+    download_manager: Optional[Any] = None,
+    discord_client: Optional[Any] = None,
     completion_handler: Optional[Callable[[WebhookPayload], None]] = None
 ) -> WebhookQueueWorker:
     """
     Initialize the global webhook queue with handlers.
 
     Args:
-        completion_handler: Handler for completion events.
+        download_manager: Download manager instance for processing.
+        discord_client: Discord client for notifications.
+        completion_handler: Optional custom handler for completion events.
 
     Returns:
         Initialized WebhookQueueWorker.
     """
-    queue_worker = get_webhook_queue()
+    global webhook_queue_worker
 
+    # Create new worker with dependencies
+    webhook_queue_worker = WebhookQueueWorker(
+        download_manager=download_manager,
+        discord_client=discord_client
+    )
+
+    # Create default completion handler if not provided
+    if completion_handler is None and download_manager is not None:
+        def default_completion_handler(payload: WebhookPayload) -> None:
+            """Default handler that processes completed torrents."""
+            try:
+                logger.info(f'🔔 Processing torrent completion: {payload.hash_id[:8]}...')
+                # Call download manager's handle_torrent_completion if available
+                if hasattr(download_manager, 'handle_torrent_completion'):
+                    download_manager.handle_torrent_completion(
+                        hash_id=payload.hash_id,
+                        name=payload.name,
+                        category=payload.category,
+                        save_path=payload.save_path
+                    )
+            except Exception as e:
+                logger.error(f'❌ Error processing torrent completion: {e}')
+
+        completion_handler = default_completion_handler
+
+    # Register handlers
     if completion_handler:
-        queue_worker.register_handler(
+        webhook_queue_worker.register_handler(
             WebhookQueueWorker.EVENT_TORRENT_COMPLETED,
             completion_handler
         )
+        # Also register for 'torrent_finished' alias
+        webhook_queue_worker.register_handler(
+            WebhookQueueWorker.EVENT_TORRENT_FINISHED,
+            completion_handler
+        )
 
-    return queue_worker
+    # Start the worker
+    webhook_queue_worker.start()
+
+    return webhook_queue_worker

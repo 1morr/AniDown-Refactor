@@ -8,6 +8,7 @@ import logging
 import queue
 import threading
 import time
+import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -26,6 +27,7 @@ class QueueEvent(Generic[T]):
     Represents an event in the processing queue.
 
     Attributes:
+        queue_id: Unique identifier for the event.
         event_type: Type identifier for the event.
         payload: Event data/payload.
         received_at: UTC timestamp when event was received.
@@ -33,12 +35,14 @@ class QueueEvent(Generic[T]):
     """
     event_type: str
     payload: T
+    queue_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     received_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert event to dictionary representation."""
         return {
+            'queue_id': self.queue_id,
             'event_type': self.event_type,
             'received_at_utc': self.received_at.isoformat(),
             'metadata': self.metadata
@@ -186,7 +190,16 @@ class QueueWorker(ABC, Generic[T]):
         """
         return self._stop_event.is_set()
 
-    def enqueue(self, event: QueueEvent[T]) -> int:
+    def qsize(self) -> int:
+        """
+        Get the current queue size.
+
+        Returns:
+            Number of events in the queue.
+        """
+        return self._queue.qsize()
+
+    def enqueue(self, event: QueueEvent[T]) -> QueueEvent[T]:
         """
         Add an event to the queue.
 
@@ -194,14 +207,14 @@ class QueueWorker(ABC, Generic[T]):
             event: Event to add.
 
         Returns:
-            Current queue size after adding.
+            The enqueued event with queue_id.
         """
         self._queue.put(event)
         queue_size = self._queue.qsize()
         logger.debug(f'📥 [{self._name}] Event enqueued, queue size: {queue_size}')
-        return queue_size
+        return event
 
-    def enqueue_event(self, event_type: str, payload: T, **metadata) -> int:
+    def enqueue_event(self, event_type: str, payload: T, **metadata) -> QueueEvent[T]:
         """
         Create and enqueue an event.
 
@@ -213,7 +226,7 @@ class QueueWorker(ABC, Generic[T]):
             **metadata: Additional metadata.
 
         Returns:
-            Current queue size after adding.
+            The enqueued event with queue_id.
         """
         event = QueueEvent(
             event_type=event_type,

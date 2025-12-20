@@ -12,6 +12,8 @@ from src.services.file.path_builder import PathBuilder
 from src.services.queue.queue_worker import QueueEvent, QueueWorker
 from src.services.queue.rss_queue import RSSQueueWorker
 from src.services.queue.webhook_queue import WebhookQueueWorker
+from src.services.queue import webhook_queue
+from src.services.queue import rss_queue
 from src.services.rename.file_classifier import FileClassifier
 from src.services.rename.filename_formatter import FilenameFormatter
 from src.services.rename.pattern_matcher import PatternMatcher
@@ -47,6 +49,8 @@ __all__ = [
     'QueueEvent',
     'WebhookQueueWorker',
     'RSSQueueWorker',
+    'webhook_queue',
+    'rss_queue',
     # Filter service
     'FilterService',
     'get_filter_service',
