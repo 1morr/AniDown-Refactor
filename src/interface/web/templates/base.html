@@ -277,6 +277,7 @@
                         <a href="{{ url_for('downloads.downloads_page') }}" class="{{ active_class if request.endpoint and request.endpoint.startswith('downloads.') else inactive_class }}">下载</a>
                         <a href="{{ url_for('anime.anime_page') }}" class="{{ active_class if request.endpoint and request.endpoint.startswith('anime.') else inactive_class }}">动漫</a>
                         <a href="{{ url_for('manual_upload.manual_upload_page') }}" class="{{ active_class if request.endpoint and request.endpoint.startswith('manual_upload.') else inactive_class }}">上传</a>
+                        <a href="{{ url_for('ai_queue.ai_queue_page') }}" class="{{ active_class if request.endpoint and request.endpoint.startswith('ai_queue.') else inactive_class }}">队列</a>
                         <a href="{{ url_for('config.config_page') }}" class="{{ active_class if request.endpoint and request.endpoint.startswith('config.') else inactive_class }}">配置</a>
                         <a href="{{ url_for('database.database_page') }}" class="{{ active_class if request.endpoint and request.endpoint.startswith('database.') else inactive_class }}">数据库</a>
                         <a href="{{ url_for('ai_test.ai_test_page') }}" class="{{ active_class if request.endpoint and request.endpoint.startswith('ai_test.') else inactive_class }}">AI测试</a>
