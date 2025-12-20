@@ -273,6 +273,13 @@
                         {% set inactive_class = "text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white transition-colors px-3 py-2" %}
 
                         <a href="{{ url_for('dashboard.dashboard') }}" class="{{ active_class if request.endpoint == 'dashboard.dashboard' else inactive_class }}">仪表板</a>
+                        <a href="{{ url_for('rss.rss_page') }}" class="{{ active_class if request.endpoint and request.endpoint.startswith('rss.') else inactive_class }}">RSS</a>
+                        <a href="{{ url_for('downloads.downloads_page') }}" class="{{ active_class if request.endpoint and request.endpoint.startswith('downloads.') else inactive_class }}">下载</a>
+                        <a href="{{ url_for('anime.anime_page') }}" class="{{ active_class if request.endpoint and request.endpoint.startswith('anime.') else inactive_class }}">动漫</a>
+                        <a href="{{ url_for('manual_upload.manual_upload_page') }}" class="{{ active_class if request.endpoint and request.endpoint.startswith('manual_upload.') else inactive_class }}">上传</a>
+                        <a href="{{ url_for('config.config_page') }}" class="{{ active_class if request.endpoint and request.endpoint.startswith('config.') else inactive_class }}">配置</a>
+                        <a href="{{ url_for('database.database_page') }}" class="{{ active_class if request.endpoint and request.endpoint.startswith('database.') else inactive_class }}">数据库</a>
+                        <a href="{{ url_for('ai_test.ai_test_page') }}" class="{{ active_class if request.endpoint and request.endpoint.startswith('ai_test.') else inactive_class }}">AI测试</a>
                     </div>
                     <div class="h-4 w-[1px] bg-slate-300 dark:bg-white/20 mx-2"></div>
                     <div id="system-status" class="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100/50 dark:bg-slate-500/10 border border-slate-200 dark:border-slate-500/20 text-slate-400 dark:text-slate-500 text-xs">
