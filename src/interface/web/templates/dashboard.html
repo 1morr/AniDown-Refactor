@@ -489,15 +489,35 @@
     // Update active downloads stats
     function updateActiveDownloadsStats() {
         const count = activeDownloads.length;
-        const totalSpeed = activeDownloads.reduce((sum, dl) => {
-            const speed = parseFloat(dl.speed.replace(/[^\d.]/g, '')) || 0;
+        // 计算总速度时考虑单位（KB/s, MB/s, GB/s, B/s）
+        const totalSpeedMB = activeDownloads.reduce((sum, dl) => {
+            const speedMatch = dl.speed.match(/([\d.]+)\s*(KB|MB|GB|B)\/s/i);
+            if (!speedMatch) return sum;
+            let speed = parseFloat(speedMatch[1]) || 0;
+            const unit = speedMatch[2].toUpperCase();
+            // 转换为 MB/s
+            if (unit === 'B') speed /= (1024 * 1024);
+            else if (unit === 'KB') speed /= 1024;
+            else if (unit === 'GB') speed *= 1024;
             return sum + speed;
         }, 0);
 
+        // 格式化速度显示
+        let speedDisplay;
+        if (totalSpeedMB >= 1024) {
+            speedDisplay = `${(totalSpeedMB / 1024).toFixed(1)} GB/s`;
+        } else if (totalSpeedMB >= 1) {
+            speedDisplay = `${totalSpeedMB.toFixed(1)} MB/s`;
+        } else if (totalSpeedMB >= 0.001) {
+            speedDisplay = `${(totalSpeedMB * 1024).toFixed(1)} KB/s`;
+        } else {
+            speedDisplay = '0 B/s';
+        }
+
         document.getElementById('active-downloads-count').textContent = count;
-        document.getElementById('total-download-speed').textContent = `${totalSpeed.toFixed(1)} MB/s`;
+        document.getElementById('total-download-speed').textContent = speedDisplay;
         document.getElementById('active-count-badge').textContent = `${count} Active`;
-        document.getElementById('total-speed-display').textContent = `${totalSpeed.toFixed(1)} MB/s`;
+        document.getElementById('total-speed-display').textContent = speedDisplay;
     }
 
     // Fetch system resources

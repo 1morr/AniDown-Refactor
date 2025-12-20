@@ -280,7 +280,7 @@
                         <a href="{{ url_for('downloads.downloads_page') }}" class="{{ active_class if request.endpoint == 'downloads.downloads_page' else inactive_class }}">下载管理</a>
                         <a href="{{ url_for('downloads.download_history_page') }}" class="{{ active_class if request.endpoint == 'downloads.download_history_page' else inactive_class }}">删除历史</a>
                         <a href="{{ url_for('database.database_page') }}" class="{{ active_class if request.endpoint == 'database.database_page' else inactive_class }}">数据库</a>
-                        <a href="{{ url_for('ai_test.ai_test_page') }}" class="{{ active_class if request.endpoint == 'ai_test.ai_test_page' else inactive_class }}">AI测试</a>
+                        <a href="{{ url_for('ai_queue.ai_queue_page') }}" class="{{ active_class if request.endpoint == 'ai_queue.ai_queue_page' else inactive_class }}">队列</a>
                     </div>
                     <div class="h-4 w-[1px] bg-slate-300 dark:bg-white/20 mx-2"></div>
                     <div id="system-status" class="flex items-center gap-2 px-3 py-1 rounded-full w-[88px] justify-center bg-emerald-100/50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs">
