@@ -22,9 +22,12 @@ from src.services.anime_service import AnimeService, get_anime_service
 from src.services.ai_debug_service import AIDebugService, get_ai_debug_service
 from src.services.log_rotation_service import LogRotationService, get_log_rotation_service
 from src.services.rss_service import RSSService
+from src.services.download_manager import DownloadManager, RSSProcessResult as DMProcessResult
 
 __all__ = [
     # Download services
+    'DownloadManager',
+    'DMProcessResult',
     'RSSProcessor',
     'RSSItem',
     'RSSProcessResult',

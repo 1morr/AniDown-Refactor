@@ -387,3 +387,26 @@ class RSSFetchError(RSSError):
     ):
         super().__init__(message, feed_url, context)
         self.code = 'RSS_FETCH_ERROR'
+
+
+# Anime info exceptions
+
+class AnimeInfoExtractionError(AIError):
+    """
+    Exception raised when anime info extraction fails.
+
+    Attributes:
+        title: The original title that failed extraction.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        title: Optional[str] = None,
+        context: Optional[Dict[str, Any]] = None
+    ):
+        ctx = context or {}
+        if title:
+            ctx['title'] = title[:200]  # Truncate for logging
+        super().__init__(message, 'ANIME_INFO_EXTRACTION_ERROR', ctx)
+        self.title = title
