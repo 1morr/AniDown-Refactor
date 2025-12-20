@@ -368,7 +368,7 @@ function updateKeysTable(keyPools) {
             ${rpmBlocked ? `<button onclick="resetKeyRpm('${purpose}', '${key.key_id}')" class="ml-1 text-xs text-blue-600 dark:text-blue-400 hover:underline" title="重置 RPM">重置</button>` : ''}
           </div>`;
       } else {
-        rpmHtml = '<span class="text-slate-400 text-xs">无限制</span>';
+        rpmHtml = `<span class="text-xs font-mono text-slate-400">${key.rpm_count}/∞</span>`;
       }
 
       let rpdHtml = '';
@@ -387,7 +387,7 @@ function updateKeysTable(keyPools) {
             ${rpdBlocked ? `<button onclick="resetKeyRpd('${purpose}', '${key.key_id}')" class="ml-1 text-xs text-blue-600 dark:text-blue-400 hover:underline" title="重置 RPD">重置</button>` : ''}
           </div>`;
       } else {
-        rpdHtml = '<span class="text-slate-400 text-xs">无限制</span>';
+        rpdHtml = `<span class="text-xs font-mono text-slate-400">${key.rpd_count}/∞</span>`;
       }
 
       // 最后响应/错误信息

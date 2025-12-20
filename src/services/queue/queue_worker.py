@@ -41,12 +41,16 @@ class QueueEvent(Generic[T]):
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert event to dictionary representation."""
-        return {
+        result = {
             'queue_id': self.queue_id,
             'event_type': self.event_type,
             'received_at_utc': self.received_at.isoformat(),
             'metadata': self.metadata
         }
+        # 尝试从 payload 中获取 name 作为 display_name
+        if hasattr(self.payload, 'name') and self.payload.name:
+            result['display_name'] = self.payload.name
+        return result
 
 
 @dataclass

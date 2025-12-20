@@ -852,31 +852,44 @@ class KeyPool:
                 else:
                     state = KeyState.AVAILABLE
 
-                # 计算 RPM 窗口剩余时间
+                # 计算 RPM 窗口剩余时间，如果窗口过期则重置计数
                 rpm_window_remaining = 0
                 rpm_blocked = False
-                if spec.rpm_limit > 0 and usage.rpm_count >= spec.rpm_limit:
+                rpm_count = usage.rpm_count
+
+                if spec.rpm_limit > 0:
                     window_end = usage.rpm_window_start + 60
                     if window_end > now:
-                        rpm_window_remaining = window_end - now
-                        rpm_blocked = True
+                        # 窗口未过期
+                        if usage.rpm_count >= spec.rpm_limit:
+                            rpm_window_remaining = window_end - now
+                            rpm_blocked = True
+                    else:
+                        # 窗口已过期，计数应该显示为 0
+                        rpm_count = 0
 
                 # 计算 RPD 是否达到限制
                 rpd_blocked = False
+                rpd_count = usage.rpd_count
+                today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+
                 if spec.rpd_limit > 0:
-                    today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
-                    if usage.rpd_date == today and usage.rpd_count >= spec.rpd_limit:
-                        rpd_blocked = True
+                    if usage.rpd_date == today:
+                        if usage.rpd_count >= spec.rpd_limit:
+                            rpd_blocked = True
+                    else:
+                        # 日期已变更，计数应该显示为 0
+                        rpd_count = 0
 
                 keys_status.append({
                     'key_id': key_id,
                     'name': spec.name,
                     'state': state.value,
-                    'rpm_count': usage.rpm_count,
+                    'rpm_count': rpm_count,
                     'rpm_limit': spec.rpm_limit,
                     'rpm_blocked': rpm_blocked,
                     'rpm_window_remaining_seconds': round(rpm_window_remaining, 1),
-                    'rpd_count': usage.rpd_count,
+                    'rpd_count': rpd_count,
                     'rpd_limit': spec.rpd_limit,
                     'rpd_blocked': rpd_blocked,
                     'error_count': usage.error_count,
