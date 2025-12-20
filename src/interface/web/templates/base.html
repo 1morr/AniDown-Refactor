@@ -1,0 +1,436 @@
+<!-- filename: templates/base.html -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AniDown{% endblock %}</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+    <!-- 全局组件样式 -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        neon: {
+                            blue: '#3B82F6',
+                            cyan: '#06B6D4',
+                            purple: '#8B5CF6',
+                            green: '#10B981',
+                            rose: '#F43F5E',
+                            orange: '#F97316',
+                        }
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.3s ease-in-out',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        }
+                    },
+                    transitionProperty: {
+                        'colors': 'background-color, border-color, color, fill, stroke',
+                        'width': 'width',
+                        'height': 'height',
+                        'spacing': 'margin, padding',
+                        'max-height': 'max-height',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Theme Initialization -->
+    <script>
+        (function() {
+            if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
+
+    <!-- Global Styles -->
+    <style>
+        body, div, nav, button, span, p, h1, h2, h3, table, tr, td, th, i, section, input, textarea, select, label {
+            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+        }
+        .progress-bar { transition: width 0.5s linear; }
+
+        /* Background Grids */
+        .bg-grid-light {
+            background-size: 40px 40px;
+            background-image: linear-gradient(to right, rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+                              linear-gradient(to bottom, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
+            mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+        }
+        .dark .bg-grid-dark {
+            background-size: 40px 40px;
+            background-image: linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                              linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            mask-image: linear-gradient(to bottom, black 40%, transparent 100%);
+        }
+
+        /* Cards */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+        .dark .glass-card {
+            background: rgba(15, 15, 17, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: none;
+        }
+        .glass-card:hover { transform: translateY(-2px); }
+        .dark .glass-card:hover {
+            border-color: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+        }
+        .glass-card:hover { box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); }
+
+        /* Static Glass (For Modals) */
+        .glass-static {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .dark .glass-static {
+            background: rgba(24, 24, 27, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Form Elements */
+        .input-field {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(209, 213, 219, 1);
+            color: #1f2937;
+            border-radius: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            width: 100%;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+        }
+        .dark .input-field {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        .input-field:focus {
+            outline: none;
+            border-color: #3B82F6;
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        /* Select下拉菜单样式（完整） */
+        select.form-control,
+        select.input-field {
+            background-color: #f8fafc; /* bg-slate-50 */
+            border: 1px solid #e2e8f0; /* border-slate-200 */
+            color: #1e293b; /* text-slate-800 */
+        }
+        .dark select.form-control,
+        .dark select.input-field {
+            background-color: rgba(0, 0, 0, 0.3); /* dark:bg-black/30 */
+            border: 1px solid rgba(255, 255, 255, 0.1); /* dark:border-white/10 */
+            color: #ffffff; /* dark:text-white */
+        }
+
+        /* Select option样式 */
+        select.input-field option,
+        select.form-control option {
+            background-color: white;
+            color: #1f2937;
+        }
+        .dark select.input-field option,
+        .dark select.form-control option {
+            background-color: #18181b;
+            color: #e4e4e7;
+        }
+
+        /* Toggle Switch Animation */
+        .toggle-checkbox {
+            transition: transform 0.3s ease, border-color 0.3s ease;
+        }
+        .toggle-checkbox:checked {
+            transform: translateX(1rem);
+            border-color: #10B981;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #10B981;
+        }
+
+        /* Badges */
+        .badge-completed { background: rgba(16, 185, 129, 0.1); color: #059669; border: 1px solid rgba(16, 185, 129, 0.2); }
+        .dark .badge-completed { background: rgba(16, 185, 129, 0.15); color: #34D399; }
+        .badge-pending { background: rgba(100, 116, 139, 0.1); color: #475569; border: 1px solid rgba(100, 116, 139, 0.2); }
+        .dark .badge-pending { background: rgba(113, 113, 122, 0.15); color: #A1A1AA; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .dark ::-webkit-scrollbar-thumb { background: #333; }
+
+        /* 注意：.custom-scrollbar 样式已在 components.css 中定义 */
+
+        /* --- 新增：通用工具类 (Database页面使用) --- */
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .mask-fade-right {
+            mask-image: linear-gradient(to right, black 85%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
+        }
+        .sql-editor:focus { box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5); }
+
+        /* Modal backdrop blur fix - 确保模糊效果覆盖整个视口包括导航栏 */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 40;
+        }
+
+        .modal-content {
+            position: relative;
+            z-index: 50;
+        }
+
+        /* --- 新增：AI Test Page Styles --- */
+        /* 打字机光标动画 */
+        .cursor-blink {
+            display: inline-block;
+            width: 2px;
+            height: 1em;
+            background-color: #3B82F6;
+            animation: blink 1s step-end infinite;
+            vertical-align: middle;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        /* 代码编辑器/终端样式模拟 */
+        .code-editor-bg {
+            background-color: #ffffff;
+            background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
+            background-size: 20px 20px;
+            color: #334155;
+        }
+        .dark .code-editor-bg {
+            background-color: #0d0d0d;
+            background-image: radial-gradient(#1f1f1f 1px, transparent 1px);
+            color: #d1d5db;
+        }
+    </style>
+
+    {% block styles %}{% endblock %}
+</head>
+<body class="min-h-screen relative bg-slate-50 text-slate-900 dark:bg-[#050505] dark:text-[#E4E4E7]">
+
+    <!-- Global Backgrounds -->
+    <div class="fixed inset-0 bg-grid-light dark:bg-grid-dark z-[-1] transition-opacity duration-500"></div>
+    <div class="fixed top-0 left-1/2 -translate-x-1/2 w-[800px] h-[200px] bg-blue-500/10 blur-[100px] rounded-full z-[-1] opacity-0 dark:opacity-100 transition-opacity duration-500"></div>
+
+    <!-- Navigation -->
+    <nav class="w-full border-b border-slate-200 dark:border-white/5 bg-white/70 dark:bg-black/50 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-circle-nodes text-blue-600 dark:text-neon-cyan text-xl"></i>
+                    <span class="font-bold text-lg tracking-wide">AniDown</span>
+                </div>
+                <div class="hidden md:flex items-center gap-4">
+                    <div class="flex items-baseline space-x-1 text-sm font-medium">
+                        {% set active_class = "text-blue-600 dark:text-white px-3 py-2 rounded-md bg-blue-50 dark:bg-white/10 font-semibold" %}
+                        {% set inactive_class = "text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white transition-colors px-3 py-2" %}
+
+                        <a href="{{ url_for('dashboard.dashboard') }}" class="{{ active_class if request.endpoint == 'dashboard.dashboard' else inactive_class }}">仪表板</a>
+                    </div>
+                    <div class="h-4 w-[1px] bg-slate-300 dark:bg-white/20 mx-2"></div>
+                    <div id="system-status" class="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100/50 dark:bg-slate-500/10 border border-slate-200 dark:border-slate-500/20 text-slate-400 dark:text-slate-500 text-xs">
+                        <div class="w-2 h-2 rounded-full bg-slate-400"></div>
+                        <span id="status-text">检查中...</span>
+                    </div>
+                    <button id="theme-toggle" class="w-9 h-9 rounded-full flex items-center justify-center bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-600 dark:text-yellow-400 transition-all focus:outline-none ml-2">
+                        <i class="fas fa-sun dark:hidden text-lg"></i>
+                        <i class="fas fa-moon hidden dark:block text-lg"></i>
+                    </button>
+                </div>
+                <div class="flex items-center gap-4 md:hidden">
+                    <button id="theme-toggle-mobile" class="text-slate-600 dark:text-yellow-400">
+                        <i class="fas fa-sun dark:hidden"></i>
+                        <i class="fas fa-moon hidden dark:block"></i>
+                    </button>
+                    <button class="text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white">
+                        <i class="fa-solid fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="fixed top-20 right-4 z-[100] space-y-2">
+        {% for category, message in messages %}
+        <div class="glass-static rounded-lg p-4 border-l-4 {{ 'border-green-500 bg-green-50 dark:bg-green-900/20' if category == 'success' else 'border-red-500 bg-red-50 dark:bg-red-900/20' if category == 'error' else 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20' }} max-w-sm shadow-lg">
+            <div class="flex items-center">
+                <i class="fas {{ 'fa-check-circle text-green-500' if category == 'success' else 'fa-exclamation-circle text-red-500' if category == 'error' else 'fa-exclamation-triangle text-yellow-500' }} mr-2"></i>
+                <span class="text-sm font-medium {{ 'text-green-800 dark:text-green-200' if category == 'success' else 'text-red-800 dark:text-red-200' if category == 'error' else 'text-yellow-800 dark:text-yellow-200' }}">{{ message }}</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <div id="dynamic-flash-container" class="fixed top-20 right-4 z-[100] space-y-2"></div>
+
+    <!-- Main Content Area -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-200 dark:border-white/5 mt-12 py-6">
+        <div class="text-center text-slate-400 dark:text-gray-600 text-xs">&copy; AniDown. 基于 Flask 构建.</div>
+    </footer>
+
+    <!-- Global Scripts -->
+    {% include 'time_utils.html' %}
+
+    <!-- 全局工具函数库 -->
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
+
+    <!-- 表格管理器 -->
+    <script src="{{ url_for('static', filename='js/table-manager.js') }}"></script>
+
+    <script>
+        // 系统状态更新
+        let statusCheckInterval = null;
+
+        function updateSystemStatus() {
+            fetch('/api/system/status')
+                .then(response => response.json())
+                .then(result => {
+                    // APIResponse 包装了数据在 data 字段中
+                    const data = result.data || result;
+
+                    const statusContainer = document.getElementById('system-status');
+                    const statusText = document.getElementById('status-text');
+                    const statusDot = statusContainer.querySelector('.w-2.h-2');
+
+                    if (data.overall === 'running') {
+                        // 运行中状态
+                        statusContainer.className = 'flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100/50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs transition-all duration-300';
+                        statusDot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+                        statusText.textContent = '运行中';
+                    } else if (data.overall === 'stopped') {
+                        // 停止状态
+                        statusContainer.className = 'flex items-center gap-2 px-3 py-1 rounded-full bg-red-100/50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 text-xs transition-all duration-300';
+                        statusDot.className = 'w-2 h-2 rounded-full bg-red-500';
+                        statusText.textContent = '已停止';
+                    } else {
+                        // 未知状态
+                        statusContainer.className = 'flex items-center gap-2 px-3 py-1 rounded-full bg-yellow-100/50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20 text-yellow-600 dark:text-yellow-400 text-xs transition-all duration-300';
+                        statusDot.className = 'w-2 h-2 rounded-full bg-yellow-500';
+                        statusText.textContent = '状态未知';
+                    }
+
+                    // 添加tooltip显示详细状态（可选）
+                    const services = data.services || {};
+                    const tooltipText = `Web UI: ${services.webui || 'unknown'}\nWebhook: ${services.webhook || 'unknown'}\nRSS调度器: ${services.rss_scheduler || 'unknown'}`;
+                    statusContainer.setAttribute('title', tooltipText);
+                })
+                .catch(error => {
+                    console.error('获取系统状态失败:', error);
+                    const statusContainer = document.getElementById('system-status');
+                    const statusText = document.getElementById('status-text');
+                    const statusDot = statusContainer.querySelector('.w-2.h-2');
+
+                    // 错误状态
+                    statusContainer.className = 'flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100/50 dark:bg-gray-500/10 border border-gray-200 dark:border-gray-500/20 text-gray-600 dark:text-gray-400 text-xs transition-all duration-300';
+                    statusDot.className = 'w-2 h-2 rounded-full bg-gray-500';
+                    statusText.textContent = '连接失败';
+                });
+        }
+
+        // 页面加载完成后立即检查状态，然后每5秒检查一次
+        document.addEventListener('DOMContentLoaded', function() {
+            updateSystemStatus();
+            statusCheckInterval = setInterval(updateSystemStatus, 5000);
+
+            // 主题切换
+            const toggleBtn = document.getElementById('theme-toggle');
+            const toggleBtnMobile = document.getElementById('theme-toggle-mobile');
+            const htmlElement = document.documentElement;
+
+            function toggleTheme() {
+                if (htmlElement.classList.contains('dark')) {
+                    htmlElement.classList.remove('dark');
+                    localStorage.theme = 'light';
+                } else {
+                    htmlElement.classList.add('dark');
+                    localStorage.theme = 'dark';
+                }
+            }
+
+            if (toggleBtn) toggleBtn.addEventListener('click', toggleTheme);
+            if (toggleBtnMobile) toggleBtnMobile.addEventListener('click', toggleTheme);
+
+            // 自动移除Flask flash消息
+            setTimeout(() => {
+                const flashMessages = document.querySelectorAll('.fixed.top-20 > div');
+                flashMessages.forEach(msg => {
+                    msg.style.opacity = '0';
+                    msg.style.transform = 'translateX(100%)';
+                    msg.style.transition = 'all 0.3s ease';
+                    setTimeout(() => msg.remove(), 300);
+                });
+            }, 5000);
+        });
+
+        // 便捷的消息提示函数（基于utils.js中的showFlashMessage）
+        window.showSuccess = (msg) => showFlashMessage('success', msg);
+        window.showError = (msg) => showFlashMessage('error', msg);
+        window.showWarning = (msg) => showFlashMessage('warning', msg);
+        window.showInfo = (msg) => showFlashMessage('info', msg);
+
+        console.log('[TimezoneUtils] 已加载，用户时区:', window.TimezoneUtils.getUserTimezone(), 'UTC' + (window.TimezoneUtils.getTimezoneOffset() >= 0 ? '+' : '') + window.TimezoneUtils.getTimezoneOffset());
+        console.log('[BaseTemplate] 基础模板脚本已加载');
+    </script>
+
+    {% block scripts %}
+    {% endblock %}
+</body>
+</html>

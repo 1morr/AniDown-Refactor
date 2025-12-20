@@ -1,0 +1,625 @@
+{% extends "base.html" %}
+
+{% block title %}AniDown{% endblock %}
+
+{% block content %}
+    <!-- Header -->
+    <header>
+        <h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-1 flex items-center gap-3">
+            <i class="fa-solid fa-gauge-high text-blue-600 dark:text-neon-blue"></i>
+            系统仪表板
+        </h1>
+        <p class="text-slate-500 dark:text-gray-500 text-sm">实时监控动漫下载与系统状态</p>
+    </header>
+
+    <!-- 1. Stats Cards -->
+    <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4" id="stats-container">
+        <!-- Anime Count -->
+        <div class="glass-card rounded-xl p-5 flex flex-col items-center justify-center text-center group cursor-default border-transparent hover:bg-blue-50 dark:hover:bg-blue-500/5 hover:border-blue-200 dark:hover:border-blue-500/30 transition-all duration-300">
+            <div class="mb-3 p-3 rounded-full bg-slate-100 dark:bg-white/5">
+                <i class="fa-solid fa-database text-xl text-blue-500 dark:text-blue-400"></i>
+            </div>
+            <div class="text-3xl font-bold text-slate-800 dark:text-white mb-1 font-mono">{{ stats.anime_count if stats.anime_count is defined else 0 }}</div>
+            <div class="text-xs text-slate-500 dark:text-gray-500">动漫信息</div>
+            <div class="text-[10px] text-slate-400 dark:text-gray-600 mt-1">已解析的动漫条目</div>
+        </div>
+
+        <!-- Download Count -->
+        <div class="glass-card rounded-xl p-5 flex flex-col items-center justify-center text-center group cursor-default border-transparent hover:bg-green-50 dark:hover:bg-green-500/5 hover:border-green-200 dark:hover:border-green-500/30 transition-all duration-300">
+            <div class="mb-3 p-3 rounded-full bg-slate-100 dark:bg-white/5">
+                <i class="fa-solid fa-cloud-arrow-down text-xl text-green-500 dark:text-green-400"></i>
+            </div>
+            <div class="text-3xl font-bold text-slate-800 dark:text-white mb-1 font-mono">{{ stats.download_count if stats.download_count is defined else 0 }}</div>
+            <div class="text-xs text-slate-500 dark:text-gray-500">所有下载</div>
+            <div class="text-[10px] text-slate-400 dark:text-gray-600 mt-1">历史任务总数</div>
+        </div>
+
+        <!-- Recent Anime -->
+        <div class="glass-card rounded-xl p-5 flex flex-col items-center justify-center text-center group cursor-default border-transparent hover:bg-emerald-50 dark:hover:bg-emerald-500/5 hover:border-emerald-200 dark:hover:border-emerald-500/30 transition-all duration-300">
+            <div class="mb-3 p-3 rounded-full bg-slate-100 dark:bg-white/5">
+                <i class="fa-solid fa-circle-plus text-xl text-emerald-500 dark:text-emerald-400"></i>
+            </div>
+            <div class="text-3xl font-bold text-slate-800 dark:text-white mb-1 font-mono">{{ stats.recent_anime_count if stats.recent_anime_count is defined else 0 }}</div>
+            <div class="text-xs text-slate-500 dark:text-gray-500">最近新增</div>
+            <div class="text-[10px] text-slate-400 dark:text-gray-600 mt-1">新增动漫数量</div>
+        </div>
+
+        <!-- Recent Downloads -->
+        <div class="glass-card rounded-xl p-5 flex flex-col items-center justify-center text-center group cursor-default border-transparent hover:bg-cyan-50 dark:hover:bg-cyan-500/5 hover:border-cyan-200 dark:hover:border-cyan-500/30 transition-all duration-300">
+            <div class="mb-3 p-3 rounded-full bg-slate-100 dark:bg-white/5">
+                <i class="fa-solid fa-clock-rotate-left text-xl text-cyan-500 dark:text-cyan-400"></i>
+            </div>
+            <div class="text-3xl font-bold text-slate-800 dark:text-white mb-1 font-mono">{{ stats.recent_download_count if stats.recent_download_count is defined else 0 }}</div>
+            <div class="text-xs text-slate-500 dark:text-gray-500">最近下载</div>
+            <div class="text-[10px] text-slate-400 dark:text-gray-600 mt-1">新增下载任务</div>
+        </div>
+
+        <!-- Active Downloads -->
+        <div class="glass-card rounded-xl p-4 relative overflow-hidden border-orange-100 dark:border-orange-500/20 group flex flex-col items-center pt-6 pb-4">
+            <div class="absolute -right-6 -top-6 w-24 h-24 bg-orange-500/10 rounded-full blur-2xl group-hover:bg-orange-500/20 transition-colors animate-pulse"></div>
+            <div class="mb-2 text-orange-600 dark:text-orange-400 relative z-10 flex items-center gap-2">
+                <i class="fa-solid fa-bolt text-lg"></i> 正在下载
+            </div>
+            <div class="text-3xl font-bold text-slate-800 dark:text-white font-mono relative z-10 mt-auto mb-auto" id="active-downloads-count">0</div>
+            <div class="text-[10px] text-slate-400 dark:text-gray-500 mt-1 relative z-10 mb-auto">个活跃任务</div>
+            <div class="mt-auto w-full pt-2 border-t border-orange-200 dark:border-orange-500/10 flex justify-between items-center relative z-10">
+                <span class="text-[10px] text-slate-400 dark:text-gray-500">总下载速度</span>
+                <span class="text-xs font-mono font-bold text-orange-600 dark:text-orange-400" id="total-download-speed">0 MB/s</span>
+            </div>
+        </div>
+
+        <!-- RSS Card -->
+        <div class="glass-card rounded-xl p-4 flex flex-col items-center pt-6 pb-4 relative overflow-hidden border-blue-100 dark:border-blue-500/20">
+            <button onclick="refreshRSS(this)" class="absolute top-1.5 right-1.5 text-blue-400 hover:text-blue-600 dark:hover:text-white transition-colors p-1 rounded-full z-20" title="立即刷新RSS">
+                <i class="fa-solid fa-arrows-rotate text-xs"></i>
+            </button>
+            <div class="absolute inset-0 bg-gradient-to-b from-blue-50 to-transparent dark:from-blue-500/5 pointer-events-none"></div>
+            <div class="mb-2 text-blue-600 dark:text-blue-400 relative z-10"><i class="fa-solid fa-rss text-lg"></i> 上次RSS检查</div>
+            <div class="text-xl font-bold text-slate-800 dark:text-white font-mono tracking-tighter relative z-10 mt-3 rss-check-date">2025/11/20</div>
+            <div class="text-3xl font-bold text-blue-600 dark:text-blue-400 font-mono mt-1 relative z-10 rss-check-time"
+                 data-utc-time="{{ stats.last_rss_check if stats.last_rss_check and stats.last_rss_check != 'None' else '' }}">
+                {% if stats.last_rss_check and stats.last_rss_check != 'None' %}
+                载入中...
+                {% else %}
+                从未检查
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    <!-- 2. Tables -->
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Anime Table -->
+        <div class="glass-card rounded-xl p-5 flex flex-col h-full">
+            <div class="flex justify-between items-center mb-4 border-b border-slate-200 dark:border-white/5 pb-3">
+                <h3 class="font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+                    <i class="fa-solid fa-film text-purple-500 dark:text-neon-purple"></i> 最近动漫信息
+                </h3>
+                <button class="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:text-gray-500 dark:hover:text-white dark:hover:bg-white/10 transition-all" title="详情">
+                    <i class="fa-solid fa-ellipsis-vertical"></i>
+                </button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead class="text-xs text-slate-500 dark:text-gray-500 uppercase">
+                        <tr>
+                            <th class="pb-2 font-medium pl-2">标题</th>
+                            <th class="pb-2 font-medium text-right pr-2">添加时间</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if activity.recent_anime %}
+                            {% for anime in activity.recent_anime %}
+                            <tr class="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors h-12">
+                                <td class="pl-2 pr-4 align-middle">
+                                    <div class="text-sm font-medium text-slate-700 dark:text-slate-200 truncate max-w-[240px]" title="{{ anime[1] if anime[1] else anime[0] }}">{{ (anime[1] if anime[1] else anime[0])[:50] }}{% if (anime[1] if anime[1] else anime[0])|length > 50 %}...{% endif %}</div>
+                                </td>
+                                <td class="pr-2 align-middle text-right">
+                                    <div class="text-xs font-mono text-slate-400 dark:text-gray-500" data-utc-time="{{ anime[2] if anime[2] else '' }}">加载中...</div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="2" class="text-center py-8 text-slate-500 dark:text-gray-500">暂无动漫信息</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Download Table -->
+        <div class="glass-card rounded-xl p-5 flex flex-col h-full">
+            <div class="flex justify-between items-center mb-4 border-b border-slate-200 dark:border-white/5 pb-3">
+                <h3 class="font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+                    <i class="fa-solid fa-download text-cyan-500 dark:text-neon-cyan"></i> 最近下载任务
+                </h3>
+                <button class="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:text-gray-500 dark:hover:text-white dark:hover:bg-white/10 transition-all" title="详情">
+                    <i class="fa-solid fa-ellipsis-vertical"></i>
+                </button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse table-fixed">
+                    <thead class="text-xs text-slate-500 dark:text-gray-500 uppercase">
+                        <tr>
+                            <th class="pb-2 font-medium pl-2 w-[45%]">动漫名</th>
+                            <th class="pb-2 font-medium w-[15%]">集数</th>
+                            <th class="pb-2 font-medium w-[15%]">状态</th>
+                            <th class="pb-2 font-medium text-right pr-2 w-[25%]">创建时间</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if activity.recent_downloads %}
+                            {% for download in activity.recent_downloads %}
+                            <tr class="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors h-12">
+                                <td class="pl-2 pr-2 align-middle">
+                                    <div class="text-sm font-medium text-slate-700 dark:text-slate-200 truncate w-full" title="{{ download[4] if download[4] else '未知' }}">{{ download[4][:20] if download[4] else '未知' }}{% if download[4] and download[4]|length > 20 %}...{% endif %}</div>
+                                </td>
+                                <td class="align-middle">
+                                    <div class="text-xs font-mono text-slate-500 dark:text-gray-400 bg-slate-100 dark:bg-white/5 px-1.5 py-0.5 rounded inline-block whitespace-nowrap">第{{ download[5] if download[5] else '?' }}集</div>
+                                </td>
+                                <td class="align-middle">
+                                    {% if download[2] == 'completed' %}
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider whitespace-nowrap badge-completed cursor-pointer hover:opacity-80 transition-opacity task-detail-btn"
+                                          data-hash-id="{{ download[0] }}"
+                                          data-anime-name="{{ download[4] if download[4] else '未知' }}"
+                                          data-episode="{{ download[5] if download[5] else '?' }}"
+                                          data-status="{{ download[2] }}"
+                                          data-time="{{ download[3] if download[3] else '未知' }}"
+                                          data-download-dir="{{ download[6] if download[6] else '' }}"
+                                          title="点击查看详情">
+                                        {{ download[2] }}
+                                    </span>
+                                    {% else %}
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider whitespace-nowrap badge-pending cursor-pointer hover:opacity-80 transition-opacity task-detail-btn"
+                                          data-hash-id="{{ download[0] }}"
+                                          data-anime-name="{{ download[4] if download[4] else '未知' }}"
+                                          data-episode="{{ download[5] if download[5] else '?' }}"
+                                          data-status="{{ download[2] }}"
+                                          data-time="{{ download[3] if download[3] else '未知' }}"
+                                          data-download-dir="{{ download[6] if download[6] else '' }}"
+                                          title="点击查看详情">
+                                        {{ download[2] }}
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td class="pr-2 align-middle text-right">
+                                    <div class="text-xs font-mono text-slate-400 dark:text-gray-500 whitespace-nowrap" data-utc-time="{{ download[3] if download[3] else '' }}">加载中...</div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center py-8 text-slate-500 dark:text-gray-500">暂无下载任务</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- 3. Active Downloads -->
+    <section class="glass-card rounded-xl p-6" id="active-downloads-section">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+                <i class="fa-solid fa-bolt text-orange-500 dark:text-neon-orange"></i> 活跃下载任务
+                <span class="text-xs font-normal text-slate-500 dark:text-gray-500 ml-2 bg-slate-100 dark:bg-white/5 px-2 py-0.5 rounded-full border border-slate-200 dark:border-white/10" id="active-count-badge">0 Active</span>
+            </h3>
+            <div class="text-xs text-slate-400 font-mono">Total Speed: <span class="text-slate-800 dark:text-white font-bold" id="total-speed-display">0 MB/s</span></div>
+        </div>
+        <div class="overflow-y-auto max-h-[240px] pr-2 space-y-4" id="active-downloads-container">
+            <div class="text-center py-8 text-slate-500 dark:text-gray-500">
+                <i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2"></i>
+                <p>正在加载活跃下载任务...</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- 4. System Monitor & Config -->
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="glass-card rounded-xl p-6 relative overflow-hidden group">
+            <div class="absolute top-0 right-0 w-32 h-32 bg-slate-200 dark:bg-gray-800/20 rounded-bl-full -mr-10 -mt-10 transition-transform group-hover:scale-110 opacity-50 dark:opacity-100"></div>
+            <h3 class="font-semibold text-slate-800 dark:text-white mb-6 flex items-center gap-2 relative z-10">
+                <i class="fa-solid fa-gears text-slate-400"></i> 系统配置
+            </h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8 relative z-10">
+                <div>
+                    <p class="text-xs text-slate-500 dark:text-gray-500 uppercase mb-1">RSS检查间隔</p>
+                    <p class="text-xl font-mono text-slate-800 dark:text-white">{{ config.rss.check_interval }} <span class="text-sm text-slate-400 dark:text-gray-500">秒</span></p>
+                </div>
+                <div>
+                    <p class="text-xs text-slate-500 dark:text-gray-500 uppercase mb-1">RSS链接数量</p>
+                    <p class="text-xl font-mono text-slate-800 dark:text-white">{{ config.rss.fixed_urls|length }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-slate-500 dark:text-gray-500 uppercase mb-1">qBittorrent</p>
+                    {% if config.qbittorrent.username and config.qbittorrent.password %}
+                    <div class="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-sm mt-1"><i class="fa-solid fa-check-circle"></i> 已配置</div>
+                    {% else %}
+                    <div class="flex items-center gap-2 text-red-600 dark:text-red-400 text-sm mt-1"><i class="fa-solid fa-times-circle"></i> 未配置</div>
+                    {% endif %}
+                </div>
+                <div>
+                    <p class="text-xs text-slate-500 dark:text-gray-500 uppercase mb-1">Discord通知</p>
+                    {% if config.discord.rss_webhook_url or config.discord.hardlink_webhook_url %}
+                    <div class="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-sm mt-1"><i class="fa-solid fa-check-circle"></i> 已配置</div>
+                    {% else %}
+                    <div class="flex items-center gap-2 text-red-600 dark:text-red-400 text-sm mt-1"><i class="fa-solid fa-times-circle"></i> 未配置</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="glass-card rounded-xl p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+                    <i class="fa-solid fa-server text-slate-400 dark:text-slate-500"></i> 系统资源监控
+                </h3>
+                <span class="relative flex h-2 w-2">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                </span>
+            </div>
+            <div class="space-y-6" id="system-monitor-container">
+                <div class="group">
+                    <div class="flex justify-between items-end mb-2">
+                        <div class="flex items-center gap-2 text-sm text-slate-600 dark:text-gray-300"><i class="fa-solid fa-microchip w-5 text-rose-500 dark:text-neon-rose"></i><span>CPU 使用率</span></div>
+                        <span class="font-mono text-lg font-bold text-slate-800 dark:text-white" id="cpu-text">--</span>
+                    </div>
+                    <div class="h-2 w-full bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden"><div id="cpu-bar" class="h-full bg-rose-500 dark:bg-neon-rose progress-bar relative" style="width: 0%"></div></div>
+                </div>
+                <div class="group">
+                    <div class="flex justify-between items-end mb-2">
+                        <div class="flex items-center gap-2 text-sm text-slate-600 dark:text-gray-300"><i class="fa-solid fa-memory w-5 text-purple-500 dark:text-neon-purple"></i><span>内存 (RAM)</span></div>
+                        <div class="text-right"><span class="font-mono text-lg font-bold text-slate-800 dark:text-white" id="ram-text">--</span><span class="text-xs text-slate-400 dark:text-gray-500 ml-1" id="ram-total">/ -- GB</span></div>
+                    </div>
+                    <div class="h-2 w-full bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden"><div id="ram-bar" class="h-full bg-purple-500 dark:bg-neon-purple progress-bar relative" style="width: 0%"></div></div>
+                </div>
+                <div class="group">
+                    <div class="flex justify-between items-end mb-2">
+                        <div class="flex items-center gap-2 text-sm text-slate-600 dark:text-gray-300"><i class="fa-solid fa-hard-drive w-5 text-cyan-500 dark:text-neon-cyan"></i><span>磁盘空间</span></div>
+                        <div class="text-right"><span class="font-mono text-lg font-bold text-slate-800 dark:text-white" id="disk-text">--</span><span class="text-xs text-slate-400 dark:text-gray-500 ml-1" id="disk-total">/ -- GB</span></div>
+                    </div>
+                    <div class="h-2 w-full bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden"><div id="disk-bar" class="h-full bg-cyan-500 dark:bg-neon-cyan progress-bar" style="width: 0%"></div></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Task Details Modal -->
+    <div id="task-details-modal" class="fixed inset-0 z-[100] hidden">
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onclick="closeTaskModal()"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg p-4">
+            <div class="glass-static rounded-2xl p-6 shadow-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#18181b]">
+                <div class="flex justify-between items-start mb-6">
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                            <i class="fa-solid fa-circle-info text-blue-500"></i> 任务详情
+                        </h3>
+                        <p class="text-xs text-slate-500 dark:text-gray-400 mt-1">查看下载任务的详细状态与路径信息</p>
+                    </div>
+                    <button onclick="closeTaskModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">
+                        <i class="fa-solid fa-xmark text-xl"></i>
+                    </button>
+                </div>
+                <div class="space-y-5">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="p-3 rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
+                            <div class="text-[10px] uppercase text-slate-400 dark:text-gray-500 font-bold tracking-wider mb-1">动漫名称</div>
+                            <div class="text-sm font-medium text-slate-700 dark:text-slate-200 truncate" id="modal-anime-name">--</div>
+                        </div>
+                        <div class="p-3 rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
+                            <div class="text-[10px] uppercase text-slate-400 dark:text-gray-500 font-bold tracking-wider mb-1">当前集数</div>
+                            <div class="text-sm font-medium text-slate-700 dark:text-slate-200" id="modal-episode">--</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between p-3 rounded-lg bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
+                        <div>
+                            <div class="text-[10px] uppercase text-slate-400 dark:text-gray-500 font-bold tracking-wider mb-1">当前状态</div>
+                            <span id="modal-status-badge" class="px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider">--</span>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-[10px] uppercase text-slate-400 dark:text-gray-500 font-bold tracking-wider mb-1">创建时间</div>
+                            <div class="text-xs font-mono text-slate-600 dark:text-slate-300" id="modal-time">--</div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-2">
+                            <i class="fa-regular fa-folder-open"></i> 下载保存路径
+                        </div>
+                        <div class="relative group">
+                            <input type="text" readonly id="modal-save-path" class="w-full text-xs font-mono bg-slate-100 dark:bg-black/30 border border-slate-200 dark:border-white/10 rounded px-3 py-2 text-slate-600 dark:text-slate-400 focus:outline-none focus:border-blue-500 transition-colors">
+                        </div>
+                    </div>
+                    <div id="modal-hardlink-section" class="hidden">
+                        <div class="text-xs font-medium text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-2">
+                            <i class="fa-solid fa-link"></i> 硬链接已生成
+                        </div>
+                        <div class="relative group">
+                            <textarea readonly id="modal-link-path" rows="2" class="w-full text-xs font-mono bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-500/20 rounded px-3 py-2 text-emerald-700 dark:text-emerald-300 focus:outline-none resize-none"></textarea>
+                        </div>
+                        <p class="text-[10px] text-slate-400 mt-1"><i class="fa-solid fa-check text-emerald-500"></i> 此文件已硬链接到媒体库，删除源文件不影响播放。</p>
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end">
+                    <button onclick="closeTaskModal()" class="px-4 py-2 rounded-lg text-sm font-medium bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-white hover:bg-slate-300 dark:hover:bg-white/20 transition-colors">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Global variables
+    let activeDownloads = [];
+    let systemStats = {};
+
+    // RSS refresh function
+    function refreshRSS(btn) {
+        const icon = btn.querySelector('i');
+        icon.classList.add('fa-spin');
+
+        fetch('/api/rss/refresh', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update RSS check time
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    console.error('RSS refresh failed:', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('RSS refresh error:', error);
+            })
+            .finally(() => {
+                setTimeout(() => icon.classList.remove('fa-spin'), 1500);
+            });
+    }
+
+    // Task details modal functions
+    function showTaskDetails(hashId, animeName, episode, status, time, downloadDir) {
+        const modal = document.getElementById('task-details-modal');
+        document.getElementById('modal-anime-name').innerText = animeName;
+        document.getElementById('modal-episode').innerText = '第' + episode + '集';
+        document.getElementById('modal-time').innerText = time;
+        document.getElementById('modal-save-path').value = downloadDir || "/downloads/default/path";
+
+        const badge = document.getElementById('modal-status-badge');
+        badge.innerText = status;
+        badge.className = "px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider " +
+                         (status === 'completed' ? 'badge-completed' : 'badge-pending');
+
+        const hlSection = document.getElementById('modal-hardlink-section');
+        const hlInput = document.getElementById('modal-link-path');
+
+        if (status === 'completed') {
+            // Fetch hardlink info
+            fetch(`/api/hardlinks/${hashId}`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Hardlink API response:', data);
+                    if (data.success && data.data && data.data.length > 0) {
+                        console.log('Showing hardlink section with', data.data.length, 'links');
+                        hlSection.classList.remove('hidden');
+                        hlInput.value = data.data.map(hl => hl.hardlink_path).join('\n');
+                    } else {
+                        console.log('No hardlink data found or empty array');
+                        hlSection.classList.add('hidden');
+                    }
+                })
+                .catch((error) => {
+                    console.error('Error fetching hardlink info:', error);
+                    hlSection.classList.add('hidden');
+                });
+        } else {
+            hlSection.classList.add('hidden');
+        }
+
+        modal.classList.remove('hidden');
+    }
+
+    function closeTaskModal() {
+        document.getElementById('task-details-modal').classList.add('hidden');
+    }
+
+    // Fetch active downloads from qBittorrent
+    function fetchActiveDownloads() {
+        fetch('/api/qbittorrent/active-downloads')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    activeDownloads = data.downloads;
+                    updateActiveDownloadsDisplay();
+                    updateActiveDownloadsStats();
+                } else {
+                    console.error('Failed to fetch active downloads:', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching active downloads:', error);
+                // Show no active downloads
+                document.getElementById('active-downloads-container').innerHTML =
+                    '<div class="text-center py-8 text-slate-500 dark:text-gray-500">暂无活跃下载任务</div>';
+            });
+    }
+
+    // Update active downloads display
+    function updateActiveDownloadsDisplay() {
+        const container = document.getElementById('active-downloads-container');
+
+        if (activeDownloads.length === 0) {
+            container.innerHTML = '<div class="text-center py-8 text-slate-500 dark:text-gray-500">暂无活跃下载任务</div>';
+            return;
+        }
+
+        container.innerHTML = activeDownloads.map(item => `
+            <div class="bg-slate-50 dark:bg-white/5 rounded-lg p-4 border border-slate-100 dark:border-white/5 hover:border-orange-200 dark:hover:border-orange-500/30 transition-colors group">
+                <div class="flex justify-between items-center mb-2">
+                    <div class="flex items-center gap-3 overflow-hidden">
+                        <div class="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-500/20 flex items-center justify-center text-orange-500 dark:text-orange-400 shrink-0">
+                            <i class="fa-solid fa-file-arrow-down"></i>
+                        </div>
+                        <span class="text-sm font-medium text-slate-700 dark:text-slate-200 truncate" title="${item.name}">${item.name}</span>
+                    </div>
+                    <div class="flex items-center gap-4 shrink-0">
+                        <div class="text-right">
+                            <div class="text-xs font-bold text-slate-700 dark:text-white font-mono">${item.speed}</div>
+                            <div class="text-[10px] text-slate-400 dark:text-gray-500">${item.downloaded} / ${item.total}</div>
+                        </div>
+                        <button class="w-6 h-6 rounded-full bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 flex items-center justify-center text-slate-500 dark:text-gray-400 transition">
+                            <i class="fa-solid fa-pause text-[10px]"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="h-2 w-full bg-slate-200 dark:bg-black/40 rounded-full overflow-hidden relative">
+                    <div class="h-full bg-orange-500 dark:bg-orange-500 progress-bar stripe-progress relative" style="width: ${item.progress}%">
+                        <div class="absolute right-0 top-0 bottom-0 w-1 bg-white/30"></div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // Update active downloads stats
+    function updateActiveDownloadsStats() {
+        const count = activeDownloads.length;
+        const totalSpeed = activeDownloads.reduce((sum, dl) => {
+            const speed = parseFloat(dl.speed.replace(/[^\d.]/g, '')) || 0;
+            return sum + speed;
+        }, 0);
+
+        document.getElementById('active-downloads-count').textContent = count;
+        document.getElementById('total-download-speed').textContent = `${totalSpeed.toFixed(1)} MB/s`;
+        document.getElementById('active-count-badge').textContent = `${count} Active`;
+        document.getElementById('total-speed-display').textContent = `${totalSpeed.toFixed(1)} MB/s`;
+    }
+
+    // Fetch system resources
+    function fetchSystemResources() {
+        fetch('/api/system/resources')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateSystemMonitor(data.resources);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching system resources:', error);
+            });
+    }
+
+    // Update system monitor display
+    function updateSystemMonitor(resources) {
+        if (resources.cpu !== undefined) {
+            document.getElementById('cpu-text').textContent = `${resources.cpu}%`;
+            document.getElementById('cpu-bar').style.width = `${resources.cpu}%`;
+        }
+
+        if (resources.memory) {
+            document.getElementById('ram-text').textContent = `${resources.memory.used} GB`;
+            document.getElementById('ram-total').textContent = `/ ${resources.memory.total} GB`;
+            document.getElementById('ram-bar').style.width = `${resources.memory.percent}%`;
+        }
+
+        if (resources.disk) {
+            document.getElementById('disk-text').textContent = `${resources.disk.used} GB`;
+            document.getElementById('disk-total').textContent = `/ ${resources.disk.total} GB`;
+            document.getElementById('disk-bar').style.width = `${resources.disk.percent}%`;
+        }
+    }
+
+    // Initialize dashboard
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add event listeners for task detail buttons
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('task-detail-btn')) {
+                const btn = e.target;
+                showTaskDetails(
+                    btn.dataset.hashId,
+                    btn.dataset.animeName,
+                    btn.dataset.episode,
+                    btn.dataset.status,
+                    btn.dataset.time,
+                    btn.dataset.downloadDir
+                );
+            }
+        });
+
+        // Convert all elements with data-utc-time attribute to local timezone
+        function convertAllTimestamps() {
+            const timeElements = document.querySelectorAll('[data-utc-time]');
+            timeElements.forEach(element => {
+                // Skip RSS time elements (they have their own formatting logic)
+                if (element.classList.contains('rss-check-time')) {
+                    return;
+                }
+
+                const utcTimeStr = element.dataset.utcTime;
+                if (utcTimeStr && utcTimeStr !== 'None' && utcTimeStr !== '' && utcTimeStr !== '未知') {
+                    try {
+                        // Use global formatDate function (from base.html)
+                        const formattedTime = formatDate(utcTimeStr, 'full');
+                        element.textContent = formattedTime;
+                    } catch (e) {
+                        console.error('Time conversion error:', e, utcTimeStr);
+                        element.textContent = '未知';
+                    }
+                } else if (!utcTimeStr || utcTimeStr === '') {
+                    element.textContent = '未知';
+                }
+            });
+        }
+
+        // Convert regular timestamps on page load
+        convertAllTimestamps();
+
+        // Format RSS check time using timezone utils (after convertAllTimestamps to avoid override)
+        const rssTimeElement = document.querySelector('.rss-check-time');
+        const rssDateElement = document.querySelector('.rss-check-date');
+        if (rssTimeElement && rssDateElement) {
+            const utcTimeStr = rssTimeElement.dataset.utcTime;
+            if (utcTimeStr && utcTimeStr !== 'None' && utcTimeStr !== '') {
+                if (typeof TimezoneUtils !== 'undefined') {
+                    const localTime = new Date(utcTimeStr);
+                    const dateStr = localTime.getFullYear() + '/' +
+                                   String(localTime.getMonth() + 1).padStart(2, '0') + '/' +
+                                   String(localTime.getDate()).padStart(2, '0');
+                    const timeStr = String(localTime.getHours()).padStart(2, '0') + ':' +
+                                   String(localTime.getMinutes()).padStart(2, '0');
+                    rssDateElement.textContent = dateStr;
+                    rssTimeElement.textContent = timeStr;
+                } else {
+                    // Fallback formatting
+                    const date = new Date(utcTimeStr);
+                    const dateStr = date.getFullYear() + '/' +
+                                   String(date.getMonth() + 1).padStart(2, '0') + '/' +
+                                   String(date.getDate()).padStart(2, '0');
+                    const timeStr = String(date.getHours()).padStart(2, '0') + ':' +
+                                   String(date.getMinutes()).padStart(2, '0');
+                    rssDateElement.textContent = dateStr;
+                    rssTimeElement.textContent = timeStr;
+                }
+            } else {
+                rssDateElement.textContent = '从未';
+                rssTimeElement.textContent = '检查';
+            }
+        }
+
+        // Start periodic updates
+        fetchActiveDownloads();
+        fetchSystemResources();
+
+        // Update every 5 seconds
+        setInterval(() => {
+            fetchActiveDownloads();
+            fetchSystemResources();
+        }, 5000);
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,159 @@
+<script>
+/**
+ * Unified Time Handling Module
+ *
+ * Features:
+ * - Auto-detect user local timezone
+ * - Convert UTC to local time
+ * - Standard format: YYYY-MM-DD HH:mm:ss
+ * - Multi-language support
+ */
+const TimeUtils = (function() {
+    // Configuration
+    const config = {
+        locale: navigator.language || 'zh-CN', // Default to browser locale or fallback
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    };
+
+    /**
+     * Parse input to Date object
+     */
+    function parse(dateInput) {
+        if (!dateInput) return null;
+        if (dateInput instanceof Date) return dateInput;
+
+        // Ensure it's treated as UTC if it doesn't have timezone info
+        let dateStr = String(dateInput);
+        // Simple check for ISO format without timezone
+        if (dateStr.match(/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d+)?$/)) {
+            dateStr += 'Z';
+        } else if (dateStr.match(/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d+)?\s*UTC$/)) {
+             dateStr = dateStr.replace(/\s*UTC$/, 'Z');
+        }
+
+        const date = new Date(dateStr);
+        return isNaN(date.getTime()) ? null : date;
+    }
+
+    /**
+     * Format a date object or string to local time string
+     * @param {string|Date} dateInput - UTC date string (ISO 8601) or Date object
+     * @param {string} formatType - 'full' (YYYY-MM-DD HH:mm:ss), 'date', 'time'
+     * @returns {string} Formatted local time string
+     */
+    function format(dateInput, formatType = 'full') {
+        const date = parse(dateInput);
+        if (!date) return '-';
+
+        const options = {
+            timeZone: config.timeZone,
+            hour12: false,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        };
+
+        if (formatType === 'full' || formatType === 'time') {
+            options.hour = '2-digit';
+            options.minute = '2-digit';
+            options.second = '2-digit';
+        }
+
+        if (formatType === 'time') {
+            delete options.year;
+            delete options.month;
+            delete options.day;
+        }
+
+        // Use consistent formatting YYYY-MM-DD HH:mm:ss
+        // We manually build it to ensure consistency across locales if needed,
+        // but using standard locale string is often better for i18n.
+        // However, requirement says "Unified format (format: YYYY-MM-DD HH:mm:ss)"
+        // So we should force this format regardless of locale.
+
+        const parts = new Intl.DateTimeFormat('en-CA', {
+            ...options,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        }).formatToParts(date);
+
+        const p = {};
+        parts.forEach(({type, value}) => p[type] = value);
+
+        const datePart = `${p.year}-${p.month}-${p.day}`;
+        const timePart = `${p.hour}:${p.minute}:${p.second}`;
+
+        if (formatType === 'date') return datePart;
+        if (formatType === 'time') return timePart;
+        return `${datePart} ${timePart}`;
+    }
+
+    /**
+     * Format to relative time
+     */
+    function formatRelative(dateInput) {
+        const date = parse(dateInput);
+        if (!date) return '-';
+
+        const now = new Date();
+        const diffMs = now - date;
+        const diffSec = Math.floor(diffMs / 1000);
+        const diffMin = Math.floor(diffSec / 60);
+        const diffHour = Math.floor(diffMin / 60);
+        const diffDay = Math.floor(diffHour / 24);
+
+        const rtf = new Intl.RelativeTimeFormat(config.locale, { numeric: 'auto' });
+
+        if (diffSec < 60) return rtf.format(-diffSec, 'second');
+        if (diffMin < 60) return rtf.format(-diffMin, 'minute');
+        if (diffHour < 24) return rtf.format(-diffHour, 'hour');
+        if (diffDay < 7) return rtf.format(-diffDay, 'day');
+
+        return format(date, 'date');
+    }
+
+    /**
+     * Auto-convert all elements with a specific class
+     */
+    function render(selector = '.utc-time', dataAttribute = 'data-time') {
+        document.querySelectorAll(selector).forEach(el => {
+            const utcTime = el.getAttribute(dataAttribute);
+            if (utcTime) {
+                el.textContent = format(utcTime);
+                el.setAttribute('title', `Local: ${config.timeZone}`);
+                el.classList.remove('opacity-0');
+                el.classList.add('opacity-100');
+            }
+        });
+    }
+
+    return {
+        format,
+        formatRelative,
+        render,
+        config,
+        // Aliases for compatibility
+        formatToDateTime: format,
+        formatToShortDateTime: (dt) => format(dt, 'full'), // Or custom short format
+        formatToRelative: formatRelative,
+        getUserTimezone: () => config.timeZone,
+        getTimezoneOffset: () => -new Date().getTimezoneOffset() / 60
+    };
+})();
+
+// Global aliases for backward compatibility
+window.TimezoneUtils = TimeUtils;
+window.formatDate = function(dateString, type = 'full') {
+    return TimeUtils.format(dateString, type);
+};
+
+// Auto-initialize
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('[TimeUtils] Loaded. Timezone:', TimeUtils.config.timeZone);
+});
+</script>
