@@ -427,12 +427,14 @@ def preview_filters_api(
 def fetch_all_bangumi_rss_api(
     rss_service: RSSService = Provide[Container.rss_service],
     download_manager: DownloadManager = Provide[Container.download_manager],
-    history_repo: HistoryRepository = Provide[Container.history_repo]
+    history_repo: HistoryRepository = Provide[Container.history_repo],
+    rss_notifier = Provide[Container.rss_notifier]
 ):
     """API: 从配置的RSS链接中提取所有番组RSS"""
     import requests
     from bs4 import BeautifulSoup
     from src.core.config import RSSFeed
+    from src.core.interfaces.notifications import RSSNotification
 
     # 获取配置中的所有RSS Feeds
     rss_feeds = config.rss.get_feeds()
@@ -580,7 +582,18 @@ def fetch_all_bangumi_rss_api(
         f'batch://获取所有番组 ({len(bangumi_rss_feeds)} 个)'
     )
 
-    # 5. 确保队列已初始化，将每个番组RSS加入队列
+    # 5. 发送批处理开始通知
+    try:
+        rss_notifier.notify_processing_start(
+            RSSNotification(
+                trigger_type='获取所有',
+                rss_url=f'批量处理 {len(bangumi_rss_feeds)} 个番组RSS'
+            )
+        )
+    except Exception as e:
+        logger.warning(f'⚠️ 发送RSS开始通知失败: {e}')
+
+    # 6. 确保队列已初始化，将每个番组RSS加入队列
     worker = _ensure_rss_queue()
 
     for idx, feed in enumerate(bangumi_rss_feeds):

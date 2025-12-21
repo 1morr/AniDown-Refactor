@@ -203,6 +203,7 @@ class RssProcessingHistory(Base):
     items_found = Column(Integer, default=0)
     items_attempted = Column(Integer, default=0)
     items_processed = Column(Integer, default=0)
+    batch_feeds_processed = Column(Integer, default=0)  # 批处理模式下已处理的feed数量
     error_message = Column(Text)
     triggered_by = Column(Text, nullable=False)
     created_at = Column(TIMESTAMP, default=get_utc_now)

@@ -275,6 +275,24 @@ class HistoryRepository(IHardlinkRepository):
                 return True
             return False
 
+    def increment_batch_feeds_processed(self, history_id: int) -> int:
+        """
+        递增批处理模式下已处理的feed计数。
+
+        Args:
+            history_id: RSS历史记录ID
+
+        Returns:
+            更新后的已处理feed数量
+        """
+        with db_manager.session() as session:
+            history = session.query(RssProcessingHistory).filter_by(id=history_id).first()
+            if history:
+                history.batch_feeds_processed = (history.batch_feeds_processed or 0) + 1
+                session.flush()
+                return history.batch_feeds_processed
+            return 0
+
     def mark_processing_as_interrupted(self) -> int:
         """
         将所有 processing 状态的历史记录标记为 interrupted。
@@ -652,6 +670,7 @@ class HistoryRepository(IHardlinkRepository):
                 'items_found': record.items_found or 0,
                 'items_attempted': record.items_attempted or 0,
                 'items_processed': record.items_processed or 0,
+                'batch_feeds_processed': record.batch_feeds_processed or 0,
                 'status': record.status or 'unknown'
             }
 

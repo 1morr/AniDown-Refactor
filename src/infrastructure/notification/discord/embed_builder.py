@@ -622,13 +622,19 @@ class EmbedBuilder:
             Embed 字典
         """
         # 根据状态确定颜色和标题
-        if status == 'completed' and success_count == total_count:
+        # 特殊情况：如果没有需要尝试的项目（全部被过滤或已存在），视为成功
+        if status == 'completed' and attempt_count == 0:
+            color = self.COLOR_SUCCESS
+            title = '✅ RSS 处理完成 (无新项目)'
+        elif success_count == attempt_count and attempt_count > 0:
+            # 所有尝试的项目都成功了
             color = self.COLOR_SUCCESS
             title = '✅ RSS 处理完成'
         elif status == 'interrupted':
             color = self.COLOR_WARNING
             title = '⏸️ RSS 处理已中断'
         elif success_count > 0:
+            # 部分成功
             color = self.COLOR_WARNING
             title = '⚠️ RSS 处理部分完成'
         else:

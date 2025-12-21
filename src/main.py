@@ -540,6 +540,42 @@ def init_queue_workers(download_manager):
                 except Exception as e:
                     logger.warning(f'⚠️ 发送RSS完成通知失败: {e}')
 
+            # 批处理模式：跟踪已处理的feed数量
+            if is_batch_mode:
+                batch_total = payload.extra_data.get('batch_total', 1)
+
+                # 递增已处理的feed计数
+                history_repo.increment_batch_feeds_processed(history_id)
+
+                # 获取当前状态
+                stats = history_repo.get_rss_history_stats(history_id)
+                feeds_processed = stats.get('batch_feeds_processed', 0) if stats else 0
+                total_attempted = stats.get('items_attempted', 0) if stats else 0
+                total_found = stats.get('items_found', 0) if stats else 0
+
+                logger.debug(
+                    f'📊 批处理进度: feeds={feeds_processed}/{batch_total}, '
+                    f'items_attempted={total_attempted}'
+                )
+
+                # 如果所有feed都处理完成且没有项目需要处理（全部过滤/存在）
+                if feeds_processed >= batch_total and total_attempted == 0:
+                    # 所有项目都被过滤或已存在，发送完成通知
+                    history_repo.update_rss_history_stats(
+                        history_id,
+                        status='completed'
+                    )
+                    try:
+                        rss_notifier.notify_processing_complete(
+                            success_count=0,
+                            total_count=total_found,
+                            failed_items=[],
+                            attempt_count=0,
+                            status='completed'
+                        )
+                    except Exception as e:
+                        logger.warning(f'⚠️ 发送批处理完成通知失败: {e}')
+
         except Exception as e:
             logger.error(f'❌ 处理 RSS Feed 事件失败: {e}', exc_info=True)
 
@@ -642,16 +678,17 @@ def init_queue_workers(download_manager):
             exists_count = detail_stats.get('exists', 0)
             filtered_count = detail_stats.get('filtered', 0)
 
-            # 计算已处理的项目数（成功 + 失败 + 存在）
-            processed_total = success_count + failed_count + exists_count
+            # 计算已处理的项目数（只计算成功和失败，不包括存在/过滤的）
+            # 因为 items_attempted 只包含实际入队的项目，不包括直接标记为 exists/filtered 的
+            actual_processed = success_count + failed_count
 
             logger.debug(
-                f'📊 RSS批次进度: 已处理={processed_total}, 尝试={items_attempted}, '
-                f'成功={success_count}, 失败={failed_count}'
+                f'📊 RSS批次进度: 实际处理={actual_processed}, 尝试={items_attempted}, '
+                f'成功={success_count}, 失败={failed_count}, 已存在={exists_count}'
             )
 
-            # 如果所有项目都处理完成，发送完成通知
-            if processed_total >= items_attempted and items_attempted > 0:
+            # 如果所有入队项目都处理完成，发送完成通知
+            if actual_processed >= items_attempted and items_attempted > 0:
                 # 更新状态为完成
                 history_repo.update_rss_history_stats(
                     history_id,
