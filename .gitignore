@@ -29,8 +29,12 @@ htmlcov/
 
 # Misc
 ai_debug_logs/
+logs/
 *.log
 .DS_Store
 anime_downloader.db
 config.json
 \[Nekomoe kissaten&VCB-Studio] Medalist \[Ma10p_1080p].torrent
+CLAUDE.md
+CODE_STYLE.md
+.claude/
