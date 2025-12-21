@@ -7,7 +7,7 @@ Provides coordinated file renaming functionality for media library organization.
 import logging
 import os
 import re
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from src.core.config import config
 from src.core.interfaces.adapters import IFileRenamer, RenameResult
@@ -44,7 +44,8 @@ class RenameService(IFileRenamer):
         file_classifier: Optional[FileClassifier] = None,
         filename_formatter: Optional[FilenameFormatter] = None,
         anime_repo: Optional['IAnimeRepository'] = None,
-        ai_file_renamer: Optional['IAIFileRenamer'] = None
+        ai_file_renamer: Optional['IAIFileRenamer'] = None,
+        on_ai_usage: Optional[Callable[[str, str], None]] = None
     ):
         """
         Initialize the rename service.
@@ -54,15 +55,19 @@ class RenameService(IFileRenamer):
             filename_formatter: Filename formatter instance.
             anime_repo: Anime repository for pattern storage.
             ai_file_renamer: AI file renamer for processing.
+            on_ai_usage: Callback when AI is used (reason, project_name).
         """
         self._classifier = file_classifier or FileClassifier()
         self._formatter = filename_formatter or FilenameFormatter()
         self._anime_repo = anime_repo
         self._ai_file_renamer = ai_file_renamer
+        self._on_ai_usage = on_ai_usage
         # AI 使用跟踪
         self._last_ai_used: bool = False
         self._last_ai_reason: str = ''
         self._last_tvdb_used: bool = False
+        # 当前处理的动漫标题（用于回调）
+        self._current_anime_title: str = ''
 
     @property
     def last_used_ai(self) -> bool:
@@ -78,6 +83,22 @@ class RenameService(IFileRenamer):
     def last_tvdb_used(self) -> bool:
         """Check if last operation used TVDB."""
         return self._last_tvdb_used
+
+    def _set_ai_used(self, reason: str) -> None:
+        """
+        Set AI usage flag and immediately trigger notification callback.
+
+        Args:
+            reason: Reason for using AI.
+        """
+        self._last_ai_used = True
+        self._last_ai_reason = reason
+        # 立即触发 AI 使用通知
+        if self._on_ai_usage and self._current_anime_title:
+            try:
+                self._on_ai_usage(reason, self._current_anime_title)
+            except Exception as e:
+                logger.warning(f'⚠️ AI 使用通知回调失败: {e}')
 
     def generate_rename_mapping(
         self,
@@ -205,12 +226,13 @@ class RenameService(IFileRenamer):
         self._last_ai_used = False
         self._last_ai_reason = ''
         self._last_tvdb_used = tvdb_data is not None
+        # 保存当前动漫标题用于回调
+        self._current_anime_title = anime_title or ''
 
         # Step 1: Check if multi-season - force AI processing
         if is_multi_season:
             logger.info('🔄 检测到多季内容，跳过正则表达式，直接使用AI处理')
-            self._last_ai_used = True
-            self._last_ai_reason = '多季内容，跳过正则表达式'
+            self._set_ai_used('多季内容，跳过正则表达式')
             return self._process_with_ai(
                 video_files=video_files,
                 anime_id=anime_id,
@@ -260,13 +282,11 @@ class RenameService(IFileRenamer):
                 )
             else:
                 logger.warning('数据库正则无法提取所有集数，需要使用AI重新生成正则')
-                self._last_ai_used = True
-                self._last_ai_reason = '数据库正则无法提取所有集数'
+                self._set_ai_used('数据库正则无法提取所有集数')
 
         else:
             logger.info('数据库中没有正则表达式，需要使用AI生成正则')
-            self._last_ai_used = True
-            self._last_ai_reason = '数据库中没有正则表达式'
+            self._set_ai_used('数据库中没有正则表达式')
 
         # Step 4: Use AI for processing
         return self._process_with_ai(

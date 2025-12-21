@@ -173,6 +173,28 @@ class DownloadManager:
         self._webhook_received_notifier = webhook_received_notifier
         self._file_classifier = FileClassifier()
 
+        # 设置 RenameService 的 AI 使用回调，实现即时通知
+        if ai_usage_notifier and rename_service:
+            rename_service._on_ai_usage = self._notify_rename_ai_usage
+
+    def _notify_rename_ai_usage(self, reason: str, project_name: str) -> None:
+        """
+        Callback for RenameService to send immediate AI usage notification.
+
+        Args:
+            reason: Reason for using AI.
+            project_name: Anime title being processed.
+        """
+        if self._ai_usage_notifier:
+            self._ai_usage_notifier.notify_ai_usage(
+                AIUsageNotification(
+                    reason=reason,
+                    project_name=project_name,
+                    context='webhook',
+                    operation='file_renaming'
+                )
+            )
+
     # ==================== RSS Processing ====================
 
     def process_rss_feeds(
@@ -1146,16 +1168,7 @@ class DownloadManager:
 
             logger.info(f'🎯 重命名方案: {rename_result.method}')
 
-            # Check if AI was used and send notification
-            if self._rename_service.last_used_ai and self._ai_usage_notifier:
-                self._ai_usage_notifier.notify_ai_usage(
-                    AIUsageNotification(
-                        reason=self._rename_service.ai_reason,
-                        project_name=anime_title,
-                        context='webhook',
-                        operation='file_renaming'
-                    )
-                )
+            # AI 使用通知已通过 RenameService 的回调即时发送，无需在此重复发送
 
             # Collect rename examples (max 3)
             rename_examples = []
