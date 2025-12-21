@@ -815,13 +815,14 @@ class TestRSSControllerIntegration:
         assert payload.extra_data['mode'] == 'ai_mode'
 
         # Test enqueue_event works with proper signature
-        queue_size = worker.enqueue_event(
+        event = worker.enqueue_event(
             event_type='test_event',
             payload=payload
         )
 
-        assert isinstance(queue_size, int)
-        assert queue_size >= 1
+        # enqueue_event now returns a QueueEvent, not an int
+        assert event is not None
+        assert hasattr(event, 'queue_id')
 
     def test_rss_item_interface_compatibility(self, client):
         """
@@ -897,8 +898,8 @@ class TestQueueInterfaceCompliance:
         assert hasattr(event, 'received_at')
         assert hasattr(event, 'metadata')
 
-        # Note: QueueEvent does NOT have queue_id
-        assert not hasattr(event, 'queue_id')
+        # Note: QueueEvent now has queue_id
+        assert hasattr(event, 'queue_id')
 
     def test_rss_payload_structure(self):
         """Verify RSSPayload has correct structure."""

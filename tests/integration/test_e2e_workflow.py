@@ -56,12 +56,12 @@ class TestCompleteWorkflow:
             library_root='/library/TV Shows'
         )
         file_classifier = FileClassifier()
-        pattern_matcher = PatternMatcher()
         filename_formatter = FilenameFormatter()
         rename_service = RenameService(
             file_classifier=file_classifier,
-            pattern_matcher=pattern_matcher,
-            filename_formatter=filename_formatter
+            filename_formatter=filename_formatter,
+            anime_repo=anime_repo,
+            ai_file_renamer=mock_file_renamer
         )
         hardlink_service = HardlinkService(
             hardlink_repo=history_repo,

@@ -41,6 +41,9 @@ class TestWebhookHandler:
 
     def test_webhook_qbit_torrent_completed(self, client):
         """Test qBittorrent torrent completed webhook."""
+        from src.services.queue.queue_worker import QueueEvent
+        from src.services.queue.webhook_queue import WebhookPayload
+
         data = {
             'event_type': 'torrent_completed',
             'hash': 'abc123def456789012345678901234567890',
@@ -50,7 +53,15 @@ class TestWebhookHandler:
 
         with patch('src.interface.webhook.handler.get_webhook_queue') as mock_queue:
             mock_instance = MagicMock()
-            mock_instance.enqueue_event.return_value = 1  # Return queue length
+            # Return a QueueEvent with proper payload
+            mock_payload = WebhookPayload(
+                hash_id=data['hash'],
+                name=data['name'],
+                save_path=data['save_path']
+            )
+            mock_event = QueueEvent(event_type='torrent_completed', payload=mock_payload)
+            mock_instance.enqueue_event.return_value = mock_event
+            mock_instance.qsize.return_value = 1
             mock_queue.return_value = mock_instance
 
             response = client.post(
@@ -64,6 +75,9 @@ class TestWebhookHandler:
 
     def test_webhook_qbit_torrent_added(self, client):
         """Test qBittorrent torrent added webhook."""
+        from src.services.queue.queue_worker import QueueEvent
+        from src.services.queue.webhook_queue import WebhookPayload
+
         data = {
             'event_type': 'torrent_added',
             'hash': 'abc123def456789012345678901234567890',
@@ -72,7 +86,14 @@ class TestWebhookHandler:
 
         with patch('src.interface.webhook.handler.get_webhook_queue') as mock_queue:
             mock_instance = MagicMock()
-            mock_instance.enqueue_event.return_value = 1  # Return queue length
+            # Return a QueueEvent with proper payload
+            mock_payload = WebhookPayload(
+                hash_id=data['hash'],
+                name=data['name']
+            )
+            mock_event = QueueEvent(event_type='torrent_added', payload=mock_payload)
+            mock_instance.enqueue_event.return_value = mock_event
+            mock_instance.qsize.return_value = 1
             mock_queue.return_value = mock_instance
 
             response = client.post(
@@ -85,6 +106,9 @@ class TestWebhookHandler:
 
     def test_webhook_qbit_torrent_error(self, client):
         """Test qBittorrent torrent error webhook."""
+        from src.services.queue.queue_worker import QueueEvent
+        from src.services.queue.webhook_queue import WebhookPayload
+
         data = {
             'event_type': 'torrent_error',
             'hash': 'abc123def456789012345678901234567890',
@@ -94,7 +118,15 @@ class TestWebhookHandler:
 
         with patch('src.interface.webhook.handler.get_webhook_queue') as mock_queue:
             mock_instance = MagicMock()
-            mock_instance.enqueue_event.return_value = 1  # Return queue length
+            # Return a QueueEvent with proper payload
+            mock_payload = WebhookPayload(
+                hash_id=data['hash'],
+                name=data['name'],
+                extra_data=data
+            )
+            mock_event = QueueEvent(event_type='torrent_error', payload=mock_payload)
+            mock_instance.enqueue_event.return_value = mock_event
+            mock_instance.qsize.return_value = 1
             mock_queue.return_value = mock_instance
 
             response = client.post(

@@ -137,7 +137,7 @@ class TestKeyPool:
         key_pool.report_error(
             reservation.key_id,
             'Rate limited',
-            is_rate_limit=True,
+            status_code=429,  # Rate limit status code
             retry_after=120.0
         )
 

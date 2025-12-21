@@ -325,12 +325,10 @@ class TestRenameService:
         """Create RenameService instance."""
         from src.services.rename.rename_service import RenameService
         from src.services.rename.file_classifier import FileClassifier
-        from src.services.rename.pattern_matcher import PatternMatcher
         from src.services.rename.filename_formatter import FilenameFormatter
 
         return RenameService(
             file_classifier=FileClassifier(),
-            pattern_matcher=PatternMatcher(),
             filename_formatter=FilenameFormatter()
         )
 
