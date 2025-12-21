@@ -36,6 +36,11 @@ class DiscordWebhookClient:
     只负责 HTTP 通信，不包含消息格式化逻辑。
     遵循单一职责原则 (SRP)。
 
+    Features:
+        - Rate Limit 自动处理（429 响应时等待 Retry-After 后重试）
+        - 指数退避重试机制（网络错误时自动重试）
+        - 最大重试次数限制
+
     Example:
         >>> client = DiscordWebhookClient()
         >>> client.configure({
@@ -47,6 +52,11 @@ class DiscordWebhookClient:
         ...     channel_type='rss'
         ... )
     """
+
+    # Rate Limit 和重试配置
+    MAX_RETRIES = 3
+    BASE_RETRY_DELAY = 1.0  # 基础重试延迟（秒）
+    MAX_RETRY_DELAY = 30.0  # 最大重试延迟（秒）
 
     def __init__(self, timeout: int = 10):
         """
@@ -87,7 +97,7 @@ class DiscordWebhookClient:
         avatar_url: Optional[str] = None
     ) -> WebhookResponse:
         """
-        发送消息到 Discord。
+        发送消息到 Discord（带重试机制）。
 
         Args:
             embeds: Embed 列表
@@ -131,21 +141,95 @@ class DiscordWebhookClient:
         if avatar_url:
             payload['avatar_url'] = avatar_url
 
-        try:
-            response = requests.post(
-                webhook_url,
-                json=payload,
-                timeout=self._timeout
-            )
+        # 带重试的发送
+        return self._send_with_retry(webhook_url, payload, channel_type)
 
-            if response.status_code in (200, 204):
-                logger.debug(f'✅ Discord 消息发送成功: {channel_type}')
-                return WebhookResponse(
-                    success=True,
-                    status_code=response.status_code
+    def _send_with_retry(
+        self,
+        webhook_url: str,
+        payload: Dict[str, Any],
+        channel_type: str
+    ) -> WebhookResponse:
+        """
+        带重试机制的发送实现。
+
+        处理:
+        - 429 Rate Limit: 等待 Retry-After 后重试
+        - 5xx 服务器错误: 指数退避重试
+        - 网络错误: 指数退避重试
+
+        Args:
+            webhook_url: Webhook URL
+            payload: 请求负载
+            channel_type: 频道类型（用于日志）
+
+        Returns:
+            WebhookResponse: 响应结果
+        """
+        last_error: Optional[str] = None
+        last_status_code: Optional[int] = None
+
+        for attempt in range(self.MAX_RETRIES + 1):
+            try:
+                response = requests.post(
+                    webhook_url,
+                    json=payload,
+                    timeout=self._timeout
                 )
-            else:
-                error_msg = response.text[:200] if response.text else f'HTTP {response.status_code}'
+
+                # 成功
+                if response.status_code in (200, 204):
+                    if attempt > 0:
+                        logger.info(
+                            f'✅ Discord 消息发送成功 (第 {attempt + 1} 次尝试): '
+                            f'{channel_type}'
+                        )
+                    else:
+                        logger.debug(f'✅ Discord 消息发送成功: {channel_type}')
+                    return WebhookResponse(
+                        success=True,
+                        status_code=response.status_code
+                    )
+
+                # Rate Limit (429)
+                if response.status_code == 429:
+                    retry_after = self._get_retry_after(response)
+                    if attempt < self.MAX_RETRIES:
+                        logger.warning(
+                            f'⏳ Discord Rate Limit，等待 {retry_after:.1f}s 后重试 '
+                            f'(第 {attempt + 1}/{self.MAX_RETRIES + 1} 次)'
+                        )
+                        time.sleep(retry_after)
+                        continue
+                    else:
+                        logger.error(
+                            f'❌ Discord Rate Limit，已达最大重试次数'
+                        )
+                        return WebhookResponse(
+                            success=False,
+                            status_code=429,
+                            error_message='Rate limited, max retries exceeded'
+                        )
+
+                # 服务器错误 (5xx) - 可重试
+                if response.status_code >= 500:
+                    last_status_code = response.status_code
+                    last_error = f'Server error: {response.status_code}'
+                    if attempt < self.MAX_RETRIES:
+                        delay = self._calculate_backoff_delay(attempt)
+                        logger.warning(
+                            f'⚠️ Discord 服务器错误 {response.status_code}，'
+                            f'{delay:.1f}s 后重试 '
+                            f'(第 {attempt + 1}/{self.MAX_RETRIES + 1} 次)'
+                        )
+                        time.sleep(delay)
+                        continue
+
+                # 其他错误 - 不重试
+                error_msg = (
+                    response.text[:200] if response.text
+                    else f'HTTP {response.status_code}'
+                )
                 logger.warning(
                     f'⚠️ Discord 消息发送失败: {response.status_code}, '
                     f'{error_msg}'
@@ -156,26 +240,86 @@ class DiscordWebhookClient:
                     error_message=error_msg
                 )
 
-        except requests.Timeout:
-            logger.error(f'❌ Discord Webhook 超时: {self._timeout}s')
-            return WebhookResponse(
-                success=False,
-                error_message=f'Request timeout after {self._timeout}s'
-            )
+            except requests.Timeout:
+                last_error = f'Request timeout after {self._timeout}s'
+                if attempt < self.MAX_RETRIES:
+                    delay = self._calculate_backoff_delay(attempt)
+                    logger.warning(
+                        f'⏱️ Discord Webhook 超时，{delay:.1f}s 后重试 '
+                        f'(第 {attempt + 1}/{self.MAX_RETRIES + 1} 次)'
+                    )
+                    time.sleep(delay)
+                    continue
 
-        except requests.RequestException as e:
-            logger.error(f'❌ Discord Webhook 请求失败: {e}')
-            return WebhookResponse(
-                success=False,
-                error_message=str(e)
-            )
+            except requests.RequestException as e:
+                last_error = str(e)
+                if attempt < self.MAX_RETRIES:
+                    delay = self._calculate_backoff_delay(attempt)
+                    logger.warning(
+                        f'🔄 Discord Webhook 请求失败: {e}，{delay:.1f}s 后重试 '
+                        f'(第 {attempt + 1}/{self.MAX_RETRIES + 1} 次)'
+                    )
+                    time.sleep(delay)
+                    continue
 
-        except Exception as e:
-            logger.exception(f'❌ Discord Webhook 未预期错误: {e}')
-            return WebhookResponse(
-                success=False,
-                error_message=str(e)
-            )
+            except Exception as e:
+                logger.exception(f'❌ Discord Webhook 未预期错误: {e}')
+                return WebhookResponse(
+                    success=False,
+                    error_message=str(e)
+                )
+
+        # 所有重试都失败
+        logger.error(
+            f'❌ Discord Webhook 发送失败，已达最大重试次数: {last_error}'
+        )
+        return WebhookResponse(
+            success=False,
+            status_code=last_status_code,
+            error_message=last_error or 'Max retries exceeded'
+        )
+
+    def _get_retry_after(self, response: requests.Response) -> float:
+        """
+        从响应中获取 Retry-After 延迟时间。
+
+        Args:
+            response: HTTP 响应
+
+        Returns:
+            等待时间（秒）
+        """
+        # 尝试从 header 获取
+        retry_after = response.headers.get('Retry-After')
+        if retry_after:
+            try:
+                return float(retry_after)
+            except ValueError:
+                pass
+
+        # 尝试从 JSON body 获取
+        try:
+            data = response.json()
+            if 'retry_after' in data:
+                return float(data['retry_after'])
+        except (ValueError, KeyError):
+            pass
+
+        # 默认等待时间
+        return 5.0
+
+    def _calculate_backoff_delay(self, attempt: int) -> float:
+        """
+        计算指数退避延迟时间。
+
+        Args:
+            attempt: 当前尝试次数（从 0 开始）
+
+        Returns:
+            延迟时间（秒）
+        """
+        delay = self.BASE_RETRY_DELAY * (2 ** attempt)
+        return min(delay, self.MAX_RETRY_DELAY)
 
     def is_enabled(self) -> bool:
         """检查通知是否启用。"""

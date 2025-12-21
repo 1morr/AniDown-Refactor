@@ -372,6 +372,7 @@ def init_queue_workers(download_manager):
         try:
             from src.core.config import RSSFeed
             from src.container import container
+            from src.core.interfaces.notifications import RSSNotification
 
             # 从 extra_data 获取完整的 feed 配置
             feed_data = payload.extra_data.get('feed_data', {})
@@ -387,6 +388,18 @@ def init_queue_workers(download_manager):
             rss_service = container.rss_service()
             history_repo = container.history_repo()
             download_repo = container.download_repo()
+            rss_notifier = container.rss_notifier()
+
+            # 发送 RSS 开始通知
+            try:
+                rss_notifier.notify_processing_start(
+                    RSSNotification(
+                        trigger_type=payload.trigger_type,
+                        rss_url=payload.rss_url
+                    )
+                )
+            except Exception as e:
+                logger.warning(f'⚠️ 发送RSS开始通知失败: {e}')
 
             # 创建历史记录
             history_id = history_repo.insert_rss_history(
@@ -406,6 +419,17 @@ def init_queue_workers(download_manager):
                     items_processed=0,
                     status='completed'
                 )
+                # 发送完成通知（无项目）
+                try:
+                    rss_notifier.notify_processing_complete(
+                        success_count=0,
+                        total_count=0,
+                        failed_items=[],
+                        attempt_count=0,
+                        status='completed'
+                    )
+                except Exception as e:
+                    logger.warning(f'⚠️ 发送RSS完成通知失败: {e}')
                 return
 
             logger.info(f'📥 发现 {len(items)} 个项目，正在过滤和加入队列...')
@@ -474,6 +498,19 @@ def init_queue_workers(download_manager):
                 f'加入队列={enqueued_count}'
             )
 
+            # 如果没有项目加入队列，发送完成通知
+            if enqueued_count == 0:
+                try:
+                    rss_notifier.notify_processing_complete(
+                        success_count=0,
+                        total_count=len(items),
+                        failed_items=[],
+                        attempt_count=0,
+                        status='completed'
+                    )
+                except Exception as e:
+                    logger.warning(f'⚠️ 发送RSS完成通知失败: {e}')
+
         except Exception as e:
             logger.error(f'❌ 处理 RSS Feed 事件失败: {e}', exc_info=True)
 
@@ -499,6 +536,8 @@ def init_queue_workers(download_manager):
                         history_repo.insert_rss_detail(
                             history_id, payload.item_title, 'exists', '已存在于数据库'
                         )
+                        # 检查是否是最后一个项目
+                        _check_and_send_rss_completion(history_repo, history_id)
                     return
 
             # 调用 DownloadManager 处理单个项目
@@ -530,6 +569,9 @@ def init_queue_workers(download_manager):
                         history_id, payload.item_title, 'failed', '处理失败'
                     )
 
+                # 检查是否是最后一个项目，发送完成通知
+                _check_and_send_rss_completion(history_repo, history_id)
+
             if success:
                 logger.info(f'✅ 项目处理成功: {payload.item_title[:50]}...')
             else:
@@ -545,8 +587,82 @@ def init_queue_workers(download_manager):
                     history_repo.insert_rss_detail(
                         history_id, payload.item_title, 'failed', str(e)
                     )
+                    # 检查是否是最后一个项目
+                    _check_and_send_rss_completion(history_repo, history_id)
             except Exception:
                 pass
+
+    def _check_and_send_rss_completion(history_repo, history_id):
+        """检查是否所有项目已处理完成，如果是则发送完成通知"""
+        try:
+            from src.container import container
+
+            # 获取历史记录统计
+            stats = history_repo.get_rss_history_stats(history_id)
+            if not stats:
+                return
+
+            items_attempted = stats.get('items_attempted', 0)
+            items_processed = stats.get('items_processed', 0)
+            status = stats.get('status', 'processing')
+
+            # 获取详细统计
+            detail_stats = history_repo.get_rss_detail_stats(history_id)
+            success_count = detail_stats.get('success', 0)
+            failed_count = detail_stats.get('failed', 0)
+            exists_count = detail_stats.get('exists', 0)
+            filtered_count = detail_stats.get('filtered', 0)
+
+            # 计算已处理的项目数（成功 + 失败 + 存在）
+            processed_total = success_count + failed_count + exists_count
+
+            logger.debug(
+                f'📊 RSS批次进度: 已处理={processed_total}, 尝试={items_attempted}, '
+                f'成功={success_count}, 失败={failed_count}'
+            )
+
+            # 如果所有项目都处理完成，发送完成通知
+            if processed_total >= items_attempted and items_attempted > 0:
+                # 更新状态为完成
+                history_repo.update_rss_history_stats(
+                    history_id,
+                    items_processed=success_count,
+                    status='completed'
+                )
+
+                # 发送完成通知
+                rss_notifier = container.rss_notifier()
+                items_found = stats.get('items_found', items_attempted)
+
+                # 构建失败项目列表
+                failed_items = []
+                if failed_count > 0:
+                    failed_details = history_repo.get_rss_details_by_status(history_id, 'failed')
+                    for detail in failed_details[:5]:  # 最多5个
+                        failed_items.append({
+                            'title': detail.get('item_title', ''),
+                            'reason': detail.get('error_message', '处理失败')
+                        })
+
+                # 确定状态
+                if failed_count > 0 and success_count == 0:
+                    final_status = 'failed'
+                elif failed_count > 0:
+                    final_status = 'partial'
+                else:
+                    final_status = 'completed'
+
+                logger.info(f'📤 发送RSS完成通知: 成功={success_count}, 总数={items_found}')
+                rss_notifier.notify_processing_complete(
+                    success_count=success_count,
+                    total_count=items_found,
+                    failed_items=failed_items,
+                    attempt_count=items_attempted,
+                    status=final_status
+                )
+
+        except Exception as e:
+            logger.warning(f'⚠️ 检查RSS完成状态失败: {e}')
 
     # 注册 RSS 处理器
     rss_queue.register_handler(

@@ -74,6 +74,12 @@ class HardlinkNotification:
         subtitle_count: Number of subtitle files linked.
         target_dir: Target directory for the hardlinks.
         rename_method: Method used for renaming ('ai', 'pattern', etc.).
+        torrent_id: Torrent hash identifier.
+        torrent_name: Original torrent name.
+        subtitle_group: Subtitle group name.
+        tvdb_used: Whether TVDB was used for renaming.
+        hardlink_path: Full hardlink target path.
+        rename_examples: List of rename examples (up to 3).
     """
     anime_title: str
     season: int
@@ -81,10 +87,21 @@ class HardlinkNotification:
     subtitle_count: int
     target_dir: str
     rename_method: str
+    torrent_id: str = ''
+    torrent_name: str = ''
+    subtitle_group: str = ''
+    tvdb_used: bool = False
+    hardlink_path: str = ''
+    rename_examples: List[str] = field(default_factory=list)
 
     @property
     def total_files(self) -> int:
         """Return total number of files processed."""
+        return self.video_count + self.subtitle_count
+
+    @property
+    def total_hardlinks(self) -> int:
+        """Return total number of hardlinks created."""
         return self.video_count + self.subtitle_count
 
 
@@ -108,6 +125,80 @@ class ErrorNotification:
     def is_critical(self) -> bool:
         """Check if this is a critical error."""
         return self.severity == 'critical'
+
+
+@dataclass
+class AIUsageNotification:
+    """
+    AI usage notification data.
+
+    Attributes:
+        reason: Why AI was used (e.g., 'No database patterns', 'Multi-season content').
+        project_name: Anime title/project name.
+        context: Processing context ('rss' or 'webhook').
+        operation: Operation type ('title_parsing' or 'file_renaming').
+    """
+    reason: str
+    project_name: str
+    context: str
+    operation: str
+
+
+@dataclass
+class RSSTaskNotification:
+    """
+    Individual RSS download task notification data.
+
+    Sent immediately when a download task is added.
+
+    Attributes:
+        project_name: Clean anime title.
+        hash_id: Torrent hash identifier.
+        anime_title: Original parsed title.
+        subtitle_group: Subtitle group name.
+        download_path: Download save path.
+    """
+    project_name: str
+    hash_id: str
+    anime_title: str
+    subtitle_group: str
+    download_path: str
+
+
+@dataclass
+class RSSInterruptedNotification:
+    """
+    RSS processing interrupted notification data.
+
+    Attributes:
+        trigger_type: Type of trigger (e.g., 'scheduled', 'manual').
+        rss_url: URL of the RSS feed being processed.
+        processed_count: Number of items processed before interruption.
+        total_count: Total number of items in the feed.
+        reason: Reason for interruption.
+    """
+    trigger_type: str
+    rss_url: str
+    processed_count: int
+    total_count: int
+    reason: str
+
+
+@dataclass
+class WebhookReceivedNotification:
+    """
+    Webhook received notification data.
+
+    Attributes:
+        torrent_id: Torrent hash identifier.
+        save_path: Save path from webhook.
+        content_path: Content path from webhook.
+        torrent_name: Torrent name.
+    """
+    torrent_id: str
+    save_path: str
+    content_path: str
+    torrent_name: str
 
 
 # Notification Interfaces (following Interface Segregation Principle)
@@ -134,7 +225,9 @@ class IRSSNotifier(ABC):
         self,
         success_count: int,
         total_count: int,
-        failed_items: List[Dict[str, Any]]
+        failed_items: List[Dict[str, Any]],
+        attempt_count: int = 0,
+        status: str = 'completed'
     ) -> None:
         """
         Notify that RSS processing has completed.
@@ -143,6 +236,31 @@ class IRSSNotifier(ABC):
             success_count: Number of successfully processed items.
             total_count: Total number of items processed.
             failed_items: List of failed items with error details.
+            attempt_count: Number of items attempted (new + failed).
+            status: Processing status ('completed', 'partial', 'failed').
+        """
+        pass
+
+    @abstractmethod
+    def notify_download_task(self, notification: RSSTaskNotification) -> None:
+        """
+        Notify about an individual download task (sent immediately).
+
+        Args:
+            notification: RSS task notification data.
+        """
+        pass
+
+    @abstractmethod
+    def notify_processing_interrupted(
+        self,
+        notification: RSSInterruptedNotification
+    ) -> None:
+        """
+        Notify that RSS processing was interrupted.
+
+        Args:
+            notification: RSS interrupted notification data.
         """
         pass
 
@@ -248,5 +366,44 @@ class IErrorNotifier(ABC):
         Args:
             message: Warning message.
             context: Optional additional context.
+        """
+        pass
+
+
+class IAIUsageNotifier(ABC):
+    """
+    AI usage notification interface.
+
+    Specialized interface for AI usage notifications.
+    """
+
+    @abstractmethod
+    def notify_ai_usage(self, notification: AIUsageNotification) -> None:
+        """
+        Notify that AI is being used.
+
+        Args:
+            notification: AI usage notification data.
+        """
+        pass
+
+
+class IWebhookNotifier(ABC):
+    """
+    Webhook notification interface.
+
+    Specialized interface for webhook received notifications.
+    """
+
+    @abstractmethod
+    def notify_webhook_received(
+        self,
+        notification: WebhookReceivedNotification
+    ) -> None:
+        """
+        Notify that a webhook was received.
+
+        Args:
+            notification: Webhook received notification data.
         """
         pass

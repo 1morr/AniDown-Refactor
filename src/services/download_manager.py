@@ -39,14 +39,19 @@ from src.core.interfaces.adapters import (
     TitleParseResult,
 )
 from src.core.interfaces.notifications import (
+    AIUsageNotification,
     DownloadNotification,
     ErrorNotification,
     HardlinkNotification,
+    IAIUsageNotifier,
     IDownloadNotifier,
     IErrorNotifier,
     IHardlinkNotifier,
     IRSSNotifier,
+    IWebhookNotifier,
     RSSNotification,
+    RSSTaskNotification,
+    WebhookReceivedNotification,
 )
 from src.core.interfaces.repositories import (
     IAnimeRepository,
@@ -121,7 +126,9 @@ class DownloadManager:
         rss_notifier: Optional[IRSSNotifier] = None,
         download_notifier: Optional[IDownloadNotifier] = None,
         hardlink_notifier: Optional[IHardlinkNotifier] = None,
-        error_notifier: Optional[IErrorNotifier] = None
+        error_notifier: Optional[IErrorNotifier] = None,
+        ai_usage_notifier: Optional[IAIUsageNotifier] = None,
+        webhook_received_notifier: Optional[IWebhookNotifier] = None
     ):
         """
         Initialize the download manager.
@@ -143,6 +150,8 @@ class DownloadManager:
             download_notifier: Optional download notification service.
             hardlink_notifier: Optional hardlink notification service.
             error_notifier: Optional error notification service.
+            ai_usage_notifier: Optional AI usage notification service.
+            webhook_received_notifier: Optional webhook received notification service.
         """
         self._anime_repo = anime_repo
         self._download_repo = download_repo
@@ -160,6 +169,8 @@ class DownloadManager:
         self._download_notifier = download_notifier
         self._hardlink_notifier = hardlink_notifier
         self._error_notifier = error_notifier
+        self._ai_usage_notifier = ai_usage_notifier
+        self._webhook_received_notifier = webhook_received_notifier
         self._file_classifier = FileClassifier()
 
     # ==================== RSS Processing ====================
@@ -201,10 +212,18 @@ class DownloadManager:
 
         # Send start notifications
         if self._rss_notifier:
+            logger.info(f'📤 准备发送RSS开始通知，共 {len(feed_objects)} 个订阅源')
             for feed in feed_objects:
-                self._rss_notifier.notify_processing_start(
-                    RSSNotification(trigger_type=trigger_type, rss_url=feed.url)
-                )
+                try:
+                    logger.debug(f'📤 发送RSS开始通知: {feed.url[:50]}...')
+                    self._rss_notifier.notify_processing_start(
+                        RSSNotification(trigger_type=trigger_type, rss_url=feed.url)
+                    )
+                    logger.debug(f'✅ RSS开始通知发送成功')
+                except Exception as e:
+                    logger.warning(f'⚠️ 发送RSS开始通知失败: {e}')
+        else:
+            logger.warning('⚠️ RSS通知器未配置，无法发送开始通知')
 
         # Parse and process each feed
         all_items = []
@@ -611,16 +630,21 @@ class DownloadManager:
         hash_id = item.get('hash', '')
 
         try:
-            # Send notification for AI processing
-            if self._rss_notifier:
-                self._rss_notifier.notify_processing_start(
-                    RSSNotification(trigger_type='AI分析', rss_url=torrent_url, title=title)
-                )
-
             # AI title parsing
             parse_result = self._title_parser.parse(title)
             if not parse_result:
                 raise AnimeInfoExtractionError('AI解析失败')
+
+            # Send AI usage notification
+            if self._ai_usage_notifier:
+                self._ai_usage_notifier.notify_ai_usage(
+                    AIUsageNotification(
+                        reason='新动漫标题解析',
+                        project_name=parse_result.clean_title,
+                        context='rss',
+                        operation='title_parsing'
+                    )
+                )
 
             # Save anime info
             anime_id = self._save_anime_info(
@@ -665,13 +689,13 @@ class DownloadManager:
                 download_method='rss_ai'
             )
 
-            # Send notification
-            self._notify_download_start(
+            # Send download task notification (immediate)
+            self._notify_download_task(
+                project_name=title,
+                hash_id=hash_id,
                 anime_title=parse_result.clean_title,
-                season=parse_result.season,
-                episode=parse_result.episode,
                 subtitle_group=parse_result.subtitle_group,
-                hash_id=hash_id
+                download_path=save_path
             )
 
             return True
@@ -739,13 +763,13 @@ class DownloadManager:
             download_method='fixed_rss'
         )
 
-        # Send notification
-        self._notify_download_start(
+        # Send download task notification (immediate)
+        self._notify_download_task(
+            project_name=title,
+            hash_id=hash_id,
             anime_title=anime_short_title,
-            season=anime_season,
-            episode=episode,
             subtitle_group=anime_subtitle_group,
-            hash_id=hash_id
+            download_path=save_path
         )
 
         return True
@@ -938,6 +962,20 @@ class DownloadManager:
             logger.info('🎉 种子下载完成')
             logger.info(f'  Hash: {hash_id[:8]}...')
 
+            # Send webhook received notification
+            if self._webhook_received_notifier:
+                torrent_name = webhook_data.get('name', '') if webhook_data else ''
+                save_path = webhook_data.get('save_path', '') if webhook_data else ''
+                content_path = webhook_data.get('content_path', '') if webhook_data else ''
+                self._webhook_received_notifier.notify_webhook_received(
+                    WebhookReceivedNotification(
+                        torrent_id=hash_id,
+                        save_path=save_path,
+                        content_path=content_path or save_path,
+                        torrent_name=torrent_name
+                    )
+                )
+
             # Update download status
             completion_time = datetime.now(timezone.utc)
             self._download_repo.update_status(hash_id, 'completed', completion_time)
@@ -1108,6 +1146,24 @@ class DownloadManager:
 
             logger.info(f'🎯 重命名方案: {rename_result.method}')
 
+            # Check if AI was used and send notification
+            if self._rename_service.last_used_ai and self._ai_usage_notifier:
+                self._ai_usage_notifier.notify_ai_usage(
+                    AIUsageNotification(
+                        reason=self._rename_service.ai_reason,
+                        project_name=anime_title,
+                        context='webhook',
+                        operation='file_renaming'
+                    )
+                )
+
+            # Collect rename examples (max 3)
+            rename_examples = []
+            for i, (old_name, new_name) in enumerate(rename_result.main_files.items()):
+                if i >= 3:
+                    break
+                rename_examples.append(f'{old_name} → {new_name}')
+
             # Create hardlinks for video files
             for video in video_files:
                 original_name = video.name
@@ -1171,7 +1227,13 @@ class DownloadManager:
                     video_count=hardlink_count,
                     subtitle_count=len(subtitle_files),
                     target_dir=target_dir,
-                    rename_method=rename_result.method
+                    rename_method=rename_result.method,
+                    torrent_id=hash_id,
+                    torrent_name=download_info.original_filename,
+                    subtitle_group=subtitle_group,
+                    tvdb_used=self._rename_service.last_tvdb_used,
+                    hardlink_path=target_dir,
+                    rename_examples=rename_examples
                 )
                 try:
                     self._hardlink_notifier.notify_hardlink_created(notification)
@@ -1609,23 +1671,66 @@ class DownloadManager:
             except Exception as e:
                 logger.warning(f'⚠️ 发送下载开始通知失败: {e}')
 
+    def _notify_download_task(
+        self,
+        project_name: str,
+        hash_id: str,
+        anime_title: str,
+        subtitle_group: str,
+        download_path: str
+    ) -> None:
+        """Send download task notification (immediate, per task)."""
+        if self._rss_notifier:
+            try:
+                self._rss_notifier.notify_download_task(
+                    RSSTaskNotification(
+                        project_name=project_name,
+                        hash_id=hash_id or '',
+                        anime_title=anime_title,
+                        subtitle_group=subtitle_group,
+                        download_path=download_path
+                    )
+                )
+            except Exception as e:
+                logger.warning(f'⚠️ 发送下载任务通知失败: {e}')
+
     def _notify_completion(
         self,
         success_count: int,
         total_count: int,
         failed_items: List[Dict[str, str]],
-        feed_objects: List[RSSFeed]
+        feed_objects: List[RSSFeed],
+        attempt_count: int = 0
     ) -> None:
-        """Send RSS processing completion notification."""
+        """Send RSS processing completion notification with enhanced stats."""
+        logger.info(f'📤 准备发送RSS完成通知: 成功={success_count}, 总数={total_count}')
         if self._rss_notifier:
             try:
+                # Calculate attempt count if not provided
+                if attempt_count == 0:
+                    attempt_count = success_count + len(failed_items)
+
+                # Determine status
+                if len(failed_items) > 0 and success_count == 0:
+                    status = 'failed'
+                elif len(failed_items) > 0:
+                    status = 'partial'
+                else:
+                    status = 'completed'
+
+                logger.debug(f'📤 发送完成通知: status={status}, attempt={attempt_count}')
                 self._rss_notifier.notify_processing_complete(
                     success_count=success_count,
                     total_count=total_count,
-                    failed_items=failed_items
+                    failed_items=failed_items,
+                    attempt_count=attempt_count,
+                    status=status
                 )
+                logger.debug('✅ RSS完成通知发送成功')
             except Exception as e:
                 logger.warning(f'⚠️ 发送完成通知失败: {e}')
+        else:
+            logger.warning('⚠️ RSS通知器未配置，无法发送完成通知')
 
     def _notify_error(self, message: str) -> None:
         """Send error notification."""

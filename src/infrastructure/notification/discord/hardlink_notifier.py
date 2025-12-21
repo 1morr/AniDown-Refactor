@@ -29,7 +29,11 @@ class DiscordHardlinkNotifier(IHardlinkNotifier):
         ...     video_count=24,
         ...     subtitle_count=24,
         ...     target_dir='/media/anime/葬送的芙莉莲/Season 01',
-        ...     rename_method='AI'
+        ...     rename_method='AI',
+        ...     torrent_id='abc123',
+        ...     subtitle_group='Sakurato',
+        ...     tvdb_used=True,
+        ...     rename_examples=['[ANi] ep01.mkv → Season 1/Frieren - S01E01.mkv']
         ... ))
     """
 
@@ -52,16 +56,22 @@ class DiscordHardlinkNotifier(IHardlinkNotifier):
         """
         通知硬链接创建成功。
 
+        使用详细的 Embed 格式，包含 Torrent ID、TVDB 使用情况、重命名示例等。
+
         Args:
             notification: 硬链接通知数据
         """
-        embed = self._embed_builder.build_hardlink_created_embed(
+        embed = self._embed_builder.build_hardlink_detailed_embed(
+            torrent_id=notification.torrent_id,
+            torrent_name=notification.torrent_name,
             anime_title=notification.anime_title,
-            season=notification.season,
+            subtitle_group=notification.subtitle_group,
+            tvdb_used=notification.tvdb_used,
+            hardlink_path=notification.hardlink_path or notification.target_dir,
+            rename_method=notification.rename_method,
             video_count=notification.video_count,
             subtitle_count=notification.subtitle_count,
-            target_dir=notification.target_dir,
-            rename_method=notification.rename_method
+            rename_examples=notification.rename_examples
         )
 
         response = self._client.send(embeds=[embed], channel_type='hardlink')

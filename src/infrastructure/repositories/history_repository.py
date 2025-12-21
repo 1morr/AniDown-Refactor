@@ -616,6 +616,48 @@ class HistoryRepository(IHardlinkRepository):
                 'created_at': record.created_at.isoformat() if record.created_at else None
             } for record in records]
 
+    def get_rss_history_stats(self, history_id: int) -> Optional[Dict[str, Any]]:
+        """获取RSS历史统计信息"""
+        with db_manager.session() as session:
+            record = session.query(RssProcessingHistory).filter_by(id=history_id).first()
+            if not record:
+                return None
+            return {
+                'items_found': record.items_found or 0,
+                'items_attempted': record.items_attempted or 0,
+                'items_processed': record.items_processed or 0,
+                'status': record.status or 'unknown'
+            }
+
+    def get_rss_detail_stats(self, history_id: int) -> Dict[str, int]:
+        """获取RSS详情统计（按状态分组）"""
+        with db_manager.session() as session:
+            details = session.query(RssProcessingDetail).filter_by(history_id=history_id).all()
+            stats = {'success': 0, 'failed': 0, 'exists': 0, 'filtered': 0}
+            for detail in details:
+                status = detail.item_status or 'unknown'
+                if status in stats:
+                    stats[status] += 1
+            return stats
+
+    def get_rss_details_by_status(
+        self, history_id: int, status: str
+    ) -> List[Dict[str, Any]]:
+        """获取指定状态的RSS详情"""
+        with db_manager.session() as session:
+            details = session.query(RssProcessingDetail).filter_by(
+                history_id=history_id,
+                item_status=status
+            ).all()
+            return [
+                {
+                    'item_title': d.item_title,
+                    'status': d.item_status,
+                    'error_message': d.failure_reason
+                }
+                for d in details
+            ]
+
     def get_hardlink_attempts_stats(self) -> Dict[str, int]:
         """获取硬链接尝试统计"""
         with db_manager.session() as session:

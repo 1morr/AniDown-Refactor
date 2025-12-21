@@ -14,9 +14,14 @@ from src.core.domain.value_objects import DownloadStatus, TorrentHash
 from src.core.exceptions import HardlinkError, TorrentNotFoundError
 from src.core.interfaces.adapters import IDownloadClient, IFileRenamer
 from src.core.interfaces.notifications import (
+    AIUsageNotification,
     HardlinkNotification,
     IDownloadNotifier,
     IHardlinkNotifier,
+    IAIUsageNotifier,
+    IWebhookNotifier,
+    IErrorNotifier,
+    WebhookReceivedNotification,
 )
 from src.core.interfaces.repositories import IAnimeRepository, IDownloadRepository
 from src.services.file.hardlink_service import HardlinkService
@@ -71,7 +76,10 @@ class TorrentCompletionHandler:
         hardlink_service: HardlinkService,
         file_renamer: IFileRenamer,
         download_notifier: Optional[IDownloadNotifier] = None,
-        hardlink_notifier: Optional[IHardlinkNotifier] = None
+        hardlink_notifier: Optional[IHardlinkNotifier] = None,
+        webhook_notifier: Optional[IWebhookNotifier] = None,
+        ai_usage_notifier: Optional[IAIUsageNotifier] = None,
+        error_notifier: Optional[IErrorNotifier] = None
     ):
         """
         Initialize the completion handler.
@@ -84,6 +92,9 @@ class TorrentCompletionHandler:
             file_renamer: Service for file renaming.
             download_notifier: Optional download event notifier.
             hardlink_notifier: Optional hardlink event notifier.
+            webhook_notifier: Optional webhook event notifier.
+            ai_usage_notifier: Optional AI usage notifier.
+            error_notifier: Optional error notifier.
         """
         self._anime_repo = anime_repo
         self._download_repo = download_repo
@@ -92,9 +103,12 @@ class TorrentCompletionHandler:
         self._file_renamer = file_renamer
         self._download_notifier = download_notifier
         self._hardlink_notifier = hardlink_notifier
+        self._webhook_notifier = webhook_notifier
+        self._ai_usage_notifier = ai_usage_notifier
+        self._error_notifier = error_notifier
         self._file_classifier = FileClassifier()
 
-    def handle(self, hash_id: str) -> CompletionResult:
+    def handle(self, hash_id: str, torrent_name: str = '') -> CompletionResult:
         """
         Handle a completed torrent.
 
@@ -102,6 +116,7 @@ class TorrentCompletionHandler:
 
         Args:
             hash_id: Torrent hash identifier.
+            torrent_name: Optional torrent name for notifications.
 
         Returns:
             CompletionResult with processing details.
@@ -153,6 +168,16 @@ class TorrentCompletionHandler:
                 result.errors.append('Failed to generate rename mapping')
                 return result
 
+            # Check if AI was used and notify
+            if self._was_ai_used():
+                self._notify_ai_usage(
+                    reason=self._get_ai_reason(),
+                    project_name=download_record.anime_title
+                )
+
+            # Collect rename examples (max 3)
+            rename_examples = self._collect_rename_examples(rename_result.main_files, max_count=3)
+
             # Build target directory
             target_dir = self._hardlink_service.build_target_directory(
                 anime_title=download_record.anime_title,
@@ -192,7 +217,13 @@ class TorrentCompletionHandler:
             self._update_record(download_record)
 
             # Send notifications
-            self._send_notifications(download_record, result, rename_result.method)
+            self._send_notifications(
+                record=download_record,
+                result=result,
+                rename_method=rename_result.method,
+                torrent_name=torrent_name or download_record.original_filename,
+                rename_examples=rename_examples
+            )
 
             result.success = True
             logger.info(
@@ -203,14 +234,84 @@ class TorrentCompletionHandler:
         except TorrentNotFoundError as e:
             logger.error(f'❌ Torrent not found: {e}')
             result.errors.append(str(e))
+            self._notify_error(hash_id, str(e))
         except HardlinkError as e:
             logger.error(f'❌ Hardlink error: {e}')
             result.errors.append(str(e))
+            self._notify_error(hash_id, str(e))
         except Exception as e:
             logger.exception(f'❌ Unexpected error processing torrent: {e}')
             result.errors.append(str(e))
+            self._notify_error(hash_id, str(e))
 
         return result
+
+    def _was_ai_used(self) -> bool:
+        """Check if AI was used for file renaming."""
+        return hasattr(self._file_renamer, 'last_used_ai') and self._file_renamer.last_used_ai
+
+    def _get_ai_reason(self) -> str:
+        """Get reason for AI usage."""
+        return getattr(self._file_renamer, 'ai_reason', '文件重命名')
+
+    def _get_tvdb_used(self) -> bool:
+        """Check if TVDB was used."""
+        return hasattr(self._file_renamer, 'last_tvdb_used') and self._file_renamer.last_tvdb_used
+
+    def _notify_ai_usage(self, reason: str, project_name: str) -> None:
+        """
+        Send AI usage notification.
+
+        Args:
+            reason: Reason for AI usage.
+            project_name: Project/anime name.
+        """
+        if self._ai_usage_notifier:
+            self._ai_usage_notifier.notify_ai_usage(
+                AIUsageNotification(
+                    reason=reason,
+                    project_name=project_name,
+                    context='webhook',
+                    operation='file_renaming'
+                )
+            )
+
+    def _notify_error(self, hash_id: str, error_message: str) -> None:
+        """
+        Send error notification.
+
+        Args:
+            hash_id: Torrent hash.
+            error_message: Error message.
+        """
+        if self._error_notifier:
+            self._error_notifier.notify_error(
+                error_type='torrent_completion',
+                message=error_message,
+                details={'torrent_hash': hash_id[:8]}
+            )
+
+    def _collect_rename_examples(
+        self,
+        rename_mapping: Dict[str, str],
+        max_count: int = 3
+    ) -> List[str]:
+        """
+        Collect rename examples for notification.
+
+        Args:
+            rename_mapping: Original -> new name mapping.
+            max_count: Maximum number of examples.
+
+        Returns:
+            List of rename example strings.
+        """
+        examples = []
+        for i, (old_name, new_name) in enumerate(rename_mapping.items()):
+            if i >= max_count:
+                break
+            examples.append(f'{old_name} → {new_name}')
+        return examples
 
     def _create_hardlinks(
         self,
@@ -272,7 +373,9 @@ class TorrentCompletionHandler:
         self,
         record: DownloadRecord,
         result: CompletionResult,
-        rename_method: str
+        rename_method: str,
+        torrent_name: str = '',
+        rename_examples: List[str] = None
     ) -> None:
         """
         Send completion notifications.
@@ -281,6 +384,8 @@ class TorrentCompletionHandler:
             record: Download record.
             result: Completion result.
             rename_method: Method used for renaming.
+            torrent_name: Torrent name for notification.
+            rename_examples: List of rename examples.
         """
         if self._hardlink_notifier:
             notification = HardlinkNotification(
@@ -289,7 +394,13 @@ class TorrentCompletionHandler:
                 video_count=result.video_count,
                 subtitle_count=result.subtitle_count,
                 target_dir=result.target_directory,
-                rename_method=rename_method
+                rename_method=rename_method,
+                torrent_id=result.hash_id,
+                torrent_name=torrent_name or record.original_filename,
+                subtitle_group=record.subtitle_group,
+                tvdb_used=self._get_tvdb_used(),
+                hardlink_path=result.target_directory,
+                rename_examples=rename_examples or []
             )
             try:
                 self._hardlink_notifier.notify_hardlink_created(notification)
@@ -301,7 +412,8 @@ class TorrentCompletionHandler:
         hash_id: str,
         name: str = '',
         category: str = '',
-        save_path: str = ''
+        save_path: str = '',
+        content_path: str = ''
     ) -> CompletionResult:
         """
         Handle a webhook completion event.
@@ -313,12 +425,25 @@ class TorrentCompletionHandler:
             name: Torrent name (may be used for missing records).
             category: Torrent category.
             save_path: Save path.
+            content_path: Content path.
 
         Returns:
             CompletionResult.
         """
         logger.info(f'🔔 Webhook received: {hash_id[:8]} - {name[:50] if name else ""}')
-        return self.handle(hash_id)
+
+        # Send webhook received notification
+        if self._webhook_notifier:
+            self._webhook_notifier.notify_webhook_received(
+                WebhookReceivedNotification(
+                    torrent_id=hash_id,
+                    save_path=save_path,
+                    content_path=content_path or save_path,
+                    torrent_name=name
+                )
+            )
+
+        return self.handle(hash_id, torrent_name=name)
 
     def retry_failed(self, hash_id: str) -> CompletionResult:
         """

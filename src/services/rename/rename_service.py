@@ -59,6 +59,25 @@ class RenameService(IFileRenamer):
         self._formatter = filename_formatter or FilenameFormatter()
         self._anime_repo = anime_repo
         self._ai_file_renamer = ai_file_renamer
+        # AI 使用跟踪
+        self._last_ai_used: bool = False
+        self._last_ai_reason: str = ''
+        self._last_tvdb_used: bool = False
+
+    @property
+    def last_used_ai(self) -> bool:
+        """Check if last operation used AI."""
+        return self._last_ai_used
+
+    @property
+    def ai_reason(self) -> str:
+        """Get reason for AI usage in last operation."""
+        return self._last_ai_reason
+
+    @property
+    def last_tvdb_used(self) -> bool:
+        """Check if last operation used TVDB."""
+        return self._last_tvdb_used
 
     def generate_rename_mapping(
         self,
@@ -182,9 +201,16 @@ class RenameService(IFileRenamer):
         if not video_files:
             return None
 
+        # 重置 AI 跟踪
+        self._last_ai_used = False
+        self._last_ai_reason = ''
+        self._last_tvdb_used = tvdb_data is not None
+
         # Step 1: Check if multi-season - force AI processing
         if is_multi_season:
             logger.info('🔄 检测到多季内容，跳过正则表达式，直接使用AI处理')
+            self._last_ai_used = True
+            self._last_ai_reason = '多季内容，跳过正则表达式'
             return self._process_with_ai(
                 video_files=video_files,
                 anime_id=anime_id,
@@ -222,6 +248,7 @@ class RenameService(IFileRenamer):
             if can_extract_all:
                 # All files matched with regex - use database patterns
                 logger.info(f'📋 使用数据库正则表达式成功匹配所有文件')
+                # 使用正则时不标记 AI 使用
                 return self._build_names_from_db_patterns(
                     video_files=video_files,
                     extracted_episodes=extracted_episodes,
@@ -233,9 +260,13 @@ class RenameService(IFileRenamer):
                 )
             else:
                 logger.warning('数据库正则无法提取所有集数，需要使用AI重新生成正则')
+                self._last_ai_used = True
+                self._last_ai_reason = '数据库正则无法提取所有集数'
 
         else:
             logger.info('数据库中没有正则表达式，需要使用AI生成正则')
+            self._last_ai_used = True
+            self._last_ai_reason = '数据库中没有正则表达式'
 
         # Step 4: Use AI for processing
         return self._process_with_ai(

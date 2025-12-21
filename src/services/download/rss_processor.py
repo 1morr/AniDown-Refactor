@@ -27,7 +27,15 @@ from src.core.domain.value_objects import (
 )
 from src.core.exceptions import AniDownError, RSSError
 from src.core.interfaces.adapters import IDownloadClient, ITitleParser, TitleParseResult
-from src.core.interfaces.notifications import IDownloadNotifier, IRSSNotifier, RSSNotification
+from src.core.interfaces.notifications import (
+    IDownloadNotifier,
+    IRSSNotifier,
+    IAIUsageNotifier,
+    RSSNotification,
+    RSSTaskNotification,
+    RSSInterruptedNotification,
+    AIUsageNotification,
+)
 from src.core.interfaces.repositories import IAnimeRepository, IDownloadRepository
 from src.services.file.path_builder import PathBuilder
 
@@ -119,7 +127,8 @@ class RSSProcessor:
         title_parser: ITitleParser,
         path_builder: PathBuilder,
         rss_notifier: Optional[IRSSNotifier] = None,
-        download_notifier: Optional[IDownloadNotifier] = None
+        download_notifier: Optional[IDownloadNotifier] = None,
+        ai_usage_notifier: Optional[IAIUsageNotifier] = None
     ):
         """
         Initialize the RSS processor.
@@ -132,6 +141,7 @@ class RSSProcessor:
             path_builder: Path builder for constructing paths.
             rss_notifier: Optional notifier for RSS events.
             download_notifier: Optional notifier for download events.
+            ai_usage_notifier: Optional notifier for AI usage events.
         """
         self._anime_repo = anime_repo
         self._download_repo = download_repo
@@ -140,7 +150,9 @@ class RSSProcessor:
         self._path_builder = path_builder
         self._rss_notifier = rss_notifier
         self._download_notifier = download_notifier
+        self._ai_usage_notifier = ai_usage_notifier
         self._processed_guids: Set[str] = set()
+        self._is_interrupted: bool = False
 
     def process_feed(
         self,
@@ -160,6 +172,8 @@ class RSSProcessor:
             RSSProcessResult with processing statistics.
         """
         result = RSSProcessResult()
+        self._is_interrupted = False
+        processed_count = 0
 
         logger.info(f'🚀 Processing RSS feed: {rss_url}')
 
@@ -182,9 +196,22 @@ class RSSProcessor:
 
             # Process each item
             for item in items:
+                # Check for interruption
+                if self._is_interrupted:
+                    logger.warning(f'⚠️ RSS processing interrupted at item {processed_count}/{len(items)}')
+                    self._notify_interrupted(
+                        trigger_type=trigger_type,
+                        rss_url=rss_url,
+                        processed_count=processed_count,
+                        total_count=len(items),
+                        reason='用户请求中断'
+                    )
+                    break
+
                 try:
                     if self._is_processed(item):
                         result.skipped_items += 1
+                        processed_count += 1
                         continue
 
                     success = self._process_item(item)
@@ -194,6 +221,8 @@ class RSSProcessor:
                     else:
                         result.skipped_items += 1
 
+                    processed_count += 1
+
                 except Exception as e:
                     logger.error(f'❌ Failed to process item: {item.short_title} - {e}')
                     result.failed_items += 1
@@ -201,11 +230,13 @@ class RSSProcessor:
                         'title': item.title,
                         'error': str(e)
                     })
+                    processed_count += 1
 
-            logger.info(
-                f'✅ RSS processing complete: {result.new_items} new, '
-                f'{result.skipped_items} skipped, {result.failed_items} failed'
-            )
+            if not self._is_interrupted:
+                logger.info(
+                    f'✅ RSS processing complete: {result.new_items} new, '
+                    f'{result.skipped_items} skipped, {result.failed_items} failed'
+                )
 
         except RSSError as e:
             logger.error(f'❌ RSS feed error: {e}')
@@ -214,15 +245,60 @@ class RSSProcessor:
             logger.exception(f'❌ Unexpected error processing RSS: {e}')
             result.errors.append({'error': str(e)})
 
-        # Notify completion
-        if self._rss_notifier:
+        # Notify completion (unless interrupted - already notified)
+        if self._rss_notifier and not self._is_interrupted:
+            # Determine status
+            attempt_count = result.new_items + result.failed_items
+            if result.failed_items > 0 and result.new_items == 0:
+                status = 'failed'
+            elif result.failed_items > 0:
+                status = 'partial'
+            else:
+                status = 'completed'
+
             self._rss_notifier.notify_processing_complete(
                 success_count=result.new_items,
                 total_count=result.total_items,
-                failed_items=result.errors
+                failed_items=result.errors,
+                attempt_count=attempt_count,
+                status=status
             )
 
         return result
+
+    def interrupt(self) -> None:
+        """Request interruption of current RSS processing."""
+        self._is_interrupted = True
+        logger.info('🛑 RSS processing interruption requested')
+
+    def _notify_interrupted(
+        self,
+        trigger_type: str,
+        rss_url: str,
+        processed_count: int,
+        total_count: int,
+        reason: str
+    ) -> None:
+        """
+        Send interrupted notification.
+
+        Args:
+            trigger_type: How processing was triggered.
+            rss_url: RSS feed URL.
+            processed_count: Number of items processed.
+            total_count: Total number of items.
+            reason: Reason for interruption.
+        """
+        if self._rss_notifier:
+            self._rss_notifier.notify_processing_interrupted(
+                RSSInterruptedNotification(
+                    trigger_type=trigger_type,
+                    rss_url=rss_url,
+                    processed_count=processed_count,
+                    total_count=total_count,
+                    reason=reason
+                )
+            )
 
     def _fetch_feed(self, url: str) -> List[RSSItem]:
         """
@@ -382,6 +458,15 @@ class RSSProcessor:
             logger.warning(f'⚠️ Could not parse title: {item.short_title}')
             return False
 
+        # Check if AI was used for title parsing
+        if hasattr(self._title_parser, 'last_used_ai') and self._title_parser.last_used_ai:
+            reason = getattr(self._title_parser, 'ai_reason', '标题解析')
+            self._notify_ai_usage(
+                reason=reason,
+                project_name=parse_result.clean_title,
+                operation='title_parsing'
+            )
+
         # Find or create anime info
         anime_info = self._find_or_create_anime(parse_result)
         if not anime_info:
@@ -412,9 +497,72 @@ class RSSProcessor:
         if record:
             self._processed_guids.add(item.guid)
             logger.info(f'✅ Added download: {item.short_title}')
+
+            # Send download task notification
+            self._notify_download_task(
+                project_name=item.title,
+                hash_id=item.hash_id or record.hash.value if record.hash else '',
+                anime_title=parse_result.clean_title,
+                subtitle_group=parse_result.subtitle_group,
+                download_path=download_path
+            )
+
             return True
 
         return False
+
+    def _notify_ai_usage(
+        self,
+        reason: str,
+        project_name: str,
+        operation: str
+    ) -> None:
+        """
+        Send AI usage notification.
+
+        Args:
+            reason: Reason for AI usage.
+            project_name: Project/anime name.
+            operation: Operation type ('title_parsing' or 'file_renaming').
+        """
+        if self._ai_usage_notifier:
+            self._ai_usage_notifier.notify_ai_usage(
+                AIUsageNotification(
+                    reason=reason,
+                    project_name=project_name,
+                    context='rss',
+                    operation=operation
+                )
+            )
+
+    def _notify_download_task(
+        self,
+        project_name: str,
+        hash_id: str,
+        anime_title: str,
+        subtitle_group: str,
+        download_path: str
+    ) -> None:
+        """
+        Send download task notification.
+
+        Args:
+            project_name: Original RSS item title.
+            hash_id: Torrent hash.
+            anime_title: Clean anime title.
+            subtitle_group: Subtitle group name.
+            download_path: Download directory.
+        """
+        if self._rss_notifier:
+            self._rss_notifier.notify_download_task(
+                RSSTaskNotification(
+                    project_name=project_name,
+                    hash_id=hash_id,
+                    anime_title=anime_title,
+                    subtitle_group=subtitle_group,
+                    download_path=download_path
+                )
+            )
 
     def _find_or_create_anime(
         self,

@@ -4,9 +4,12 @@ Discord 通知模块。
 提供 Discord Webhook 集成，包括：
 - Webhook 客户端（HTTP 通信）
 - Embed 构建器（消息格式化）
-- 各类通知实现（RSS、下载、硬链接、错误）
+- 各类通知实现（RSS、下载、硬链接、错误、AI使用、Webhook接收）
 """
 
+from src.infrastructure.notification.discord.ai_usage_notifier import (
+    DiscordAIUsageNotifier,
+)
 from src.infrastructure.notification.discord.download_notifier import (
     DiscordDownloadNotifier,
 )
@@ -17,6 +20,9 @@ from src.infrastructure.notification.discord.hardlink_notifier import (
 )
 from src.infrastructure.notification.discord.rss_notifier import DiscordRSSNotifier
 from src.infrastructure.notification.discord.webhook_client import DiscordWebhookClient
+from src.infrastructure.notification.discord.webhook_received_notifier import (
+    DiscordWebhookReceivedNotifier,
+)
 
 __all__ = [
     'DiscordWebhookClient',
@@ -25,4 +31,6 @@ __all__ = [
     'DiscordDownloadNotifier',
     'DiscordHardlinkNotifier',
     'DiscordErrorNotifier',
+    'DiscordAIUsageNotifier',
+    'DiscordWebhookReceivedNotifier',
 ]

@@ -35,6 +35,8 @@ from src.infrastructure.notification.discord.rss_notifier import DiscordRSSNotif
 from src.infrastructure.notification.discord.download_notifier import DiscordDownloadNotifier
 from src.infrastructure.notification.discord.hardlink_notifier import DiscordHardlinkNotifier
 from src.infrastructure.notification.discord.error_notifier import DiscordErrorNotifier
+from src.infrastructure.notification.discord.ai_usage_notifier import DiscordAIUsageNotifier
+from src.infrastructure.notification.discord.webhook_received_notifier import DiscordWebhookReceivedNotifier
 
 # File Services
 from src.services.file.path_builder import PathBuilder
@@ -157,6 +159,14 @@ class Container(containers.DeclarativeContainer):
         DiscordErrorNotifier,
         webhook_client=discord_webhook
     )
+    ai_usage_notifier = providers.Singleton(
+        DiscordAIUsageNotifier,
+        webhook_client=discord_webhook
+    )
+    webhook_received_notifier = providers.Singleton(
+        DiscordWebhookReceivedNotifier,
+        webhook_client=discord_webhook
+    )
 
     # ===== File Services =====
     path_builder = providers.Singleton(
@@ -226,7 +236,9 @@ class Container(containers.DeclarativeContainer):
         rss_notifier=rss_notifier,
         download_notifier=download_notifier,
         hardlink_notifier=hardlink_notifier,
-        error_notifier=error_notifier
+        error_notifier=error_notifier,
+        ai_usage_notifier=ai_usage_notifier,
+        webhook_received_notifier=webhook_received_notifier
     )
 
     # ===== Utility Services =====
