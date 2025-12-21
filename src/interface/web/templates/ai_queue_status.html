@@ -212,16 +212,6 @@
           </div>
         </div>
 
-        <!-- 最近使用的项目 -->
-        <div class="mb-6">
-          <h4 class="text-sm font-semibold text-slate-600 dark:text-gray-400 mb-2">
-            <i class="fa-solid fa-film mr-1"></i>最近使用的项目 (<span id="modal-anime-count">0</span> 个)
-          </h4>
-          <div id="modal-recent-animes" class="flex flex-wrap gap-2">
-            <span class="text-slate-400 dark:text-gray-500 italic text-sm">暂无数据</span>
-          </div>
-        </div>
-
         <!-- 调用历史 -->
         <div>
           <h4 class="text-sm font-semibold text-slate-600 dark:text-gray-400 mb-2">
@@ -848,8 +838,6 @@ async function showKeyDetail(purpose, keyId, keyName) {
   document.getElementById('modal-success-rate').textContent = '...';
   document.getElementById('modal-today-calls').textContent = '...';
   document.getElementById('modal-avg-response').textContent = '...';
-  document.getElementById('modal-anime-count').textContent = '...';
-  document.getElementById('modal-recent-animes').innerHTML = '<span class="text-slate-400 dark:text-gray-500 italic text-sm">加载中...</span>';
   document.getElementById('modal-history-table').innerHTML = '<tr><td colspan="5" class="py-4 text-center text-slate-400">加载中...</td></tr>';
 
   try {
@@ -868,18 +856,6 @@ async function showKeyDetail(purpose, keyId, keyName) {
       document.getElementById('modal-success-rate').textContent = `${stats.success_rate}%`;
       document.getElementById('modal-today-calls').textContent = stats.today_calls.toLocaleString();
       document.getElementById('modal-avg-response').textContent = `${stats.avg_response_time_ms}ms`;
-      document.getElementById('modal-anime-count').textContent = stats.anime_count;
-
-      // 显示最近使用的项目
-      if (stats.recent_animes && stats.recent_animes.length > 0) {
-        document.getElementById('modal-recent-animes').innerHTML = stats.recent_animes.map(a => `
-          <span class="px-2 py-1 text-xs bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-gray-200 rounded" title="最后使用: ${formatDateTime(a.last_used_utc)}">
-            ${escapeHtml(a.title)}
-          </span>
-        `).join('');
-      } else {
-        document.getElementById('modal-recent-animes').innerHTML = '<span class="text-slate-400 dark:text-gray-500 italic text-sm">暂无数据</span>';
-      }
     }
 
     if (historyResult.success) {
