@@ -941,45 +941,39 @@ def main():
     webhook_queue, rss_queue = init_queue_workers(download_manager)
 
     # 启动 Webhook 服务器 (后台线程)
-    if config.webhook.enabled:
-        logger.info(f'🔗 正在启动 Webhook 服务器...')
-        logger.info(f'📍 Webhook 地址: http://{config.webhook.host}:{config.webhook.port}')
-        webhook_thread = Thread(
-            target=start_webhook_server,
-            kwargs={'host': config.webhook.host, 'port': config.webhook.port},
-            daemon=True
-        )
-        webhook_thread.start()
-        system_status_manager.set_webhook_status(True)
-        logger.info('✅ Webhook 服务器已在后台启动')
-    else:
-        logger.info('⏭️ Webhook 服务器已禁用')
+    logger.info('🔗 正在启动 Webhook 服务器...')
+    logger.info(f'📍 Webhook 地址: http://{config.webhook.host}:{config.webhook.port}')
+    webhook_thread = Thread(
+        target=start_webhook_server,
+        kwargs={'host': config.webhook.host, 'port': config.webhook.port},
+        daemon=True
+    )
+    webhook_thread.start()
+    system_status_manager.set_webhook_status(True)
+    logger.info('✅ Webhook 服务器已在后台启动')
 
     # 启动 Web UI 服务器 (后台线程)
-    if config.webui.enabled:
-        logger.info(f'🌐 正在启动 Web UI 服务器...')
+    logger.info('🌐 正在启动 Web UI 服务器...')
 
-        def run_webui():
-            from src.interface.web.app import create_app
+    def run_webui():
+        from src.interface.web.app import create_app
 
-            # 使用 Werkzeug 静默模式
-            import logging as werkzeug_logging
-            werkzeug_logging.getLogger('werkzeug').setLevel(werkzeug_logging.WARNING)
+        # 使用 Werkzeug 静默模式
+        import logging as werkzeug_logging
+        werkzeug_logging.getLogger('werkzeug').setLevel(werkzeug_logging.WARNING)
 
-            app = create_app(container)
-            system_status_manager.set_webui_status(True)
-            app.run(
-                host=config.webui.host,
-                port=config.webui.port,
-                debug=False,
-                use_reloader=False
-            )
+        app = create_app(container)
+        system_status_manager.set_webui_status(True)
+        app.run(
+            host=config.webui.host,
+            port=config.webui.port,
+            debug=False,
+            use_reloader=False
+        )
 
-        webui_thread = Thread(target=run_webui, daemon=True)
-        webui_thread.start()
-        logger.info(f'✅ Web UI 服务器已启动: http://{config.webui.host}:{config.webui.port}')
-    else:
-        logger.info('⏭️ Web UI 服务器已禁用')
+    webui_thread = Thread(target=run_webui, daemon=True)
+    webui_thread.start()
+    logger.info(f'✅ Web UI 服务器已启动: http://{config.webui.host}:{config.webui.port}')
 
     # 启动定时任务 (主线程)
     try:

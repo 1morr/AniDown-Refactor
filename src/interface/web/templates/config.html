@@ -62,29 +62,11 @@
                     <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">WebUI 端口</label>
                     <input type="number" id="webui_port" class="input-field" value="{{ config.get('webui.port', 8081) }}">
                 </div>
-                <div class="col-span-full md:col-span-1 flex items-end pb-2">
-                    <div class="flex items-center gap-3">
-                        <div class="relative inline-block w-10 mr-2 align-middle select-none">
-                            <input type="checkbox" name="webui_enabled" id="webui_enabled" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer top-0.5 left-0.5" {{ 'checked' if config.get('webui.enabled', True) else '' }}/>
-                            <label for="webui_enabled" class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 dark:bg-gray-700 cursor-pointer"></label>
-                        </div>
-                        <label for="webui_enabled" class="text-sm text-slate-700 dark:text-gray-300 cursor-pointer">启用 WebUI</label>
-                    </div>
-                </div>
 
                 <!-- Webhook -->
                 <div class="col-span-full md:col-span-1">
                     <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">Webhook 端口</label>
                     <input type="number" id="webhook_port" class="input-field" value="{{ config.webhook.port }}">
-                </div>
-                <div class="col-span-full md:col-span-1 flex items-end pb-2">
-                    <div class="flex items-center gap-3">
-                        <div class="relative inline-block w-10 mr-2 align-middle select-none">
-                            <input type="checkbox" name="webhook_enabled" id="webhook_enabled" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer top-0.5 left-0.5" {{ 'checked' if config.webhook.enabled else '' }}/>
-                            <label for="webhook_enabled" class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 dark:bg-gray-700 cursor-pointer"></label>
-                        </div>
-                        <label for="webhook_enabled" class="text-sm text-slate-700 dark:text-gray-300 cursor-pointer">启用 Webhook</label>
-                    </div>
                 </div>
 
             </div>
@@ -920,9 +902,6 @@
         }
 
         // WebUI 配置
-        if (document.getElementById('webui_enabled').checked) {
-            formData.append('webui_enabled', 'on');
-        }
         formData.append('webui_port', document.getElementById('webui_port').value);
 
         // 路径转换配置
@@ -933,9 +912,6 @@
         formData.append('path_conversion_target_base', document.getElementById('path_conv_target').value);
 
         // Webhook 配置
-        if (document.getElementById('webhook_enabled').checked) {
-            formData.append('webhook_enabled', 'on');
-        }
         formData.append('webhook_port', document.getElementById('webhook_port').value);
 
         // TVDB 配置 (只保存 API Key，启用开关已移至手动上传页面)

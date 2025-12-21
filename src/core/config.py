@@ -142,7 +142,6 @@ class WebhookConfig(BaseModel):
 
     host: str = '0.0.0.0'
     port: int = Field(default=5678, ge=1, le=65535)
-    enabled: bool = True
 
 
 class WebUIConfig(BaseModel):
@@ -150,7 +149,6 @@ class WebUIConfig(BaseModel):
 
     host: str = '0.0.0.0'
     port: int = Field(default=8081, ge=1, le=65535)
-    enabled: bool = True
 
 
 class PathConversionConfig(BaseModel):

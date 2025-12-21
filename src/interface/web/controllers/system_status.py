@@ -56,19 +56,9 @@ class SystemStatusManager:
 
     def get_status(self) -> dict:
         """获取所有服务状态"""
-        # 检查配置中是否启用了这些服务
-        webui_enabled = config.webui.enabled if hasattr(config, 'webui') else True
-        webhook_enabled = config.webhook.enabled if hasattr(config, 'webhook') else True
-
-        # 如果服务被禁用，则状态为 disabled
-        webui_status = (
-            'running' if (webui_enabled and self._webui_running)
-            else ('disabled' if not webui_enabled else 'stopped')
-        )
-        webhook_status = (
-            'running' if (webhook_enabled and self._webhook_running)
-            else ('disabled' if not webhook_enabled else 'stopped')
-        )
+        # WebUI 和 Webhook 始终启用
+        webui_status = 'running' if self._webui_running else 'stopped'
+        webhook_status = 'running' if self._webhook_running else 'stopped'
         rss_status = 'running' if self._rss_scheduler_running else 'stopped'
 
         # 整体状态：至少有一个服务在运行则为运行中

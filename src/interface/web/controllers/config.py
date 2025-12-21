@@ -235,8 +235,6 @@ def update_config():
     config.set('use_consistent_naming_movie', data.get('use_consistent_naming_movie') == 'on')
 
     # WebUI 配置
-    config.set('webui.enabled', data.get('webui_enabled') == 'on')
-
     if 'webui_port' in data:
         try:
             port = int(data['webui_port'])
@@ -256,8 +254,6 @@ def update_config():
         config.set('path_conversion.target_base_path', data['path_conversion_target_base'])
 
     # Webhook 配置
-    config.set('webhook.enabled', data.get('webhook_enabled') == 'on')
-
     if 'webhook_port' in data:
         try:
             port = int(data['webhook_port'])
