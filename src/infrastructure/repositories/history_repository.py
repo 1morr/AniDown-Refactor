@@ -236,6 +236,32 @@ class HistoryRepository(IHardlinkRepository):
                 return True
             return False
 
+    def update_rss_history_url(self, history_id: int, rss_url: str) -> bool:
+        """更新RSS处理历史的URL（用于批处理模式更新实际数量）"""
+        with db_manager.session() as session:
+            history = session.query(RssProcessingHistory).filter_by(id=history_id).first()
+            if history:
+                history.rss_url = rss_url
+                return True
+            return False
+
+    def accumulate_rss_history_stats(
+        self,
+        history_id: int,
+        items_found: int = 0,
+        items_attempted: int = 0,
+        items_processed: int = 0
+    ) -> bool:
+        """累加RSS处理历史统计信息（用于批处理模式）"""
+        with db_manager.session() as session:
+            history = session.query(RssProcessingHistory).filter_by(id=history_id).first()
+            if history:
+                history.items_found = (history.items_found or 0) + items_found
+                history.items_attempted = (history.items_attempted or 0) + items_attempted
+                history.items_processed = (history.items_processed or 0) + items_processed
+                return True
+            return False
+
     def increment_rss_history_processed(self, history_id: int) -> bool:
         """递增RSS处理历史的已处理计数"""
         with db_manager.session() as session:

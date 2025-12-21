@@ -89,7 +89,7 @@ def process_unified_rss(
         # 加入队列处理
         payload = RSSPayload(
             rss_url=rss_url,
-            trigger_type='manual',
+            trigger_type='手动添加',
             extra_data={
                 'mode': 'manual_mode',
                 'short_title': short_title,
@@ -116,7 +116,7 @@ def process_unified_rss(
         # AI模式，加入队列处理
         payload = RSSPayload(
             rss_url=rss_url,
-            trigger_type='manual',
+            trigger_type='手动添加',
             extra_data={
                 'mode': 'ai_mode',
                 'blocked_keywords': blocked_keywords,
@@ -296,11 +296,14 @@ def refresh_all_rss_api(
             "blocked_regex": feed.blocked_regex,
             "media_type": feed.media_type,
         }
-        worker.enqueue(
-            event_type="single_feed",
+        payload = RSSPayload(
             rss_url=feed.url,
-            triggered_by="WebUI刷新全部",
-            payload={"feed_data": feed_data}
+            trigger_type='立即刷新',
+            extra_data={"feed_data": feed_data, "triggered_by": "WebUI刷新全部"}
+        )
+        worker.enqueue_event(
+            event_type="single_feed",
+            payload=payload
         )
 
     logger.api_success('/api/refresh_all_rss', f"已加入队列 {len(rss_feeds)} 个RSS")
@@ -423,7 +426,8 @@ def preview_filters_api(
 @handle_api_errors
 def fetch_all_bangumi_rss_api(
     rss_service: RSSService = Provide[Container.rss_service],
-    download_manager: DownloadManager = Provide[Container.download_manager]
+    download_manager: DownloadManager = Provide[Container.download_manager],
+    history_repo: HistoryRepository = Provide[Container.history_repo]
 ):
     """API: 从配置的RSS链接中提取所有番组RSS"""
     import requests
@@ -439,6 +443,12 @@ def fetch_all_bangumi_rss_api(
     logger.api_request(f"提取番组RSS - {len(rss_feeds)} 个源RSS")
     logger.processing_start(f"从 {len(rss_feeds)} 个RSS链接中提取番组信息")
 
+    # 立即创建历史记录，让用户知道命令已被执行
+    batch_history_id = history_repo.insert_rss_history(
+        rss_url='batch://获取所有番组 (处理中...)',
+        triggered_by='获取所有'
+    )
+
     # 存储所有提取的番组RSS链接
     bangumi_feed_mapping = {}  # {parent_feed_index: {feed, episode_links, bangumi_rss}}
     episode_links = []
@@ -448,11 +458,11 @@ def fetch_all_bangumi_rss_api(
         try:
             rss_url = feed.url
             logger.db_query("解析RSS", rss_url)
-            rss_items = rss_service.parse_rss_feed(rss_url)
+            rss_items = rss_service.parse_feed(rss_url)
 
             feed_episode_links = []
             for item in rss_items:
-                link = item.get('link', '')
+                link = item.link if hasattr(item, 'link') else item.get('link', '')
                 # 检查是否是Episode链接格式
                 if link and '/Home/Episode/' in link:
                     feed_episode_links.append(link)
@@ -472,6 +482,17 @@ def fetch_all_bangumi_rss_api(
     logger.processing_success(f"共找到 {len(episode_links)} 个Episode链接")
 
     if not episode_links:
+        # 更新历史记录为失败
+        history_repo.update_rss_history_stats(
+            batch_history_id,
+            items_found=0,
+            items_attempted=0,
+            status='completed'
+        )
+        history_repo.update_rss_history_url(
+            batch_history_id,
+            'batch://获取所有番组 (0 个 - 无Episode链接)'
+        )
         return APIResponse.bad_request('未找到任何Episode链接')
 
     # 2. 访问每个Episode页面提取番组ID和字幕组ID
@@ -540,23 +561,49 @@ def fetch_all_bangumi_rss_api(
     )
 
     if not bangumi_rss_feeds:
+        # 更新历史记录为完成（无结果）
+        history_repo.update_rss_history_stats(
+            batch_history_id,
+            items_found=0,
+            items_attempted=0,
+            status='completed'
+        )
+        history_repo.update_rss_history_url(
+            batch_history_id,
+            'batch://获取所有番组 (0 个 - 无番组RSS)'
+        )
         return APIResponse.bad_request('未能生成任何番组RSS链接')
 
-    # 4. 确保队列已初始化，将每个番组RSS加入队列
+    # 4. 更新历史记录URL为实际数量
+    history_repo.update_rss_history_url(
+        batch_history_id,
+        f'batch://获取所有番组 ({len(bangumi_rss_feeds)} 个)'
+    )
+
+    # 5. 确保队列已初始化，将每个番组RSS加入队列
     worker = _ensure_rss_queue()
 
-    for feed in bangumi_rss_feeds:
+    for idx, feed in enumerate(bangumi_rss_feeds):
         feed_data = {
             "url": feed.url,
             "blocked_keywords": feed.blocked_keywords,
             "blocked_regex": feed.blocked_regex,
             "media_type": feed.media_type,
         }
-        worker.enqueue(
-            event_type="single_feed",
+        payload = RSSPayload(
             rss_url=feed.url,
-            triggered_by="获取所有番组",
-            payload={"feed_data": feed_data}
+            trigger_type='manual',
+            extra_data={
+                "feed_data": feed_data,
+                "triggered_by": "获取所有番组",
+                "batch_history_id": batch_history_id,
+                "batch_total": len(bangumi_rss_feeds),
+                "batch_index": idx
+            }
+        )
+        worker.enqueue_event(
+            event_type="single_feed",
+            payload=payload
         )
 
     logger.api_success(

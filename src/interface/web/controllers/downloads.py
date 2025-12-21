@@ -9,6 +9,7 @@ from dependency_injector.wiring import inject, Provide
 from src.container import Container
 from src.services.download_manager import DownloadManager
 from src.services.file_service import FileService
+from src.services.queue.webhook_queue import WebhookPayload
 from src.infrastructure.repositories.download_repository import DownloadRepository
 from src.infrastructure.repositories.history_repository import HistoryRepository
 from src.interface.web.utils import (
@@ -589,19 +590,21 @@ def api_send_webhook(
     download_info = download_repo.get_download_status_by_hash(hash_id)
 
     # 模擬webhook數據
-    webhook_data = {
-        'hash': hash_id,
-        'name': (
+    payload = WebhookPayload(
+        hash_id=hash_id,
+        name=(
             download_info.get('original_filename', f'Manual webhook for {hash_id}')
             if download_info else f'Manual webhook for {hash_id}'
         ),
-        'category': '',
-        'tags': '',
-        'content_path': '',
-        'root_path': '',
-        'save_path': download_info.get('download_directory', '') if download_info else '',
-        'tracker': ''
-    }
+        category='',
+        save_path=download_info.get('download_directory', '') if download_info else '',
+        extra_data={
+            'tags': '',
+            'content_path': '',
+            'root_path': '',
+            'tracker': ''
+        }
+    )
 
     # 使用队列处理
     from src.services import webhook_queue as wq
@@ -619,10 +622,9 @@ def api_send_webhook(
             wq.init_webhook_queue(download_manager=download_manager, discord_client=None)
 
     # 入队
-    evt = wq.webhook_queue_worker.enqueue(
+    evt = wq.webhook_queue_worker.enqueue_event(
         event_type='torrent_finished',
-        hash_id=hash_id,
-        payload=webhook_data
+        payload=payload
     )
 
     logger.api_success(
@@ -718,22 +720,23 @@ def api_send_webhook_batch(
 
     for download in completed_downloads:
         # 模擬webhook數據
-        webhook_data = {
-            'hash': download['hash_id'],
-            'name': download['original_filename'],
-            'category': '',
-            'tags': '',
-            'content_path': '',
-            'root_path': '',
-            'save_path': download['download_directory'] or '',
-            'tracker': ''
-        }
+        payload = WebhookPayload(
+            hash_id=download['hash_id'],
+            name=download['original_filename'],
+            category='',
+            save_path=download['download_directory'] or '',
+            extra_data={
+                'tags': '',
+                'content_path': '',
+                'root_path': '',
+                'tracker': ''
+            }
+        )
 
         # 入队
-        evt = wq.webhook_queue_worker.enqueue(
+        evt = wq.webhook_queue_worker.enqueue_event(
             event_type='torrent_finished',
-            hash_id=download['hash_id'],
-            payload=webhook_data
+            payload=payload
         )
         queued_count += 1
         queued_items.append({

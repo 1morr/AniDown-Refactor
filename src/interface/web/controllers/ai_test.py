@@ -126,7 +126,7 @@ def process_ai_test(
     # 根据输入模式处理
     if input_type == 'rss':
         logger.processing_start(f"解析RSS: {content}")
-        rss_items = rss_service.parse_rss_feed(content)
+        rss_items = rss_service.parse_feed(content)
 
         if not rss_items:
             return APIResponse.bad_request('无法解析RSS feed或feed为空')
@@ -369,7 +369,7 @@ def process_ai_test_stream(
         # 解析输入内容
         titles = []
         if input_type == 'rss':
-            rss_items = rss_service.parse_rss_feed(content)
+            rss_items = rss_service.parse_feed(content)
             if not rss_items:
                 return Response(
                     f'data: {json.dumps({"type": "error", "error": "无法解析RSS feed或feed为空"})}\n\n',

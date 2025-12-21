@@ -386,6 +386,10 @@ def init_queue_workers(download_manager):
             blocked_regex = feed_data.get('blocked_regex', '') or payload.extra_data.get('blocked_regex', '')
             media_type = feed_data.get('media_type', '') or payload.extra_data.get('media_type', 'anime')
 
+            # 检查是否是批处理模式
+            batch_history_id = payload.extra_data.get('batch_history_id')
+            is_batch_mode = batch_history_id is not None
+
             logger.info(f'📡 解析 RSS Feed: {payload.rss_url[:50]}...')
 
             # 从容器获取服务
@@ -394,46 +398,58 @@ def init_queue_workers(download_manager):
             download_repo = container.download_repo()
             rss_notifier = container.rss_notifier()
 
-            # 发送 RSS 开始通知
-            try:
-                rss_notifier.notify_processing_start(
-                    RSSNotification(
-                        trigger_type=payload.trigger_type,
-                        rss_url=payload.rss_url
+            # 发送 RSS 开始通知（批处理模式下跳过，避免通知过多）
+            if not is_batch_mode:
+                try:
+                    rss_notifier.notify_processing_start(
+                        RSSNotification(
+                            trigger_type=payload.trigger_type,
+                            rss_url=payload.rss_url
+                        )
                     )
-                )
-            except Exception as e:
-                logger.warning(f'⚠️ 发送RSS开始通知失败: {e}')
+                except Exception as e:
+                    logger.warning(f'⚠️ 发送RSS开始通知失败: {e}')
 
-            # 创建历史记录
-            history_id = history_repo.insert_rss_history(
-                rss_url=payload.rss_url,
-                triggered_by=payload.trigger_type
-            )
+            # 使用批处理历史ID或创建新的历史记录
+            if is_batch_mode:
+                history_id = batch_history_id
+            else:
+                history_id = history_repo.insert_rss_history(
+                    rss_url=payload.rss_url,
+                    triggered_by=payload.trigger_type
+                )
 
             # 解析 RSS Feed
             items = rss_service.parse_feed(payload.rss_url)
 
             if not items:
                 logger.info(f'📭 RSS Feed 没有新项目: {payload.rss_url[:50]}...')
-                history_repo.update_rss_history_stats(
-                    history_id,
-                    items_found=0,
-                    items_attempted=0,
-                    items_processed=0,
-                    status='completed'
-                )
-                # 发送完成通知（无项目）
-                try:
-                    rss_notifier.notify_processing_complete(
-                        success_count=0,
-                        total_count=0,
-                        failed_items=[],
-                        attempt_count=0,
+                # 批处理模式下累加统计，单独模式下直接设置
+                if is_batch_mode:
+                    history_repo.accumulate_rss_history_stats(
+                        history_id,
+                        items_found=0,
+                        items_attempted=0
+                    )
+                else:
+                    history_repo.update_rss_history_stats(
+                        history_id,
+                        items_found=0,
+                        items_attempted=0,
+                        items_processed=0,
                         status='completed'
                     )
-                except Exception as e:
-                    logger.warning(f'⚠️ 发送RSS完成通知失败: {e}')
+                    # 发送完成通知（无项目）
+                    try:
+                        rss_notifier.notify_processing_complete(
+                            success_count=0,
+                            total_count=0,
+                            failed_items=[],
+                            attempt_count=0,
+                            status='completed'
+                        )
+                    except Exception as e:
+                        logger.warning(f'⚠️ 发送RSS完成通知失败: {e}')
                 return
 
             logger.info(f'📥 发现 {len(items)} 个项目，正在过滤和加入队列...')
@@ -489,12 +505,21 @@ def init_queue_workers(download_manager):
                 enqueued_count += 1
 
             # 更新历史记录统计
-            history_repo.update_rss_history_stats(
-                history_id,
-                items_found=len(items),
-                items_attempted=enqueued_count,
-                status='processing' if enqueued_count > 0 else 'completed'
-            )
+            if is_batch_mode:
+                # 批处理模式：累加统计
+                history_repo.accumulate_rss_history_stats(
+                    history_id,
+                    items_found=len(items),
+                    items_attempted=enqueued_count
+                )
+            else:
+                # 单独模式：直接设置
+                history_repo.update_rss_history_stats(
+                    history_id,
+                    items_found=len(items),
+                    items_attempted=enqueued_count,
+                    status='processing' if enqueued_count > 0 else 'completed'
+                )
 
             logger.info(
                 f'✅ RSS处理完成: 总数={len(items)}, '
@@ -502,8 +527,8 @@ def init_queue_workers(download_manager):
                 f'加入队列={enqueued_count}'
             )
 
-            # 如果没有项目加入队列，发送完成通知
-            if enqueued_count == 0:
+            # 如果没有项目加入队列且非批处理模式，发送完成通知
+            if enqueued_count == 0 and not is_batch_mode:
                 try:
                     rss_notifier.notify_processing_complete(
                         success_count=0,
