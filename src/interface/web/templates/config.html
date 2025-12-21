@@ -158,7 +158,7 @@
                             </div>
                             <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">单 Key（兼容旧配置，可选）。若配置了 Key Pool，将优先使用 Key Pool。</p>
                         </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                                 <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">模型 (Model)</label>
                                 <input type="text" id="ai_title_parse_model" class="input-field" value="{{ config.get('openai.title_parse.model', 'gpt-4') }}">
@@ -166,6 +166,11 @@
                             <div>
                                 <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">标题解析重试次数</label>
                                 <input type="number" id="ai_title_parse_retries" class="input-field" value="{{ config.get('openai.title_parse_retries', 3) }}">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">API 超时时间 (秒)</label>
+                                <input type="number" id="ai_title_parse_timeout" class="input-field" min="10" max="600" value="{{ config.get('openai.title_parse.timeout', 180) }}">
+                                <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">推荐: 180 秒 (范围: 10-600)</p>
                             </div>
                         </div>
                         <div>
@@ -249,9 +254,16 @@
                             </div>
                             <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">单 Key（兼容旧配置，可选）。若配置了 Key Pool，将优先使用 Key Pool。</p>
                         </div>
-                        <div>
-                            <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">模型 (Model)</label>
-                            <input type="text" id="ai_multi_rename_model" class="input-field" value="{{ config.get('openai.multi_file_rename.model', 'gpt-4') }}">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">模型 (Model)</label>
+                                <input type="text" id="ai_multi_rename_model" class="input-field" value="{{ config.get('openai.multi_file_rename.model', 'gpt-4') }}">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">API 超时时间 (秒)</label>
+                                <input type="number" id="ai_multi_rename_timeout" class="input-field" min="10" max="600" value="{{ config.get('openai.multi_file_rename.timeout', 180) }}">
+                                <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">推荐: 360 秒 (批处理需更长时间, 范围: 10-600)</p>
+                            </div>
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">Extra Body (JSON格式)</label>
@@ -873,6 +885,7 @@
         formData.append('openai_title_parse_model', document.getElementById('ai_title_parse_model').value);
         formData.append('openai_title_parse_base_url', document.getElementById('ai_title_parse_base_url').value);
         formData.append('openai_title_parse_retries', document.getElementById('ai_title_parse_retries').value);
+        formData.append('openai_title_parse_timeout', document.getElementById('ai_title_parse_timeout').value);
         formData.append('openai_title_parse_extra_body', document.getElementById('ai_title_parse_extra_body').value);
         formData.append('openai_title_parse_pool', JSON.stringify(collectAiPool('title_parse')));
 
@@ -880,6 +893,7 @@
         formData.append('openai_multi_rename_key', document.getElementById('ai_multi_rename_api_key').value);
         formData.append('openai_multi_rename_model', document.getElementById('ai_multi_rename_model').value);
         formData.append('openai_multi_rename_base_url', document.getElementById('ai_multi_rename_base_url').value);
+        formData.append('openai_multi_rename_timeout', document.getElementById('ai_multi_rename_timeout').value);
         formData.append('openai_multi_rename_extra_body', document.getElementById('ai_multi_rename_extra_body').value);
         formData.append('openai_multi_rename_pool', JSON.stringify(collectAiPool('multi_file_rename')));
 

@@ -128,6 +128,19 @@ def update_config():
         else:
             config.set('openai.title_parse.extra_body', '')
 
+    # OpenAI - 标题解析超时时间
+    if 'openai_title_parse_timeout' in data:
+        try:
+            timeout = int(data['openai_title_parse_timeout'])
+            if timeout < 10 or timeout > 600:
+                return _handle_config_error(
+                    is_ajax,
+                    '标题解析 API 超时时间必须在 10-600 秒之间'
+                )
+            config.set('openai.title_parse.timeout', timeout)
+        except ValueError:
+            return _handle_config_error(is_ajax, '标题解析 API 超时时间必须是整数')
+
     # OpenAI - 标题解析 Key Pool
     if 'openai_title_parse_pool' in data:
         try:
@@ -173,6 +186,19 @@ def update_config():
                 )
         else:
             config.set('openai.multi_file_rename.extra_body', '')
+
+    # OpenAI - 多文件重命名超时时间
+    if 'openai_multi_rename_timeout' in data:
+        try:
+            timeout = int(data['openai_multi_rename_timeout'])
+            if timeout < 10 or timeout > 600:
+                return _handle_config_error(
+                    is_ajax,
+                    '多文件重命名 API 超时时间必须在 10-600 秒之间'
+                )
+            config.set('openai.multi_file_rename.timeout', timeout)
+        except ValueError:
+            return _handle_config_error(is_ajax, '多文件重命名 API 超时时间必须是整数')
 
     # OpenAI - 多文件重命名 Key Pool
     if 'openai_multi_rename_pool' in data:

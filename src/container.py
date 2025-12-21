@@ -106,8 +106,15 @@ class Container(containers.DeclarativeContainer):
     tvdb_client = providers.Singleton(TVDBAdapter)
 
     # ===== AI Components =====
-    # OpenAI API Client (shared)
-    api_client = providers.Singleton(OpenAIClient, timeout=360)
+    # OpenAI API Clients - 分离标题解析和重命名的客户端（使用不同 timeout）
+    title_parse_api_client = providers.Singleton(
+        OpenAIClient,
+        timeout=config.openai.title_parse.timeout
+    )
+    rename_api_client = providers.Singleton(
+        OpenAIClient,
+        timeout=config.openai.multi_file_rename.timeout
+    )
 
     # Title Parse: KeyPool & CircuitBreaker
     title_parse_pool = providers.Singleton(
@@ -122,7 +129,7 @@ class Container(containers.DeclarativeContainer):
         AITitleParser,
         key_pool=title_parse_pool,
         circuit_breaker=title_parse_breaker,
-        api_client=api_client
+        api_client=title_parse_api_client
     )
 
     # Multi-File Rename: KeyPool & CircuitBreaker
@@ -138,7 +145,7 @@ class Container(containers.DeclarativeContainer):
         AIFileRenamer,
         key_pool=rename_pool,
         circuit_breaker=rename_breaker,
-        api_client=api_client
+        api_client=rename_api_client
     )
 
     # ===== Notification Components =====

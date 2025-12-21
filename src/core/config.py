@@ -105,6 +105,7 @@ class OpenAIConfig(BaseModel):
         base_url: str = 'https://api.openai.com/v1'
         model: str = 'gpt-4'
         extra_body: str = ''  # JSON格式的额外参数
+        timeout: int = Field(default=180, ge=10, le=600)  # API 超时时间（秒）
 
     class RateLimitConfig(BaseModel):
         """Key Pool 限流/冷却/熔断参数"""

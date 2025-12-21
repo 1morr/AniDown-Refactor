@@ -13,20 +13,35 @@
     "username": "admin",
     "password": "adminadmin",
     "base_download_path": "/storage/downloads/AniDown/",
-    "category": "AniDown"
+    "category": "AniDown",
+    "anime_folder_name": "Anime",
+    "live_action_folder_name": "LiveAction",
+    "tv_folder_name": "TV",
+    "movie_folder_name": "Movies"
   },
   "openai": {
     "title_parse": {
       "api_key": "",
+      "api_key_pool": [],
       "base_url": "https://api.openai.com/v1",
       "model": "gpt-4",
-      "api_key_pool": []
+      "extra_body": "",
+      "timeout": 180
     },
     "multi_file_rename": {
       "api_key": "",
+      "api_key_pool": [],
       "base_url": "https://api.openai.com/v1",
       "model": "gpt-4",
-      "api_key_pool": []
+      "extra_body": "",
+      "timeout": 360
+    },
+    "title_parse_retries": 3,
+    "rate_limits": {
+      "max_consecutive_errors": 5,
+      "key_cooldown_seconds": 30,
+      "circuit_breaker_cooldown_seconds": 900,
+      "max_backoff_seconds": 300
     }
   },
   "ai_processing": {
@@ -53,6 +68,8 @@
   },
   "link_target_path": "/storage/library/TV Shows",
   "movie_link_target_path": "/storage/library/Movies",
+  "live_action_tv_target_path": "/storage/library/LiveAction/TV Shows",
+  "live_action_movie_target_path": "/storage/library/LiveAction/Movies",
   "use_consistent_naming_tv": false,
   "use_consistent_naming_movie": false
 }
