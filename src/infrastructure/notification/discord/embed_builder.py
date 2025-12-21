@@ -123,15 +123,15 @@ class EmbedBuilder:
         )
 
         fields = [
-            {'name': '触发方式', 'value': trigger_type, 'inline': True}
+            {'name': '⏰ 触发方式', 'value': trigger_type, 'inline': True}
         ]
 
         if title:
-            fields.append({'name': '标题', 'value': title, 'inline': True})
+            fields.append({'name': '📝 标题', 'value': title, 'inline': True})
 
         # 截断过长的 URL
         display_url = rss_url if len(rss_url) <= 50 else rss_url[:47] + '...'
-        fields.append({'name': 'RSS URL', 'value': display_url, 'inline': False})
+        fields.append({'name': '🔗 RSS URL', 'value': display_url, 'inline': False})
 
         return self._add_fields(embed, fields)
 
@@ -166,7 +166,7 @@ class EmbedBuilder:
 
         fields = [
             {
-                'name': '处理结果',
+                'name': '📊 处理结果',
                 'value': f'成功: {success_count}/{total_count}',
                 'inline': True
             }
@@ -182,7 +182,7 @@ class EmbedBuilder:
                 failed_text += f'\n... 还有 {len(failed_items) - 5} 个'
 
             fields.append({
-                'name': '失败项目',
+                'name': '❌ 失败项目',
                 'value': failed_text or '无',
                 'inline': False
             })
@@ -224,9 +224,9 @@ class EmbedBuilder:
         )
 
         fields = [
-            {'name': '字幕组', 'value': subtitle_group or '未知', 'inline': True},
-            {'name': '季度', 'value': f'第 {season} 季' if season > 0 else '电影/OVA', 'inline': True},
-            {'name': '哈希', 'value': f'`{hash_id[:8]}...`', 'inline': True}
+            {'name': '👥 字幕组', 'value': subtitle_group or '未知', 'inline': True},
+            {'name': '📺 季度', 'value': f'第 {season} 季' if season > 0 else '电影/OVA', 'inline': True},
+            {'name': '🔑 哈希', 'value': f'`{hash_id[:8]}...`', 'inline': True}
         ]
 
         return self._add_fields(embed, fields)
@@ -263,8 +263,8 @@ class EmbedBuilder:
         )
 
         fields = [
-            {'name': '字幕组', 'value': subtitle_group or '未知', 'inline': True},
-            {'name': '哈希', 'value': f'`{hash_id[:8]}...`', 'inline': True}
+            {'name': '👥 字幕组', 'value': subtitle_group or '未知', 'inline': True},
+            {'name': '🔑 哈希', 'value': f'`{hash_id[:8]}...`', 'inline': True}
         ]
 
         return self._add_fields(embed, fields)
@@ -293,12 +293,12 @@ class EmbedBuilder:
         )
 
         fields = [
-            {'name': '错误', 'value': error_message[:500], 'inline': False}
+            {'name': '⚠️ 错误', 'value': error_message[:500], 'inline': False}
         ]
 
         if hash_id:
             fields.append({
-                'name': '哈希',
+                'name': '🔑 哈希',
                 'value': f'`{hash_id[:8]}...`',
                 'inline': True
             })
@@ -340,10 +340,10 @@ class EmbedBuilder:
         display_dir = target_dir if len(target_dir) <= 40 else '...' + target_dir[-37:]
 
         fields = [
-            {'name': '视频文件', 'value': f'{video_count} 个', 'inline': True},
-            {'name': '字幕文件', 'value': f'{subtitle_count} 个', 'inline': True},
-            {'name': '重命名方式', 'value': rename_method, 'inline': True},
-            {'name': '目标目录', 'value': f'`{display_dir}`', 'inline': False}
+            {'name': '🎬 视频文件', 'value': f'{video_count} 个', 'inline': True},
+            {'name': '💬 字幕文件', 'value': f'{subtitle_count} 个', 'inline': True},
+            {'name': '✏️ 重命名方式', 'value': rename_method, 'inline': True},
+            {'name': '📁 目标目录', 'value': f'`{display_dir}`', 'inline': False}
         ]
 
         return self._add_fields(embed, fields)
@@ -374,13 +374,13 @@ class EmbedBuilder:
         )
 
         fields = [
-            {'name': '错误', 'value': error_message[:500], 'inline': False}
+            {'name': '⚠️ 错误', 'value': error_message[:500], 'inline': False}
         ]
 
         if source_path:
             display_source = source_path if len(source_path) <= 50 else '...' + source_path[-47:]
             fields.append({
-                'name': '源路径',
+                'name': '📤 源路径',
                 'value': f'`{display_source}`',
                 'inline': False
             })
@@ -388,7 +388,7 @@ class EmbedBuilder:
         if target_path:
             display_target = target_path if len(target_path) <= 50 else '...' + target_path[-47:]
             fields.append({
-                'name': '目标路径',
+                'name': '📥 目标路径',
                 'value': f'`{display_target}`',
                 'inline': False
             })
@@ -424,7 +424,7 @@ class EmbedBuilder:
             fields = []
             for key, value in list(context.items())[:5]:
                 fields.append({
-                    'name': key,
+                    'name': f'📌 {key}',
                     'value': str(value)[:100],
                     'inline': True
                 })
@@ -460,7 +460,7 @@ class EmbedBuilder:
             fields = []
             for key, value in list(context.items())[:5]:
                 fields.append({
-                    'name': key,
+                    'name': f'📌 {key}',
                     'value': str(value)[:100],
                     'inline': True
                 })
@@ -550,9 +550,9 @@ class EmbedBuilder:
         )
 
         fields = [
-            {'name': '项目', 'value': project_name[:50] or '未知', 'inline': True},
-            {'name': '操作', 'value': operation_display, 'inline': True},
-            {'name': '原因', 'value': reason[:100], 'inline': False}
+            {'name': '📁 项目', 'value': project_name[:50] or '未知', 'inline': True},
+            {'name': '⚙️ 操作', 'value': operation_display, 'inline': True},
+            {'name': '💡 原因', 'value': reason[:100], 'inline': False}
         ]
 
         return self._add_fields(embed, fields)
@@ -590,10 +590,10 @@ class EmbedBuilder:
         display_title = anime_title if len(anime_title) <= 50 else anime_title[:47] + '...'
 
         fields = [
-            {'name': '动漫标题', 'value': display_title, 'inline': False},
-            {'name': '字幕组', 'value': subtitle_group or '未知', 'inline': True},
-            {'name': '哈希', 'value': f'`{hash_id[:8]}...`' if hash_id else '未知', 'inline': True},
-            {'name': '下载路径', 'value': f'`{self._truncate_path(download_path)}`', 'inline': False}
+            {'name': '🎬 动漫标题', 'value': display_title, 'inline': False},
+            {'name': '👥 字幕组', 'value': subtitle_group or '未知', 'inline': True},
+            {'name': '🔑 哈希', 'value': f'`{hash_id[:8]}...`' if hash_id else '未知', 'inline': True},
+            {'name': '📁 下载路径', 'value': f'`{self._truncate_path(download_path)}`', 'inline': False}
         ]
 
         return self._add_fields(embed, fields)
@@ -647,10 +647,10 @@ class EmbedBuilder:
         success_rate = (success_count / attempt_count * 100) if attempt_count > 0 else 0
 
         fields = [
-            {'name': '状态', 'value': status.capitalize(), 'inline': True},
-            {'name': '成功率', 'value': f'{success_rate:.1f}%', 'inline': True},
+            {'name': '📊 状态', 'value': status.capitalize(), 'inline': True},
+            {'name': '📈 成功率', 'value': f'{success_rate:.1f}%', 'inline': True},
             {
-                'name': '统计',
+                'name': '📋 统计',
                 'value': f'成功: {success_count} / 尝试: {attempt_count} / 总数: {total_count}',
                 'inline': False
             }
@@ -666,7 +666,7 @@ class EmbedBuilder:
                 failed_text += f'\n... 还有 {len(failed_items) - 5} 个'
 
             fields.append({
-                'name': '失败项目',
+                'name': '❌ 失败项目',
                 'value': failed_text or '无',
                 'inline': False
             })
@@ -702,10 +702,10 @@ class EmbedBuilder:
         )
 
         fields = [
-            {'name': '触发方式', 'value': trigger_type, 'inline': True},
-            {'name': '进度', 'value': f'{processed_count}/{total_count}', 'inline': True},
-            {'name': '中断原因', 'value': reason[:100], 'inline': False},
-            {'name': 'RSS URL', 'value': self._truncate_url(rss_url), 'inline': False}
+            {'name': '⏰ 触发方式', 'value': trigger_type, 'inline': True},
+            {'name': '📊 进度', 'value': f'{processed_count}/{total_count}', 'inline': True},
+            {'name': '⏹️ 中断原因', 'value': reason[:100], 'inline': False},
+            {'name': '🔗 RSS URL', 'value': self._truncate_url(rss_url), 'inline': False}
         ]
 
         return self._add_fields(embed, fields)
@@ -745,9 +745,9 @@ class EmbedBuilder:
         content_path_display = f'`{content_path}`' if content_path else '未知'
 
         fields = [
-            {'name': 'Torrent ID', 'value': f'`{torrent_id[:8]}...`' if torrent_id else '未知', 'inline': True},
-            {'name': '保存路径', 'value': save_path_display, 'inline': False},
-            {'name': '内容路径', 'value': content_path_display, 'inline': False}
+            {'name': '🔑 Torrent ID', 'value': f'`{torrent_id[:8]}...`' if torrent_id else '未知', 'inline': True},
+            {'name': '💾 保存路径', 'value': save_path_display, 'inline': False},
+            {'name': '📂 内容路径', 'value': content_path_display, 'inline': False}
         ]
 
         return self._add_fields(embed, fields)
@@ -794,14 +794,14 @@ class EmbedBuilder:
         total_hardlinks = video_count + subtitle_count
 
         fields = [
-            {'name': 'Torrent ID', 'value': f'`{torrent_id[:8]}...`' if torrent_id else '未知', 'inline': True},
-            {'name': '字幕组', 'value': subtitle_group or '未知', 'inline': True},
-            {'name': '使用 TVDB', 'value': '是' if tvdb_used else '否', 'inline': True},
-            {'name': '重命名方式', 'value': rename_method[:30] if rename_method else '未知', 'inline': True},
-            {'name': '视频文件', 'value': str(video_count), 'inline': True},
-            {'name': '字幕文件', 'value': str(subtitle_count), 'inline': True},
-            {'name': '总硬链接数', 'value': str(total_hardlinks), 'inline': True},
-            {'name': '硬链接路径', 'value': f'`{hardlink_path}`' if hardlink_path else '未知', 'inline': False}
+            {'name': '🔑 Torrent ID', 'value': f'`{torrent_id[:8]}...`' if torrent_id else '未知', 'inline': True},
+            {'name': '👥 字幕组', 'value': subtitle_group or '未知', 'inline': True},
+            {'name': '📺 使用 TVDB', 'value': '是' if tvdb_used else '否', 'inline': True},
+            {'name': '✏️ 重命名方式', 'value': rename_method[:30] if rename_method else '未知', 'inline': True},
+            {'name': '🎬 视频文件', 'value': str(video_count), 'inline': True},
+            {'name': '💬 字幕文件', 'value': str(subtitle_count), 'inline': True},
+            {'name': '🔢 总硬链接数', 'value': str(total_hardlinks), 'inline': True},
+            {'name': '📁 硬链接路径', 'value': f'`{hardlink_path}`' if hardlink_path else '未知', 'inline': False}
         ]
 
         # 添加最多 3 个重命名示例（只显示重命名后的文件名）
@@ -815,7 +815,7 @@ class EmbedBuilder:
                     renamed_files.append(f'`{ex}`')
             examples_text = '\n'.join(renamed_files)
             fields.append({
-                'name': '重命名结果',
+                'name': '✨ 重命名结果',
                 'value': examples_text,
                 'inline': False
             })
