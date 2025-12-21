@@ -267,9 +267,7 @@ def update_config():
         except ValueError:
             return _handle_config_error(is_ajax, 'Webhook端口必须是整数')
 
-    # TVDB 配置
-    config.set('tvdb.enabled', data.get('tvdb_enabled') == 'on')
-
+    # TVDB 配置 (只保存 API Key，启用开关已移至手动上传页面)
     if 'tvdb_api_key' in data:
         config.set('tvdb.api_key', data['tvdb_api_key'])
 

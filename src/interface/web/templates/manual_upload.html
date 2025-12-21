@@ -140,6 +140,34 @@
                     </div>
                 </label>
             </div>
+
+            <!-- TVDB 选项 -->
+            <div class="mt-4 pt-4 border-t border-slate-200 dark:border-white/5">
+                <label class="flex items-start gap-3 cursor-pointer group">
+                    <div class="relative flex items-center">
+                        <input type="checkbox" id="use-tvdb-check" class="peer h-5 w-5 cursor-pointer appearance-none rounded-md border border-slate-300 dark:border-gray-600 bg-slate-100 dark:bg-black/20 checked:border-blue-500 checked:bg-blue-500 transition-all">
+                        <i class="fa-solid fa-check text-white absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-xs opacity-0 peer-checked:opacity-100 pointer-events-none"></i>
+                    </div>
+                    <div class="flex-1">
+                        <span class="text-sm font-medium text-slate-700 dark:text-gray-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">使用 TVDB 刮削</span>
+                        <p class="text-xs text-slate-500 dark:text-gray-500 mt-1 leading-relaxed">
+                            <i class="fa-solid fa-database text-blue-500 mr-1"></i> 勾选此项后将使用 TVDB 获取剧集信息进行重命名。如不填写 TVDB ID，将自动搜索匹配。
+                        </p>
+                    </div>
+                </label>
+
+                <!-- TVDB ID 输入框（仅在勾选时显示） -->
+                <div id="tvdb-id-container" class="mt-4 ml-8 hidden">
+                    <label class="block text-xs font-bold text-slate-500 dark:text-gray-500 uppercase mb-2 ml-1">TVDB ID (可选)</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
+                            <i class="fa-solid fa-hashtag text-slate-400 dark:text-gray-500"></i>
+                        </div>
+                        <input type="number" id="tvdb-id" class="input-field w-full md:w-1/2 rounded-lg py-3 pl-10 pr-4 text-sm placeholder-slate-400 dark:placeholder-gray-600" placeholder="例如：81797">
+                    </div>
+                    <p class="text-[10px] text-slate-400 dark:text-gray-500 mt-2 ml-1">留空将自动根据动漫名称搜索 TVDB</p>
+                </div>
+            </div>
         </div>
 
         <!-- 提交按钮 -->
@@ -265,6 +293,19 @@
     }
 
     // ---------------------------------------------------------
+    // 2.5 TVDB 开关逻辑
+    // ---------------------------------------------------------
+    document.getElementById('use-tvdb-check').addEventListener('change', function() {
+        const tvdbIdContainer = document.getElementById('tvdb-id-container');
+        if (this.checked) {
+            tvdbIdContainer.classList.remove('hidden');
+        } else {
+            tvdbIdContainer.classList.add('hidden');
+            document.getElementById('tvdb-id').value = '';
+        }
+    });
+
+    // ---------------------------------------------------------
     // 3. 提交处理
     // ---------------------------------------------------------
     document.getElementById('submit-btn').addEventListener('click', async () => {
@@ -278,6 +319,9 @@
         const type = document.getElementById('type').value;
         const mediaType = document.getElementById('media-type').value;
         const isMultiSeason = document.getElementById('multi-season-check').checked;
+        const useTvdb = document.getElementById('use-tvdb-check').checked;
+        const tvdbIdValue = document.getElementById('tvdb-id').value.trim();
+        const tvdbId = tvdbIdValue ? parseInt(tvdbIdValue) : null;
 
         // 简单验证
         if (!name) {
@@ -292,7 +336,9 @@
             season: parseInt(season),
             category: type,
             media_type: mediaType,
-            is_multi_season: isMultiSeason
+            is_multi_season: isMultiSeason,
+            requires_tvdb: useTvdb,
+            tvdb_id: tvdbId
         };
 
         if (currentMode === 'torrent') {
@@ -346,6 +392,9 @@
                     document.getElementById('season').value = '1';
                     document.getElementById('type').value = 'tv';
                     document.getElementById('multi-season-check').checked = false;
+                    document.getElementById('use-tvdb-check').checked = false;
+                    document.getElementById('tvdb-id').value = '';
+                    document.getElementById('tvdb-id-container').classList.add('hidden');
                     if (currentMode === 'torrent') {
                         document.getElementById('file-upload').value = '';
                         updateFileName(document.getElementById('file-upload'));

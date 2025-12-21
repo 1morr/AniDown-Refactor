@@ -90,6 +90,7 @@ class DownloadRecord:
         status: Current download status.
         download_method: Method used to initiate the download.
         is_multi_season: Whether this torrent contains multiple seasons.
+        requires_tvdb: Whether TVDB should be used for renaming.
         download_time: Timestamp when download was initiated.
         completion_time: Timestamp when download completed.
     """
@@ -104,6 +105,7 @@ class DownloadRecord:
     status: DownloadStatus = DownloadStatus.PENDING
     download_method: DownloadMethod = DownloadMethod.RSS_AI
     is_multi_season: bool = False
+    requires_tvdb: bool = False
     download_time: Optional[datetime] = None
     completion_time: Optional[datetime] = None
 

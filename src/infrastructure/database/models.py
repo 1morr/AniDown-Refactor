@@ -93,6 +93,7 @@ class DownloadStatus(Base):
     completion_time = Column(TIMESTAMP)
     is_multi_season = Column(Integer, default=0)  # 0: 单季, 1: 多季
     download_method = Column(Text, default='fixed_rss')  # fixed_rss, manual_magnet, manual_torrent, rss_ai, rss_manual
+    requires_tvdb = Column(Integer, default=0)  # 0: 不使用TVDB, 1: 使用TVDB
     created_at = Column(TIMESTAMP, default=get_utc_now)
     updated_at = Column(TIMESTAMP, default=get_utc_now, onupdate=get_utc_now)
 

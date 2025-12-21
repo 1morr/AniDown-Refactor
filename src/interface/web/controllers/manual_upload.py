@@ -78,6 +78,8 @@ def submit_manual_upload(
     season = data.get('season', 1)
     category = data.get('category', 'tv')
     media_type = data.get('media_type', 'anime')
+    requires_tvdb = data.get('requires_tvdb', False)
+    tvdb_id = data.get('tvdb_id', None)
 
     # 验证 upload_type
     if upload_type not in ['torrent', 'magnet']:
@@ -111,7 +113,7 @@ def submit_manual_upload(
 
     logger.api_request(
         f"手动上传 - 类型:{upload_type}, 标题:{anime_title}, "
-        f"季数:{season}, 分类:{category}"
+        f"季数:{season}, 分类:{category}, TVDB:{requires_tvdb}, TVDB_ID:{tvdb_id}"
     )
 
     # 在后台线程中处理上传

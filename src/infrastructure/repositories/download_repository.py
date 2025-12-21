@@ -58,6 +58,7 @@ class DownloadRepository(IDownloadRepository):
             status=status,
             download_method=method,
             is_multi_season=bool(row.is_multi_season),
+            requires_tvdb=bool(getattr(row, 'requires_tvdb', 0)),
             download_time=row.download_time,
             completion_time=row.completion_time
         )
@@ -78,6 +79,7 @@ class DownloadRepository(IDownloadRepository):
             'completion_time': row.completion_time,
             'is_multi_season': row.is_multi_season,
             'download_method': row.download_method,
+            'requires_tvdb': getattr(row, 'requires_tvdb', 0),
             'created_at': row.created_at,
             'updated_at': row.updated_at
         }
@@ -136,7 +138,8 @@ class DownloadRepository(IDownloadRepository):
                 status=record.status.value if record.status else 'pending',
                 download_time=record.download_time,
                 is_multi_season=1 if record.is_multi_season else 0,
-                download_method=record.download_method.value if record.download_method else 'fixed_rss'
+                download_method=record.download_method.value if record.download_method else 'fixed_rss',
+                requires_tvdb=1 if record.requires_tvdb else 0
             )
             session.add(download)
             session.flush()

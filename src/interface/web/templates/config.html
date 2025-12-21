@@ -441,14 +441,11 @@
                     </label>
                 </div>
                 <div>
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-sm text-slate-700 dark:text-gray-300">TVDB 刮削</span>
-                        <div class="relative inline-block w-10 align-middle select-none">
-                            <input type="checkbox" id="tvdb_enabled" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer top-0.5 left-0.5" {{ 'checked' if config.tvdb.enabled else '' }}/>
-                            <label for="tvdb_enabled" class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 dark:bg-gray-700 cursor-pointer"></label>
-                        </div>
+                    <div class="mb-2">
+                        <span class="text-sm text-slate-700 dark:text-gray-300">TVDB API Key</span>
+                        <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">在手动上传时可选择是否使用 TVDB 刮削</p>
                     </div>
-                    <input type="text" id="tvdb_key" class="input-field mt-2" placeholder="TVDB API Key" value="{{ config.tvdb.api_key }}">
+                    <input type="text" id="tvdb_key" class="input-field" placeholder="TVDB API Key" value="{{ config.tvdb.api_key }}">
                 </div>
             </div>
         </section>
@@ -941,10 +938,7 @@
         }
         formData.append('webhook_port', document.getElementById('webhook_port').value);
 
-        // TVDB 配置
-        if (document.getElementById('tvdb_enabled').checked) {
-            formData.append('tvdb_enabled', 'on');
-        }
+        // TVDB 配置 (只保存 API Key，启用开关已移至手动上传页面)
         formData.append('tvdb_api_key', document.getElementById('tvdb_key').value);
 
         try {

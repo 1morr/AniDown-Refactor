@@ -765,6 +765,8 @@ class DownloadManager:
                 - category: Content category
                 - is_multi_season: Whether multiple seasons
                 - media_type: Media type
+                - requires_tvdb: Whether to use TVDB for renaming
+                - tvdb_id: Manually specified TVDB ID (optional)
                 - torrent_file: Base64 encoded torrent file (if upload_type='torrent')
                 - magnet_link: Magnet link (if upload_type='magnet')
 
@@ -779,10 +781,12 @@ class DownloadManager:
             category = data.get('category', 'tv')
             is_multi_season = data.get('is_multi_season', False)
             media_type = data.get('media_type', 'anime')
+            requires_tvdb = data.get('requires_tvdb', False)
+            tvdb_id = data.get('tvdb_id', None)
 
             logger.info(f'🔄 开始处理手动上传: {anime_title} (类型: {upload_type})')
 
-            # Save anime info
+            # Save anime info with tvdb_id if provided
             anime_id = self._save_anime_info(
                 original_title=f'手动上传 - {anime_title}',
                 short_title=anime_title,
@@ -790,7 +794,8 @@ class DownloadManager:
                 subtitle_group=subtitle_group,
                 season=season,
                 category=category,
-                media_type=media_type
+                media_type=media_type,
+                tvdb_id=tvdb_id
             )
 
             # Generate save path
@@ -822,7 +827,8 @@ class DownloadManager:
                 download_directory=save_path,
                 anime_id=anime_id,
                 download_method=f'manual_{upload_type}',
-                is_multi_season=is_multi_season
+                is_multi_season=is_multi_season,
+                requires_tvdb=requires_tvdb
             )
 
             # Record history
@@ -1042,6 +1048,7 @@ class DownloadManager:
             tvdb_data = None
             folder_structure = None
             download_method = download_info.download_method
+            requires_tvdb = download_info.requires_tvdb
 
             if download_method and download_method.value.startswith('manual_'):
                 # Get folder structure
@@ -1054,17 +1061,28 @@ class DownloadManager:
                 except Exception as e:
                     logger.warning(f'⚠️ 获取文件夹结构失败: {e}')
 
-                # Get TVDB data
-                if config.tvdb.enabled:
+                # Get TVDB data - use requires_tvdb flag from download record
+                if requires_tvdb:
                     try:
-                        logger.info(f'🔍 检测到手动上传，尝试获取TVDB数据: {anime_title}')
-                        tvdb_data = self._metadata_service.get_tvdb_data_for_anime(anime_title)
+                        # Get anime_info to check for existing tvdb_id
+                        anime_info_record = self._anime_repo.get_by_id(anime_id) if anime_id else None
+                        existing_tvdb_id = anime_info_record.tvdb_id if anime_info_record else None
+
+                        if existing_tvdb_id:
+                            # Use existing TVDB ID from anime_info
+                            logger.info(f'🔍 使用已保存的TVDB ID: {existing_tvdb_id}')
+                            tvdb_data = self._metadata_service.get_tvdb_data_by_id(existing_tvdb_id)
+                        else:
+                            # Auto search by anime title
+                            logger.info(f'🔍 自动搜索TVDB数据: {anime_title}')
+                            tvdb_data = self._metadata_service.get_tvdb_data_for_anime(anime_title)
+
                         if tvdb_data:
                             logger.info('✅ 成功获取TVDB数据')
-                            # Save TVDB ID to anime_info table
-                            tvdb_id = tvdb_data.get('tvdb_id')
-                            if tvdb_id and anime_id:
-                                self._anime_repo.update_tvdb_id(anime_id, tvdb_id)
+                            # Save TVDB ID to anime_info table if not already saved
+                            tvdb_id_from_data = tvdb_data.get('tvdb_id')
+                            if tvdb_id_from_data and anime_id and not existing_tvdb_id:
+                                self._anime_repo.update_tvdb_id(anime_id, tvdb_id_from_data)
                         else:
                             logger.info('⚠️ 未获取到TVDB数据，将使用AI处理')
                     except Exception as e:
@@ -1447,7 +1465,8 @@ class DownloadManager:
         subtitle_group: str = '',
         season: int = 1,
         category: str = 'tv',
-        media_type: str = 'anime'
+        media_type: str = 'anime',
+        tvdb_id: Optional[int] = None
     ) -> int:
         """Save anime information and return ID."""
         anime_info = AnimeInfo(
@@ -1463,6 +1482,7 @@ class DownloadManager:
             ),
             category=Category.MOVIE if category == 'movie' else Category.TV,
             media_type=MediaType.LIVE_ACTION if media_type == 'live_action' else MediaType.ANIME,
+            tvdb_id=tvdb_id,
             created_at=datetime.now(timezone.utc)
         )
         return self._anime_repo.save(anime_info)
@@ -1477,7 +1497,8 @@ class DownloadManager:
         download_directory: str,
         anime_id: int,
         download_method: str,
-        is_multi_season: bool = False
+        is_multi_season: bool = False,
+        requires_tvdb: bool = False
     ) -> int:
         """Save download record and return ID."""
         # Determine download method enum
@@ -1501,6 +1522,7 @@ class DownloadManager:
             status=DownloadStatus.PENDING,
             download_method=method,
             is_multi_season=is_multi_season,
+            requires_tvdb=requires_tvdb,
             download_time=datetime.now(timezone.utc)
         )
         return self._download_repo.save(record)
