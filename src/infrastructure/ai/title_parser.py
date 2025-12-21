@@ -57,7 +57,7 @@ class AITitleParser(ITitleParser):
         """
         self._key_pool = key_pool
         self._circuit_breaker = circuit_breaker
-        self._api_client = api_client or OpenAIClient(timeout=30)
+        self._api_client = api_client or OpenAIClient(timeout=150)
         self._max_retries = max_retries
 
     def parse(self, title: str) -> Optional[TitleParseResult]:

@@ -70,7 +70,7 @@ class AIFileRenamer(IFileRenamer):
         """
         self._key_pool = key_pool
         self._circuit_breaker = circuit_breaker
-        self._api_client = api_client or OpenAIClient(timeout=60)
+        self._api_client = api_client or OpenAIClient(timeout=300)
         self._max_retries = max_retries
         self._batch_size = batch_size
 
