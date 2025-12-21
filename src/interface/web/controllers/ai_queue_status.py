@@ -13,6 +13,7 @@ from src.interface.web.utils import APIResponse, handle_api_errors, WebLogger
 from src.infrastructure.ai.key_pool import get_pool, get_all_pools
 from src.infrastructure.ai.circuit_breaker import get_breaker, get_all_breakers
 from src.infrastructure.repositories.ai_key_repository import ai_key_repository
+from src.infrastructure.repositories.history_repository import HistoryRepository
 from src.services.queue.webhook_queue import get_webhook_queue
 from src.services.queue.rss_queue import get_rss_queue
 
@@ -477,14 +478,15 @@ def clear_queue(queue_name: str):
     """
     清空指定队列中的所有待处理事件。
 
-    此操作不可恢复。
+    此操作不可恢复。会将被清除项目对应的 RSS 历史记录标记为 interrupted，
+    并为每个被清除的项目创建 interrupted 状态的详情记录。
 
     Args:
         queue_name: 队列名称 ('webhook' 或 'rss')
 
     Returns:
         JSON 响应:
-        - 成功: {success: true, message: '...', data: {cleared_count: n}}
+        - 成功: {success: true, message: '...', data: {cleared_count: n, history_updated: m, details_created: k}}
         - 失败: {success: false, message: '...'}
     """
     logger.api_request(f'/api/ai-queue/queue/{queue_name}/clear', 'POST')
@@ -497,14 +499,43 @@ def clear_queue(queue_name: str):
         )
         return APIResponse.not_found(f'未找到队列: {queue_name}')
 
-    cleared_count = queue_worker.clear_queue()
+    clear_result = queue_worker.clear_queue()
+    cleared_count = clear_result['count']
+    history_ids = clear_result.get('history_ids', [])
+    cleared_items = clear_result.get('cleared_items', [])
+
+    history_repo = HistoryRepository()
+
+    # 为每个被清除的项目创建 interrupted 状态的详情记录
+    details_created = 0
+    for item in cleared_items:
+        try:
+            history_repo.insert_rss_detail(
+                history_id=item['history_id'],
+                item_title=item['item_title'],
+                item_status='interrupted',
+                failure_reason='队列被手动清除'
+            )
+            details_created += 1
+        except Exception as e:
+            logger.warning(f'创建中断详情记录失败: {e}')
+
+    # 更新受影响的 RSS 历史记录状态为 interrupted
+    history_updated = 0
+    if history_ids:
+        history_updated = history_repo.mark_history_interrupted(history_ids)
+
     logger.api_success(
         f'/api/ai-queue/queue/{queue_name}/clear',
-        f'已清空 {cleared_count} 个事件'
+        f'已清空 {cleared_count} 个事件，更新了 {history_updated} 条历史记录，创建了 {details_created} 条详情'
     )
     return APIResponse.success(
         message=f'已清空 {cleared_count} 个事件',
-        data={'cleared_count': cleared_count}
+        data={
+            'cleared_count': cleared_count,
+            'history_updated': history_updated,
+            'details_created': details_created
+        }
     )
 
 

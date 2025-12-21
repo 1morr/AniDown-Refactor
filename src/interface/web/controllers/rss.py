@@ -218,6 +218,17 @@ def get_rss_history_detail_api(
             history.completed_at.isoformat() + 'Z' if history.completed_at else None
         ]
 
+        # 定义状态排序优先级: 成功 > 已存在 > 被中断 > 其他
+        status_priority = {
+            'success': 0,
+            'exists': 1,
+            'interrupted': 2,
+            'filtered': 3,
+            'failed': 4,
+            'error': 5
+        }
+
+        # 转换详情为数组格式
         details_list = []
         for d in details:
             details_list.append([
@@ -226,6 +237,9 @@ def get_rss_history_detail_api(
                 d.item_status,
                 d.failure_reason
             ])
+
+        # 按状态优先级排序
+        details_list.sort(key=lambda x: status_priority.get(x[2], 99))
 
     logger.api_success(f'/api/rss_history/{history_id}', f"返回 {len(details_list)} 条详情")
     return APIResponse.success(

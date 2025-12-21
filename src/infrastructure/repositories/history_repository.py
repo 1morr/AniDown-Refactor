@@ -249,6 +249,55 @@ class HistoryRepository(IHardlinkRepository):
                 return True
             return False
 
+    def mark_processing_as_interrupted(self) -> int:
+        """
+        将所有 processing 状态的历史记录标记为 interrupted。
+
+        用于程序启动时清理上次运行遗留的未完成记录，
+        或程序关闭时标记未处理完的记录。
+
+        Returns:
+            受影响的记录数
+        """
+        with db_manager.session() as session:
+            result = session.query(RssProcessingHistory).filter_by(
+                status='processing'
+            ).update({
+                'status': 'interrupted',
+                'completed_at': datetime.now(timezone.utc)
+            })
+            logger.info(f'📋 标记了 {result} 条 processing 状态的历史记录为 interrupted')
+            return result
+
+    def mark_history_interrupted(self, history_ids: List[int]) -> int:
+        """
+        将指定的历史记录标记为 interrupted。
+
+        用于队列清除时，标记被清除项目对应的历史记录。
+
+        Args:
+            history_ids: 要标记的历史记录 ID 列表
+
+        Returns:
+            受影响的记录数
+        """
+        if not history_ids:
+            return 0
+
+        # 去重
+        unique_ids = list(set(history_ids))
+
+        with db_manager.session() as session:
+            result = session.query(RssProcessingHistory).filter(
+                RssProcessingHistory.id.in_(unique_ids),
+                RssProcessingHistory.status == 'processing'
+            ).update({
+                'status': 'interrupted',
+                'completed_at': datetime.now(timezone.utc)
+            }, synchronize_session=False)
+            logger.info(f'📋 标记了 {result} 条历史记录为 interrupted')
+            return result
+
     # ==================== 手动上传历史相关 ====================
 
     def insert_manual_upload(

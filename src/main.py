@@ -784,6 +784,13 @@ def main():
     # 初始化数据库
     init_database()
 
+    # 清理上次运行遗留的 processing 状态历史记录
+    from src.infrastructure.repositories.history_repository import HistoryRepository
+    history_repo = HistoryRepository()
+    interrupted_count = history_repo.mark_processing_as_interrupted()
+    if interrupted_count > 0:
+        logger.info(f'🧹 清理了 {interrupted_count} 条上次运行遗留的处理中记录')
+
     # 初始化 Discord Webhook
     init_discord_webhook()
 
@@ -866,10 +873,23 @@ def main():
         # 停止队列工作者
         webhook_queue.stop()
         rss_queue.stop()
+
+        # 清理未完成的 processing 状态历史记录
+        from src.infrastructure.repositories.history_repository import HistoryRepository
+        history_repo = HistoryRepository()
+        interrupted_count = history_repo.mark_processing_as_interrupted()
+        if interrupted_count > 0:
+            logger.info(f'🧹 标记了 {interrupted_count} 条未完成的记录为已中断')
+
         logger.info('✅ 已优雅关闭')
     except Exception as e:
         logger.error(f'❌ 发生未预期错误: {e}', exc_info=True)
         system_status_manager.set_rss_scheduler_status(False)
+
+        # 清理未完成的 processing 状态历史记录
+        from src.infrastructure.repositories.history_repository import HistoryRepository
+        history_repo = HistoryRepository()
+        history_repo.mark_processing_as_interrupted()
 
 
 if __name__ == '__main__':

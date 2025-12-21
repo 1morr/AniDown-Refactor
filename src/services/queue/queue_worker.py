@@ -367,22 +367,54 @@ class QueueWorker(ABC, Generic[T]):
                 }
             }
 
-    def clear_queue(self) -> int:
+    def clear_queue(self) -> Dict[str, Any]:
         """
         Clear all pending events from the queue.
 
         Returns:
-            Number of events cleared.
+            Dictionary containing:
+            - count: Number of events cleared
+            - history_ids: List of unique history IDs from cleared events
+            - cleared_items: List of dicts with {history_id, item_title} for detail records
         """
         count = 0
+        history_ids = set()
+        cleared_items = []
         while True:
             try:
-                self._queue.get_nowait()
+                event = self._queue.get_nowait()
                 count += 1
+                # 尝试从事件中提取 history_id 和 item_title
+                if hasattr(event, 'payload'):
+                    payload = event.payload
+                    item_title = None
+                    history_id = None
+
+                    # 获取 item_title
+                    if hasattr(payload, 'item_title'):
+                        item_title = payload.item_title
+                    elif hasattr(payload, 'title'):
+                        item_title = payload.title
+
+                    # 获取 history_id
+                    if hasattr(payload, 'extra_data') and isinstance(payload.extra_data, dict):
+                        history_id = payload.extra_data.get('history_id')
+
+                    if history_id:
+                        history_ids.add(history_id)
+                        if item_title:
+                            cleared_items.append({
+                                'history_id': history_id,
+                                'item_title': item_title
+                            })
             except queue.Empty:
                 break
         logger.info(f'🗑️ [{self._name}] Cleared {count} events from queue')
-        return count
+        return {
+            'count': count,
+            'history_ids': list(history_ids),
+            'cleared_items': cleared_items
+        }
 
     def get_queue_size(self) -> int:
         """
