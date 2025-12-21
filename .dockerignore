@@ -72,3 +72,6 @@ tests/
 # Temporary files
 *.tmp
 *.temp
+
+# Torrent files
+*.torrent
