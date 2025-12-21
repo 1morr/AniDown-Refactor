@@ -310,7 +310,15 @@ def init_queue_workers(download_manager):
         """处理种子完成事件"""
         try:
             logger.info(f'🔔 处理种子完成事件: {payload.hash_id[:8]}...')
-            download_manager.handle_torrent_completed(payload.hash_id)
+            # 构建 webhook_data 字典，传递 payload 中的所有信息
+            webhook_data = {
+                'name': payload.name,
+                'save_path': payload.save_path,
+                'content_path': payload.extra_data.get('content_path', '') if payload.extra_data else '',
+                'category': payload.category,
+                'status': payload.status,
+            }
+            download_manager.handle_torrent_completed(payload.hash_id, webhook_data)
         except Exception as e:
             logger.error(f'❌ 处理种子完成事件失败: {e}', exc_info=True)
 

@@ -107,7 +107,7 @@ class Container(containers.DeclarativeContainer):
 
     # ===== AI Components =====
     # OpenAI API Client (shared)
-    api_client = providers.Singleton(OpenAIClient)
+    api_client = providers.Singleton(OpenAIClient, timeout=360)
 
     # Title Parse: KeyPool & CircuitBreaker
     title_parse_pool = providers.Singleton(

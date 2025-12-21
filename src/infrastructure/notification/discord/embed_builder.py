@@ -736,14 +736,18 @@ class EmbedBuilder:
 
         embed = self._base_embed(
             title='📨 收到 Webhook',
-            description=f'**{display_name}**',
+            description=f'**{display_name}**' if display_name else None,
             color=self.COLOR_INFO
         )
 
+        # 处理空路径的情况（显示完整路径）
+        save_path_display = f'`{save_path}`' if save_path else '未知'
+        content_path_display = f'`{content_path}`' if content_path else '未知'
+
         fields = [
             {'name': 'Torrent ID', 'value': f'`{torrent_id[:8]}...`' if torrent_id else '未知', 'inline': True},
-            {'name': '保存路径', 'value': f'`{self._truncate_path(save_path)}`', 'inline': False},
-            {'name': '内容路径', 'value': f'`{self._truncate_path(content_path)}`', 'inline': False}
+            {'name': '保存路径', 'value': save_path_display, 'inline': False},
+            {'name': '内容路径', 'value': content_path_display, 'inline': False}
         ]
 
         return self._add_fields(embed, fields)
@@ -797,15 +801,22 @@ class EmbedBuilder:
             {'name': '视频文件', 'value': str(video_count), 'inline': True},
             {'name': '字幕文件', 'value': str(subtitle_count), 'inline': True},
             {'name': '总硬链接数', 'value': str(total_hardlinks), 'inline': True},
-            {'name': '硬链接路径', 'value': f'`{self._truncate_path(hardlink_path)}`', 'inline': False}
+            {'name': '硬链接路径', 'value': f'`{hardlink_path}`' if hardlink_path else '未知', 'inline': False}
         ]
 
-        # 添加最多 3 个重命名示例
+        # 添加最多 3 个重命名示例（只显示重命名后的文件名）
         if rename_examples:
-            examples_text = '\n'.join(f'• {ex}' for ex in rename_examples[:3])
+            # 提取 → 后面的部分作为重命名结果
+            renamed_files = []
+            for ex in rename_examples[:3]:
+                if ' → ' in ex:
+                    renamed_files.append(f'`{ex.split(" → ")[-1]}`')
+                else:
+                    renamed_files.append(f'`{ex}`')
+            examples_text = '\n'.join(renamed_files)
             fields.append({
-                'name': '重命名示例',
-                'value': f'```\n{examples_text}\n```',
+                'name': '重命名结果',
+                'value': examples_text,
                 'inline': False
             })
 
