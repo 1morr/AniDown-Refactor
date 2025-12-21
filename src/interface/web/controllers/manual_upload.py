@@ -3,6 +3,10 @@
 
 处理 torrent 文件和磁力链接的手动上传
 """
+import base64
+import tempfile
+import os
+
 from flask import Blueprint, render_template, request
 from dependency_injector.wiring import inject, Provide
 import threading
@@ -11,6 +15,11 @@ from src.core.config import config
 from src.container import Container
 from src.services.download_manager import DownloadManager
 from src.infrastructure.repositories.history_repository import HistoryRepository
+from src.infrastructure.repositories.download_repository import DownloadRepository
+from src.infrastructure.downloader.qbit_adapter import (
+    get_torrent_hash_from_file,
+    get_torrent_hash_from_magnet
+)
 from src.interface.web.utils import (
     APIResponse,
     handle_api_errors,
@@ -58,7 +67,9 @@ def get_manual_upload_history_api(
 @handle_api_errors
 @validate_json()
 def submit_manual_upload(
-    download_manager: DownloadManager = Provide[Container.download_manager]
+    download_manager: DownloadManager = Provide[Container.download_manager],
+    download_repo: DownloadRepository = Provide[Container.download_repo],
+    history_repo: HistoryRepository = Provide[Container.history_repo]
 ):
     """處理手動上傳請求"""
     data = request.get_json()
@@ -85,11 +96,32 @@ def submit_manual_upload(
     if upload_type not in ['torrent', 'magnet']:
         return APIResponse.bad_request("upload_type必须是'torrent'或'magnet'")
 
-    # 根据类型验证特定字段
+    # 根据类型验证特定字段并提取 hash
+    hash_id = None
+    temp_file_path = None
+
     if upload_type == 'torrent':
         torrent_file = data.get('torrent_file')
         if not torrent_file:
             return APIResponse.bad_request('請選擇要上傳的torrent文件')
+
+        # 提取 hash 用于重复检查
+        try:
+            torrent_content = base64.b64decode(torrent_file)
+            with tempfile.NamedTemporaryFile(suffix='.torrent', delete=False) as temp_file:
+                temp_file.write(torrent_content)
+                temp_file_path = temp_file.name
+            hash_id = get_torrent_hash_from_file(temp_file_path)
+        except Exception as e:
+            if temp_file_path and os.path.exists(temp_file_path):
+                os.unlink(temp_file_path)
+            logger.processing_error("提取torrent hash失败", e)
+            return APIResponse.bad_request(f'無法解析torrent文件: {str(e)}')
+        finally:
+            # 清理临时文件
+            if temp_file_path and os.path.exists(temp_file_path):
+                os.unlink(temp_file_path)
+
     elif upload_type == 'magnet':
         magnet_link = data.get('magnet_link', '').strip()
         if not magnet_link:
@@ -97,8 +129,32 @@ def submit_manual_upload(
         if not magnet_link.startswith('magnet:'):
             return APIResponse.bad_request('無效的磁力鏈接格式')
 
+        # 提取 hash 用于重复检查
+        hash_id = get_torrent_hash_from_magnet(magnet_link)
+        if not hash_id:
+            return APIResponse.bad_request('無法從磁力鏈接提取hash')
+
     if not anime_title:
         return APIResponse.bad_request('請輸入動漫名稱')
+
+    if not hash_id:
+        return APIResponse.bad_request('無法提取hash，請檢查上傳的內容')
+
+    # 检查 hash 是否已存在于下载列表
+    existing_download = download_repo.get_by_hash(hash_id)
+    if existing_download:
+        anime_name = existing_download.anime_title or existing_download.original_filename
+        return APIResponse.bad_request(
+            f'該種子已在下載列表中: {anime_name}'
+        )
+
+    # 检查 hash 是否已存在于下载历史
+    existing_history = history_repo.get_download_history_by_hash(hash_id)
+    if existing_history:
+        anime_name = existing_history.get('anime_title') or existing_history.get('original_filename')
+        return APIResponse.bad_request(
+            f'該種子已在下載歷史中: {anime_name}（如需重新下載，請從歷史記錄中操作）'
+        )
 
     # 验证其他字段
     validation_rules = {
@@ -113,7 +169,8 @@ def submit_manual_upload(
 
     logger.api_request(
         f"手动上传 - 类型:{upload_type}, 标题:{anime_title}, "
-        f"季数:{season}, 分类:{category}, TVDB:{requires_tvdb}, TVDB_ID:{tvdb_id}"
+        f"季数:{season}, 分类:{category}, TVDB:{requires_tvdb}, TVDB_ID:{tvdb_id}, "
+        f"hash:{hash_id[:8]}..."
     )
 
     # 在后台线程中处理上传
