@@ -74,7 +74,8 @@ def init_key_pools():
                     model=title_parse_config.model,
                     rpm_limit=key_entry.rpm,
                     rpd_limit=key_entry.rpd,
-                    enabled=True
+                    enabled=True,
+                    extra_body=title_parse_config.extra_body
                 ))
     # 回退到单个 api_key
     elif title_parse_config.api_key:
@@ -86,7 +87,8 @@ def init_key_pools():
             model=title_parse_config.model,
             rpm_limit=0,
             rpd_limit=0,
-            enabled=True
+            enabled=True,
+            extra_body=title_parse_config.extra_body
         ))
 
     if keys:
@@ -116,7 +118,8 @@ def init_key_pools():
                     model=rename_config.model,
                     rpm_limit=key_entry.rpm,
                     rpd_limit=key_entry.rpd,
-                    enabled=True
+                    enabled=True,
+                    extra_body=rename_config.extra_body
                 ))
     elif rename_config.api_key:
         rename_keys.append(KeySpec(
@@ -127,7 +130,8 @@ def init_key_pools():
             model=rename_config.model,
             rpm_limit=0,
             rpd_limit=0,
-            enabled=True
+            enabled=True,
+            extra_body=rename_config.extra_body
         ))
 
     if rename_keys:

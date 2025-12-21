@@ -278,6 +278,9 @@ class AIFileRenamer(IFileRenamer):
                 f'使用 Key {reservation.key_id}'
             )
 
+            # 解析 extra_body
+            extra_params = self._parse_extra_body(reservation.extra_body)
+
             # 调用 API
             response = self._api_client.call(
                 base_url=reservation.base_url,
@@ -287,7 +290,8 @@ class AIFileRenamer(IFileRenamer):
                     {'role': 'system', 'content': system_prompt},
                     {'role': 'user', 'content': user_message}
                 ],
-                response_format=MULTI_FILE_RENAME_RESPONSE_FORMAT
+                response_format=MULTI_FILE_RENAME_RESPONSE_FORMAT,
+                extra_params=extra_params
             )
 
             if response.success:
@@ -584,3 +588,26 @@ class AIFileRenamer(IFileRenamer):
                     continue
 
         return None
+
+    def _parse_extra_body(self, extra_body: str) -> Optional[Dict[str, Any]]:
+        """
+        解析 extra_body JSON 字符串。
+
+        Args:
+            extra_body: JSON 格式的额外参数字符串
+
+        Returns:
+            解析后的字典，解析失败或为空则返回 None
+        """
+        if not extra_body or not extra_body.strip():
+            return None
+
+        try:
+            parsed = json.loads(extra_body)
+            if isinstance(parsed, dict) and parsed:
+                logger.debug(f'🔧 使用 extra_body 参数: {list(parsed.keys())}')
+                return parsed
+            return None
+        except json.JSONDecodeError as e:
+            logger.warning(f'⚠️ extra_body JSON 解析失败: {e}')
+            return None
