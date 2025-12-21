@@ -1,0 +1,58 @@
+{
+  "rss": {
+    "fixed_urls": [],
+    "check_interval": 3600
+  },
+  "discord": {
+    "enabled": false,
+    "rss_webhook_url": "",
+    "hardlink_webhook_url": ""
+  },
+  "qbittorrent": {
+    "url": "http://qbittorrent:8080",
+    "username": "admin",
+    "password": "adminadmin",
+    "base_download_path": "/storage/downloads/AniDown/",
+    "category": "AniDown"
+  },
+  "openai": {
+    "title_parse": {
+      "api_key": "",
+      "base_url": "https://api.openai.com/v1",
+      "model": "gpt-4",
+      "api_key_pool": []
+    },
+    "multi_file_rename": {
+      "api_key": "",
+      "base_url": "https://api.openai.com/v1",
+      "model": "gpt-4",
+      "api_key_pool": []
+    }
+  },
+  "ai_processing": {
+    "max_batch_size": 30,
+    "batch_processing_retries": 2
+  },
+  "webhook": {
+    "host": "0.0.0.0",
+    "port": 5678
+  },
+  "webui": {
+    "host": "0.0.0.0",
+    "port": 8081
+  },
+  "path_conversion": {
+    "enabled": false,
+    "source_base_path": "/downloads/AniDown/",
+    "target_base_path": "/storage/downloads/AniDown/"
+  },
+  "tvdb": {
+    "enabled": false,
+    "api_key": "",
+    "max_data_length": 10000
+  },
+  "link_target_path": "/storage/library/TV Shows",
+  "movie_link_target_path": "/storage/library/Movies",
+  "use_consistent_naming_tv": false,
+  "use_consistent_naming_movie": false
+}

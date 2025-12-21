@@ -1,0 +1,74 @@
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env
+venv
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+.tox
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.mypy_cache
+.pytest_cache
+.hypothesis
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.claude/
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Project specific - Data & Config
+# We don't want to copy local data/config into the image build unless intended
+*.db
+*.log
+ai_debug_logs/
+data/
+downloads/
+library/
+storage/
+config.json
+.env
+
+# Old AniDown code
+AniDown/
+
+# Documentation & Tests
+# Exclude these to keep the image size small
+docs/
+tests/
+*.md
+!README.md
+
+# Temporary files
+*.tmp
+*.temp
