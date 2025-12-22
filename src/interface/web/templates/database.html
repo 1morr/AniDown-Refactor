@@ -81,6 +81,26 @@
         overflow: hidden;
         text-overflow: ellipsis;
         max-width: 0;
+        cursor: pointer;
+        position: relative;
+        transition: all 0.15s ease;
+    }
+
+    .data-cell:hover {
+        background-color: rgba(59, 130, 246, 0.08);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1);
+        transform: translateY(-1px);
+        z-index: 5;
+    }
+    .dark .data-cell:hover {
+        background-color: rgba(59, 130, 246, 0.12);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25), 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .data-cell:active {
+        background-color: rgba(59, 130, 246, 0.15);
+        transform: translateY(0);
+        box-shadow: 0 2px 6px rgba(59, 130, 246, 0.2);
     }
 
     /* --- 新增：加载遮罩层样式 --- */
@@ -463,13 +483,32 @@
 
                     if (content === null || content === undefined || content === '') {
                         td.textContent = '-';
+                        td.dataset.copyValue = '';
                     } else if (typeof content === 'string' && content.startsWith('<')) {
-                        td.innerHTML = content; 
+                        td.innerHTML = content;
+                        // 对于HTML内容，提取纯文本作为复制值
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = content;
+                        td.dataset.copyValue = tempDiv.textContent || content;
                     } else {
                         td.textContent = content;
-                        td.title = content; 
+                        td.title = `${content}\n\n点击复制`;
+                        td.dataset.copyValue = content;
                     }
-                    
+
+                    // 添加点击复制功能
+                    td.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        const copyValue = this.dataset.copyValue;
+                        if (copyValue === '' || copyValue === undefined) {
+                            if (window.showFlashMessage) {
+                                window.showFlashMessage('info', '单元格为空，无内容可复制');
+                            }
+                            return;
+                        }
+                        copyToClipboard(copyValue);
+                    });
+
                     tr.appendChild(td);
                 });
                 fragment.appendChild(tr);
@@ -744,6 +783,51 @@
     // - formatDate() (替代 formatDateTime)
     // 为了兼容性，保留 formatDateTime 别名
     const formatDateTime = formatDate;
+
+    // --- 复制到剪贴板功能 ---
+    async function copyToClipboard(text) {
+        try {
+            await navigator.clipboard.writeText(text);
+
+            // 截断过长的文本用于显示
+            let displayText = text;
+            if (text.length > 50) {
+                displayText = text.substring(0, 50) + '...';
+            }
+
+            if (window.showFlashMessage) {
+                window.showFlashMessage('success', `已复制: ${displayText}`);
+            }
+        } catch (err) {
+            // 降级方案：使用传统的复制方法
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-9999px';
+            textArea.style.top = '-9999px';
+            document.body.appendChild(textArea);
+            textArea.select();
+
+            try {
+                document.execCommand('copy');
+
+                let displayText = text;
+                if (text.length > 50) {
+                    displayText = text.substring(0, 50) + '...';
+                }
+
+                if (window.showFlashMessage) {
+                    window.showFlashMessage('success', `已复制: ${displayText}`);
+                }
+            } catch (e) {
+                if (window.showFlashMessage) {
+                    window.showFlashMessage('error', '复制失败，请手动复制');
+                }
+            }
+
+            document.body.removeChild(textArea);
+        }
+    }
 
     // --- 导出表格功能 ---
     async function exportTableToCSV() {
