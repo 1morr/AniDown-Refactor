@@ -603,7 +603,7 @@ class EmbedBuilder:
             {'name': '👥 字幕组', 'value': subtitle_group or '未知', 'inline': True},
             {'name': '📺 季/集', 'value': ep_text, 'inline': True},
             {'name': ':hash: Hash', 'value': f'`{hash_id[:8]}...`' if hash_id else '未知', 'inline': True},
-            {'name': '📁 下载路径', 'value': f'`{self._truncate_path(download_path)}`', 'inline': False}
+            {'name': '📁 下载路径', 'value': f'`{download_path}`', 'inline': False}
         ]
 
         return self._add_fields(embed, fields)
