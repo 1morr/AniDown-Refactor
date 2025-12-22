@@ -140,6 +140,54 @@
                 <h2 class="text-xl font-bold text-slate-800 dark:text-white">AI / LLM 设置</h2>
             </div>
             <div class="grid grid-cols-1 gap-6">
+                <!-- 语言优先级设置 -->
+                <div class="border border-slate-200 dark:border-white/10 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="text-sm font-semibold text-slate-700 dark:text-gray-300">标题语言优先级</h4>
+                        <button type="button" onclick="showAddLanguageForm()" class="px-3 py-1.5 text-xs rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-gray-200">
+                            <i class="fa-solid fa-plus mr-1"></i> 添加语言
+                        </button>
+                    </div>
+                    <p class="text-xs text-slate-400 dark:text-gray-500 mb-4">拖动调整语言优先级顺序，AI 将优先使用排在前面的语言作为动漫标题。如果第一优先级不存在，则依次尝试下一优先级。</p>
+
+                    <!-- 添加语言表单（默认隐藏） -->
+                    <div id="add_language_form" class="hidden mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-500/30">
+                        <div class="mb-3">
+                            <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">语言名称</label>
+                            <input type="text" id="new_lang_name" class="input-field text-sm" placeholder="如: 中文, English, 日本語, Romaji">
+                        </div>
+                        <div class="flex justify-end gap-2">
+                            <button type="button" onclick="hideAddLanguageForm()" class="px-3 py-1.5 text-xs rounded-lg bg-slate-200 hover:bg-slate-300 dark:bg-white/10 dark:hover:bg-white/20 text-slate-700 dark:text-gray-200">
+                                取消
+                            </button>
+                            <button type="button" onclick="addLanguage()" class="px-3 py-1.5 text-xs rounded-lg bg-blue-500 hover:bg-blue-600 text-white">
+                                添加
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="language_priority_list" class="space-y-2">
+                        {% for lang in config.openai.language_priorities %}
+                        <div class="language-priority-item flex items-center gap-3 p-3 bg-slate-50 dark:bg-white/5 rounded-lg cursor-move border border-transparent hover:border-blue-300 dark:hover:border-blue-500 transition-all"
+                             draggable="true"
+                             data-name="{{ lang.name }}">
+                            <div class="drag-handle text-slate-400 dark:text-gray-500">
+                                <i class="fa-solid fa-grip-vertical"></i>
+                            </div>
+                            <div class="flex-1">
+                                <span class="language-name text-sm text-slate-700 dark:text-gray-300">{{ lang.name }}</span>
+                            </div>
+                            <button type="button" onclick="removeLanguage(this)" class="text-slate-400 hover:text-red-500 transition-colors" title="删除">
+                                <i class="fa-solid fa-trash text-xs"></i>
+                            </button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <p class="text-xs text-slate-400 dark:text-gray-500 mt-3">
+                        <i class="fa-solid fa-info-circle mr-1"></i>
+                        当前优先级：<span id="current_priority_display" class="font-medium text-slate-600 dark:text-gray-300"></span>
+                    </p>
+                </div>
                 <!-- 标题解析 -->
                 <div class="border border-slate-200 dark:border-white/10 rounded-lg p-4">
                     <h4 class="text-sm font-semibold text-slate-700 dark:text-gray-300 mb-4">标题解析</h4>
@@ -889,6 +937,9 @@
         formData.append('openai_title_parse_extra_body', document.getElementById('ai_title_parse_extra_body').value);
         formData.append('openai_title_parse_pool', JSON.stringify(collectAiPool('title_parse')));
 
+        // 语言优先级配置
+        formData.append('language_priorities', JSON.stringify(collectLanguagePriorities()));
+
         // 多文件重命名配置
         formData.append('openai_multi_rename_key', document.getElementById('ai_multi_rename_api_key').value);
         formData.append('openai_multi_rename_model', document.getElementById('ai_multi_rename_model').value);
@@ -969,6 +1020,217 @@
             });
             updateAiPoolTotals(purpose);
         });
+
+        // 初始化语言优先级拖放功能
+        initLanguagePriorityDrag();
+        updatePriorityDisplay();
     });
+
+    // 语言优先级拖放功能
+    function initLanguagePriorityDrag() {
+        const list = document.getElementById('language_priority_list');
+        if (!list) return;
+
+        list.querySelectorAll('.language-priority-item').forEach(item => {
+            item.addEventListener('dragstart', (e) => {
+                list.draggedItem = item;
+                item.classList.add('opacity-50', 'border-blue-500');
+                e.dataTransfer.effectAllowed = 'move';
+            });
+
+            item.addEventListener('dragend', () => {
+                item.classList.remove('opacity-50', 'border-blue-500');
+                list.draggedItem = null;
+                updatePriorityDisplay();
+            });
+
+            item.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+            });
+
+            item.addEventListener('dragenter', (e) => {
+                e.preventDefault();
+                if (item !== list.draggedItem) {
+                    item.classList.add('border-blue-400', 'bg-blue-50', 'dark:bg-blue-900/20');
+                }
+            });
+
+            item.addEventListener('dragleave', () => {
+                item.classList.remove('border-blue-400', 'bg-blue-50', 'dark:bg-blue-900/20');
+            });
+
+            item.addEventListener('drop', (e) => {
+                e.preventDefault();
+                item.classList.remove('border-blue-400', 'bg-blue-50', 'dark:bg-blue-900/20');
+
+                const draggedItem = list.draggedItem;
+                if (item !== draggedItem && draggedItem) {
+                    const allItems = [...list.querySelectorAll('.language-priority-item')];
+                    const draggedIdx = allItems.indexOf(draggedItem);
+                    const targetIdx = allItems.indexOf(item);
+
+                    if (draggedIdx < targetIdx) {
+                        item.parentNode.insertBefore(draggedItem, item.nextSibling);
+                    } else {
+                        item.parentNode.insertBefore(draggedItem, item);
+                    }
+                }
+            });
+        });
+    }
+
+    // 更新优先级显示
+    function updatePriorityDisplay() {
+        const items = document.querySelectorAll('#language_priority_list .language-priority-item');
+        const langs = [];
+
+        items.forEach(item => {
+            const name = item.dataset.name;
+            if (name) {
+                langs.push(name);
+            }
+        });
+
+        const display = document.getElementById('current_priority_display');
+        if (display) {
+            display.textContent = langs.length > 0 ? langs.join(' → ') : '无';
+        }
+    }
+
+    // 收集语言优先级配置
+    function collectLanguagePriorities() {
+        const items = document.querySelectorAll('#language_priority_list .language-priority-item');
+        const priorities = [];
+
+        items.forEach(item => {
+            const name = item.dataset.name;
+            if (name) {
+                priorities.push({ name: name });
+            }
+        });
+
+        return priorities;
+    }
+
+    // 显示添加语言表单
+    function showAddLanguageForm() {
+        document.getElementById('add_language_form').classList.remove('hidden');
+        document.getElementById('new_lang_name').focus();
+    }
+
+    // 隐藏添加语言表单
+    function hideAddLanguageForm() {
+        document.getElementById('add_language_form').classList.add('hidden');
+        document.getElementById('new_lang_name').value = '';
+    }
+
+    // 添加新语言
+    function addLanguage() {
+        const name = document.getElementById('new_lang_name').value.trim();
+
+        if (!name) {
+            showFlashMessage('error', '请输入语言名称');
+            return;
+        }
+
+        // 检查是否已存在
+        const existing = document.querySelector(`#language_priority_list .language-priority-item[data-name="${name}"]`);
+        if (existing) {
+            showFlashMessage('error', '该语言已存在');
+            return;
+        }
+
+        // 创建新的语言项
+        const list = document.getElementById('language_priority_list');
+        const div = document.createElement('div');
+        div.className = 'language-priority-item flex items-center gap-3 p-3 bg-slate-50 dark:bg-white/5 rounded-lg cursor-move border border-transparent hover:border-blue-300 dark:hover:border-blue-500 transition-all';
+        div.draggable = true;
+        div.dataset.name = name;
+        div.innerHTML = `
+            <div class="drag-handle text-slate-400 dark:text-gray-500">
+                <i class="fa-solid fa-grip-vertical"></i>
+            </div>
+            <div class="flex-1">
+                <span class="language-name text-sm text-slate-700 dark:text-gray-300">${name}</span>
+            </div>
+            <button type="button" onclick="removeLanguage(this)" class="text-slate-400 hover:text-red-500 transition-colors" title="删除">
+                <i class="fa-solid fa-trash text-xs"></i>
+            </button>
+        `;
+
+        list.appendChild(div);
+
+        // 为新项目绑定拖放事件
+        bindDragEventsToItem(div);
+
+        // 隐藏表单并更新显示
+        hideAddLanguageForm();
+        updatePriorityDisplay();
+        showFlashMessage('success', `已添加语言: ${name}`);
+    }
+
+    // 删除语言
+    function removeLanguage(btn) {
+        const item = btn.closest('.language-priority-item');
+        const name = item?.dataset?.name || '未知';
+
+        if (item) {
+            item.remove();
+            updatePriorityDisplay();
+            showFlashMessage('success', `已删除语言: ${name}`);
+        }
+    }
+
+    // 为单个项目绑定拖放事件
+    function bindDragEventsToItem(item) {
+        const list = document.getElementById('language_priority_list');
+
+        item.addEventListener('dragstart', (e) => {
+            list.draggedItem = item;
+            item.classList.add('opacity-50', 'border-blue-500');
+            e.dataTransfer.effectAllowed = 'move';
+        });
+
+        item.addEventListener('dragend', () => {
+            item.classList.remove('opacity-50', 'border-blue-500');
+            list.draggedItem = null;
+            updatePriorityDisplay();
+        });
+
+        item.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        });
+
+        item.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            if (item !== list.draggedItem) {
+                item.classList.add('border-blue-400', 'bg-blue-50', 'dark:bg-blue-900/20');
+            }
+        });
+
+        item.addEventListener('dragleave', () => {
+            item.classList.remove('border-blue-400', 'bg-blue-50', 'dark:bg-blue-900/20');
+        });
+
+        item.addEventListener('drop', (e) => {
+            e.preventDefault();
+            item.classList.remove('border-blue-400', 'bg-blue-50', 'dark:bg-blue-900/20');
+
+            const dragged = list.draggedItem;
+            if (item !== dragged && dragged) {
+                const allItems = [...list.querySelectorAll('.language-priority-item')];
+                const draggedIdx = allItems.indexOf(dragged);
+                const targetIdx = allItems.indexOf(item);
+
+                if (draggedIdx < targetIdx) {
+                    item.parentNode.insertBefore(dragged, item.nextSibling);
+                } else {
+                    item.parentNode.insertBefore(dragged, item);
+                }
+            }
+        });
+    }
 </script>
 {% endblock %}

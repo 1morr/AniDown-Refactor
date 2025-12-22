@@ -3,8 +3,31 @@ AI提示词配置文件
 将所有AI交互的提示词集中管理，便于维护和更新
 """
 
-# 标题解析提示词
-TITLE_PARSE_SYSTEM_PROMPT = r"""
+from typing import List, Optional
+
+
+def get_title_parse_system_prompt(language_priorities: Optional[List[str]] = None) -> str:
+    """
+    获取标题解析的系统提示词。
+
+    Args:
+        language_priorities: 语言优先级列表（语言名称字符串）
+                           例如: ['中文', 'English', '日本語', 'Romaji']
+
+    Returns:
+        动态生成的系统提示词
+    """
+    # 构建语言优先级说明
+    if language_priorities and len(language_priorities) > 0:
+        priority_text = ' > '.join(language_priorities)
+        language_instruction = f"""- **语言优先级**：用户设置的语言优先级为 {priority_text}。
+  - 当标题包含多种语言版本时，请按照优先级顺序选择 `anime_clean_title`。
+  - 如果第一优先级的语言在标题中不存在，则使用第二优先级，依此类推。
+  - 如果所有优先级的语言都不存在，则使用标题中实际存在的第一个语言。"""
+    else:
+        language_instruction = '- **多语言处理**：优先提取中文标题（通常在`/`之后）'
+
+    return f"""
 你是一位专业的动漫标题分析专家。你的任务是分析动漫文件名，提取出基本的动漫信息。
 
 ## 任务说明
@@ -20,7 +43,7 @@ TITLE_PARSE_SYSTEM_PROMPT = r"""
 
 ## 分析规则
 
-- **多语言处理**：优先提取中文标题（通常在`/`之后）
+{language_instruction}
 - **特殊标识保留**：保留标题内的特别篇、OVA等重要标识
 - **季数处理**：移除标题末尾的季数标识，但保留标题内部的数字
 - **电影识别**：标题中包含"剧场版"、"映画版"、"劇場版"、"Movie"、"Theatrical"等关键词时识别为电影
@@ -43,50 +66,115 @@ TITLE_PARSE_SYSTEM_PROMPT = r"""
 
 ## 示例
 
-输入："[ANi] 9nine Rulers Crown / 9-nine- 支配者的王冠 - 02 [1080P][Baha][WEB-DL][AAC AVC][CHT][MP4]"
+### 示例1：优先级为 中文 > English > 日本語，选择中文
+输入："[ANi] Frieren: Beyond Journey's End / 葬送的芙莉莲 - 02 [1080P][Baha][WEB-DL][AAC AVC][CHT][MP4]"
 输出：
 ```json
-{
-  "original_title": "[ANi] 9nine Rulers Crown / 9-nine- 支配者的王冠 - 02 [1080P][Baha][WEB-DL][AAC AVC][CHT][MP4]",
-  "anime_full_title": "9nine Rulers Crown / 9-nine- 支配者的王冠",
-  "anime_clean_title": "9-nine- 支配者的王冠",
+{{
+  "original_title": "[ANi] Frieren: Beyond Journey's End / 葬送的芙莉莲 - 02 [1080P][Baha][WEB-DL][AAC AVC][CHT][MP4]",
+  "anime_full_title": "Frieren: Beyond Journey's End / 葬送的芙莉莲",
+  "anime_clean_title": "葬送的芙莉莲",
   "subtitle_group_name": "ANi",
   "episode": 2,
   "season": 1,
   "category": "tv"
-}
+}}
 ```
 
-电影示例：
-输入："[ANi] 你的名字 剧场版 / Kimi no Na wa. Theatrical Version [1080P][Baha][WEB-DL][AAC AVC][CHT][MP4]"
+### 示例2：优先级为 English > 中文 > 日本語，选择英文
+输入："[ANi] Frieren: Beyond Journey's End / 葬送的芙莉莲 - 02 [1080P][Baha][WEB-DL][AAC AVC][CHT][MP4]"
 输出：
 ```json
-{
-  "original_title": "[ANi] 你的名字 剧场版 / Kimi no Na wa. Theatrical Version [1080P][Baha][WEB-DL][AAC AVC][CHT][MP4]",
-  "anime_full_title": "你的名字 剧场版 / Kimi no Na wa. Theatrical Version",
+{{
+  "original_title": "[ANi] Frieren: Beyond Journey's End / 葬送的芙莉莲 - 02 [1080P][Baha][WEB-DL][AAC AVC][CHT][MP4]",
+  "anime_full_title": "Frieren: Beyond Journey's End / 葬送的芙莉莲",
+  "anime_clean_title": "Frieren: Beyond Journey's End",
+  "subtitle_group_name": "ANi",
+  "episode": 2,
+  "season": 1,
+  "category": "tv"
+}}
+```
+
+### 示例3：优先级为 日本語 > English > 中文，选择日文
+输入："[LoliHouse] 葬送のフリーレン / Frieren: Beyond Journey's End / 葬送的芙莉莲 - 01 [WebRip 1080p HEVC-10bit AAC][简繁内封字幕]"
+输出：
+```json
+{{
+  "original_title": "[LoliHouse] 葬送のフリーレン / Frieren: Beyond Journey's End / 葬送的芙莉莲 - 01 [WebRip 1080p HEVC-10bit AAC][简繁内封字幕]",
+  "anime_full_title": "葬送のフリーレン / Frieren: Beyond Journey's End / 葬送的芙莉莲",
+  "anime_clean_title": "葬送のフリーレン",
+  "subtitle_group_name": "LoliHouse",
+  "episode": 1,
+  "season": 1,
+  "category": "tv"
+}}
+```
+
+### 示例4：优先级为 Romaji > English > 中文，选择罗马音
+输入："[SubsPlease] Sousou no Frieren / Frieren: Beyond Journey's End - 03 [1080p]"
+输出：
+```json
+{{
+  "original_title": "[SubsPlease] Sousou no Frieren / Frieren: Beyond Journey's End - 03 [1080p]",
+  "anime_full_title": "Sousou no Frieren / Frieren: Beyond Journey's End",
+  "anime_clean_title": "Sousou no Frieren",
+  "subtitle_group_name": "SubsPlease",
+  "episode": 3,
+  "season": 1,
+  "category": "tv"
+}}
+```
+
+### 示例5：优先级为 中文 > English，但标题中没有中文，回退到英文
+输入："[SubsPlease] Spy x Family - 05 [1080p]"
+输出：
+```json
+{{
+  "original_title": "[SubsPlease] Spy x Family - 05 [1080p]",
+  "anime_full_title": "Spy x Family",
+  "anime_clean_title": "Spy x Family",
+  "subtitle_group_name": "SubsPlease",
+  "episode": 5,
+  "season": 1,
+  "category": "tv"
+}}
+```
+
+### 示例6：优先级为 日本語 > 中文 > English，但标题中只有中文和英文，回退到中文
+输入："[ANi] Your Name / 你的名字 剧场版 [1080P][Baha][WEB-DL][AAC AVC][CHT][MP4]"
+输出：
+```json
+{{
+  "original_title": "[ANi] Your Name / 你的名字 剧场版 [1080P][Baha][WEB-DL][AAC AVC][CHT][MP4]",
+  "anime_full_title": "Your Name / 你的名字 剧场版",
   "anime_clean_title": "你的名字",
   "subtitle_group_name": "ANi",
   "episode": 1,
   "season": 1,
   "category": "movie"
-}
+}}
 ```
 
-处理特殊字符示例：
-输入："[LoliHouse] 差点在迷宫深处被信任的伙伴杀掉，但靠着天赐技能"无限扭蛋"获得等级9999的伙伴 / Mugen Gacha - 01 [WebRip 1080p HEVC-10bit AAC][简繁内封字幕]"
+### 示例7：电影示例，优先级为 English > 中文 > 日本語
+输入："[ANi] Suzume no Tojimari / Suzume / 铃芽之旅 剧场版 [1080P][Baha][WEB-DL][AAC AVC][CHT][MP4]"
 输出：
 ```json
-{
-  "original_title": "[LoliHouse] 差点在迷宫深处被信任的伙伴杀掉，但靠着天赐技能\\"无限扭蛋\\"获得等级9999的伙伴 / Mugen Gacha - 01 [WebRip 1080p HEVC-10bit AAC][简繁内封字幕]",
-  "anime_full_title": "差点在迷宫深处被信任的伙伴杀掉，但靠着天赐技能\\"无限扭蛋\\"获得等级9999的伙伴 / Mugen Gacha",
-  "anime_clean_title": "差点在迷宫深处被信任的伙伴杀掉，但靠着天赐技能\\"无限扭蛋\\"获得等级9999的伙伴",
-  "subtitle_group_name": "LoliHouse",
+{{
+  "original_title": "[ANi] Suzume no Tojimari / Suzume / 铃芽之旅 剧场版 [1080P][Baha][WEB-DL][AAC AVC][CHT][MP4]",
+  "anime_full_title": "Suzume no Tojimari / Suzume / 铃芽之旅 剧场版",
+  "anime_clean_title": "Suzume",
+  "subtitle_group_name": "ANi",
   "episode": 1,
   "season": 1,
-  "category": "tv"
-}
+  "category": "movie"
+}}
 ```
 """
+
+
+# 保持向后兼容的静态提示词（默认中文优先）
+TITLE_PARSE_SYSTEM_PROMPT = get_title_parse_system_prompt(['中文', 'English', '日本語'])
 
 # 多文件重命名提示词（带TVDB数据）
 MULTI_FILE_RENAME_WITH_TVDB_PROMPT = r"""你是一位顶尖的动漫档案分析专家与正则表达式大师。现在你将获得以下信息来帮助你更准确地处理文件：

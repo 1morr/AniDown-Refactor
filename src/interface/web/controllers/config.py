@@ -6,7 +6,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 import json
 
-from src.core.config import config, RSSFeed, OpenAIConfig
+from src.core.config import config, RSSFeed, OpenAIConfig, LanguagePriorityConfig
 from src.interface.web.utils import (
     APIResponse,
     handle_api_errors,
@@ -154,6 +154,24 @@ def update_config():
             return _handle_config_error(
                 is_ajax,
                 f'标题解析 Key Pool 配置解析失败: {e}'
+            )
+
+    # 语言优先级配置
+    if 'language_priorities' in data:
+        try:
+            priorities_data = json.loads(data['language_priorities'] or '[]')
+            priorities = []
+            for item in priorities_data:
+                if isinstance(item, dict) and item.get('name'):
+                    priorities.append(LanguagePriorityConfig(name=item['name']))
+                elif isinstance(item, str) and item.strip():
+                    priorities.append(LanguagePriorityConfig(name=item.strip()))
+            if priorities:
+                config.set('openai.language_priorities', priorities)
+        except Exception as e:
+            return _handle_config_error(
+                is_ajax,
+                f'语言优先级配置解析失败: {e}'
             )
 
     # OpenAI - 多文件重命名配置

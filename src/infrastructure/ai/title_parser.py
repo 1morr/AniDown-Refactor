@@ -8,6 +8,7 @@ import json
 import logging
 from typing import Any, Dict, Optional
 
+from src.core.config import config
 from src.core.exceptions import (
     AICircuitBreakerError,
     AIKeyExhaustedError,
@@ -19,7 +20,7 @@ from src.services.ai_debug_service import ai_debug_service
 from .api_client import OpenAIClient
 from .circuit_breaker import CircuitBreaker
 from .key_pool import KeyPool
-from .prompts import TITLE_PARSE_SYSTEM_PROMPT
+from .prompts import get_title_parse_system_prompt
 from .schemas import TITLE_PARSE_RESPONSE_FORMAT
 
 logger = logging.getLogger(__name__)
@@ -110,13 +111,17 @@ class AITitleParser(ITitleParser):
             # 解析 extra_body
             extra_params = self._parse_extra_body(reservation.extra_body)
 
+            # 获取语言优先级配置并生成提示词
+            language_priorities = self._get_language_priorities()
+            system_prompt = get_title_parse_system_prompt(language_priorities)
+
             # 调用 API
             response = self._api_client.call(
                 base_url=reservation.base_url,
                 api_key=reservation.api_key,
                 model=reservation.model,
                 messages=[
-                    {'role': 'system', 'content': TITLE_PARSE_SYSTEM_PROMPT},
+                    {'role': 'system', 'content': system_prompt},
                     {'role': 'user', 'content': title}
                 ],
                 response_format=TITLE_PARSE_RESPONSE_FORMAT,
@@ -161,7 +166,13 @@ class AITitleParser(ITitleParser):
                 if ai_debug_service.enabled:
                     ai_debug_service.log_ai_interaction(
                         operation='title_parse',
-                        input_data={'title': title},
+                        input_data={
+                            'title': title,
+                            'language_priorities': language_priorities,
+                            'system_prompt': system_prompt,
+                            'base_url': reservation.base_url,
+                            'extra_params': extra_params,
+                        },
                         output_data=response.content,
                         model=reservation.model,
                         response_time_ms=response.response_time_ms,
@@ -222,7 +233,13 @@ class AITitleParser(ITitleParser):
                 if ai_debug_service.enabled:
                     ai_debug_service.log_ai_interaction(
                         operation='title_parse',
-                        input_data={'title': title},
+                        input_data={
+                            'title': title,
+                            'language_priorities': language_priorities,
+                            'system_prompt': system_prompt,
+                            'base_url': reservation.base_url,
+                            'extra_params': extra_params,
+                        },
                         output_data=None,
                         model=reservation.model,
                         response_time_ms=response.response_time_ms,
@@ -357,3 +374,20 @@ class AITitleParser(ITitleParser):
         except json.JSONDecodeError as e:
             logger.warning(f'⚠️ extra_body JSON 解析失败: {e}')
             return None
+
+    def _get_language_priorities(self) -> list:
+        """
+        从配置中获取语言优先级列表。
+
+        Returns:
+            语言名称字符串列表，按优先级顺序排列
+        """
+        try:
+            priorities = config.openai.language_priorities
+            if priorities:
+                return [p.name for p in priorities]
+        except Exception as e:
+            logger.warning(f'⚠️ 获取语言优先级配置失败: {e}')
+
+        # 返回默认值
+        return ['中文', 'English', '日本語']

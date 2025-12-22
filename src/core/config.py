@@ -84,6 +84,12 @@ class QBitTorrentConfig(BaseModel):
     movie_folder_name: str = 'Movies'
 
 
+class LanguagePriorityConfig(BaseModel):
+    """语言优先级配置"""
+
+    name: str  # 语言名称: 中文, English, 日本語, Romaji 等
+
+
 class OpenAIConfig(BaseModel):
     """AI/LLM 配置（按任务区分）"""
 
@@ -129,6 +135,16 @@ class OpenAIConfig(BaseModel):
 
     # Key Pool 限流/熔断配置
     rate_limits: RateLimitConfig = Field(default_factory=RateLimitConfig)
+
+    # 语言优先级配置（用于标题解析时选择首选语言）
+    language_priorities: List[LanguagePriorityConfig] = Field(
+        default_factory=lambda: [
+            LanguagePriorityConfig(name='中文'),
+            LanguagePriorityConfig(name='English'),
+            LanguagePriorityConfig(name='日本語'),
+            LanguagePriorityConfig(name='Romaji'),
+        ]
+    )
 
 
 class AIProcessingConfig(BaseModel):

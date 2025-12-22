@@ -42,7 +42,13 @@
       "key_cooldown_seconds": 30,
       "circuit_breaker_cooldown_seconds": 900,
       "max_backoff_seconds": 300
-    }
+    },
+    "language_priorities": [
+      { "name": "中文" },
+      { "name": "English" },
+      { "name": "日本語" },
+      { "name": "Romaji" }
+    ]
   },
   "ai_processing": {
     "max_batch_size": 30,
