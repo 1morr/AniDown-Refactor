@@ -1615,9 +1615,26 @@ class DownloadManager:
         anime_id: Optional[int]
     ) -> None:
         """Save torrent file information."""
-        # Use the history_repo's legacy method for saving torrent files
-        # This would typically be a direct database operation
-        pass  # Implemented in repository layer
+        # Determine file type based on extension
+        file_type = 'other'
+        file_lower = file_path.lower()
+
+        if file_lower.endswith(('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm')):
+            file_type = 'video'
+        elif file_lower.endswith(('.srt', '.ass', '.ssa', '.vtt', '.sub')):
+            file_type = 'subtitle'
+
+        # Save to database via repository
+        try:
+            self._download_repo.insert_torrent_file(
+                torrent_hash=torrent_hash,
+                file_path=file_path,
+                file_size=file_size,
+                file_type=file_type,
+                anime_id=anime_id
+            )
+        except Exception as e:
+            logger.warning(f'⚠️ Failed to save torrent file to database: {e}')
 
     def _generate_save_path(self, ai_result: Dict[str, Any]) -> str:
         """Generate download save path."""

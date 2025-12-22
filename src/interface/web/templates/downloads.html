@@ -1543,7 +1543,8 @@
                 }
 
                 showSuccess(message);
-                closeModal('modal-link-manager');
+                // 保持弹窗打开，重新加载文件列表以显示最新状态
+                await this.loadTorrentFiles(this.currentHashId);
                 renderTable();
 
             } catch (error) {
