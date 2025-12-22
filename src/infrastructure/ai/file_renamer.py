@@ -6,7 +6,8 @@ AI 文件重命名器模块。
 
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from collections import defaultdict
+from typing import Any, Dict, List, Optional, Tuple
 
 from src.core.exceptions import (
     AICircuitBreakerError,
@@ -140,6 +141,64 @@ class AIFileRenamer(IFileRenamer):
                 previous_hardlinks=[]
             )
 
+    def _group_files_by_folder(
+        self,
+        files: List[str]
+    ) -> List[Tuple[str, List[str]]]:
+        """
+        按文件夹路径（第二层目录）对文件进行分组。
+
+        将文件按其所属的子文件夹分组，确保同一季度/子文件夹的文件
+        被放在一起处理，避免不同季度的文件混在同一批次中。
+
+        Args:
+            files: 文件路径列表
+
+        Returns:
+            按文件夹分组的列表，每个元素为 (文件夹路径, 文件列表)
+        """
+        folder_groups: Dict[str, List[str]] = defaultdict(list)
+
+        for file_path in files:
+            # 解析文件路径，提取第二层目录作为分组键
+            # 例如: "[VCB-Studio] selector WIXOSS/[VCB-Studio] selector infected WIXOSS [Ma10p_1080p]/..."
+            # 分组键为: "[VCB-Studio] selector WIXOSS/[VCB-Studio] selector infected WIXOSS [Ma10p_1080p]"
+            parts = file_path.replace('\\', '/').split('/')
+
+            if len(parts) >= 2:
+                # 使用前两层目录作为分组键
+                folder_key = '/'.join(parts[:2])
+            elif len(parts) == 1:
+                # 只有文件名，使用空字符串作为根目录键
+                folder_key = ''
+            else:
+                folder_key = parts[0] if parts else ''
+
+            folder_groups[folder_key].append(file_path)
+
+        # 转换为有序列表，保持文件夹的原始出现顺序
+        seen_folders: List[str] = []
+        for file_path in files:
+            parts = file_path.replace('\\', '/').split('/')
+            if len(parts) >= 2:
+                folder_key = '/'.join(parts[:2])
+            elif len(parts) == 1:
+                folder_key = ''
+            else:
+                folder_key = parts[0] if parts else ''
+
+            if folder_key not in seen_folders:
+                seen_folders.append(folder_key)
+
+        result = [(folder, folder_groups[folder]) for folder in seen_folders]
+
+        logger.debug(
+            f'📁 文件按文件夹分组: {len(result)} 个文件夹, '
+            f'分别有 {[len(g[1]) for g in result]} 个文件'
+        )
+
+        return result
+
     def _process_batches(
         self,
         files: List[str],
@@ -150,6 +209,9 @@ class AIFileRenamer(IFileRenamer):
     ) -> Optional[RenameResult]:
         """
         分批处理大文件列表。
+
+        先按文件夹分组，再对每个文件夹组内的文件按数量分批。
+        确保不同文件夹（如不同季度）的文件不会混在同一批次中。
 
         Args:
             files: 文件名列表
@@ -164,52 +226,78 @@ class AIFileRenamer(IFileRenamer):
         merged_result = RenameResult()
         previous_hardlinks: List[str] = []
 
-        total_batches = (len(files) + self._batch_size - 1) // self._batch_size
+        # 先按文件夹分组
+        folder_groups = self._group_files_by_folder(files)
 
-        for batch_idx in range(total_batches):
-            start = batch_idx * self._batch_size
-            end = min(start + self._batch_size, len(files))
-            batch_files = files[start:end]
+        # 计算总批次数（用于日志显示）
+        total_batches = 0
+        for folder_name, folder_files in folder_groups:
+            folder_batches = (len(folder_files) + self._batch_size - 1) // self._batch_size
+            total_batches += folder_batches
+
+        logger.info(
+            f'📊 分批策略: {len(folder_groups)} 个文件夹, '
+            f'共 {total_batches} 个批次'
+        )
+
+        batch_idx = 0
+        for folder_name, folder_files in folder_groups:
+            folder_display = folder_name.split('/')[-1] if folder_name else '根目录'
+            folder_batch_count = (
+                len(folder_files) + self._batch_size - 1
+            ) // self._batch_size
 
             logger.info(
-                f'🔄 处理批次 {batch_idx + 1}/{total_batches}: '
-                f'{len(batch_files)} 个文件'
+                f'📁 处理文件夹 [{folder_display}]: '
+                f'{len(folder_files)} 个文件, {folder_batch_count} 个批次'
             )
 
-            batch_result = self._process_single_batch(
-                files=batch_files,
-                category=category,
-                anime_title=anime_title,
-                folder_structure=folder_structure,
-                tvdb_data=tvdb_data,
-                previous_hardlinks=previous_hardlinks
-            )
+            # 对当前文件夹内的文件按数量分批
+            for inner_idx in range(folder_batch_count):
+                batch_idx += 1
+                start = inner_idx * self._batch_size
+                end = min(start + self._batch_size, len(folder_files))
+                batch_files = folder_files[start:end]
 
-            if batch_result is None:
-                logger.error(f'❌ 批次 {batch_idx + 1} 处理失败')
-                continue
+                logger.info(
+                    f'🔄 处理批次 {batch_idx}/{total_batches}: '
+                    f'{len(batch_files)} 个文件 (来自 {folder_display})'
+                )
 
-            # 合并结果
-            merged_result.main_files.update(batch_result.main_files)
-            merged_result.skipped_files.extend(batch_result.skipped_files)
+                batch_result = self._process_single_batch(
+                    files=batch_files,
+                    category=category,
+                    anime_title=anime_title,
+                    folder_structure=folder_structure,
+                    tvdb_data=tvdb_data,
+                    previous_hardlinks=previous_hardlinks
+                )
 
-            # 合并季度信息
-            for season_key, season_info in batch_result.seasons_info.items():
-                if season_key in merged_result.seasons_info:
-                    # 累加集数
-                    existing = merged_result.seasons_info[season_key]
-                    if isinstance(existing, dict) and isinstance(season_info, dict):
-                        existing['count'] = (
-                            existing.get('count', 0) + season_info.get('count', 0)
-                        )
-                else:
-                    merged_result.seasons_info[season_key] = season_info
+                if batch_result is None:
+                    logger.error(f'❌ 批次 {batch_idx} 处理失败')
+                    continue
 
-            # 更新已处理的硬链接列表，用于后续批次冲突检测
-            previous_hardlinks.extend(batch_result.main_files.values())
+                # 合并结果
+                merged_result.main_files.update(batch_result.main_files)
+                merged_result.skipped_files.extend(batch_result.skipped_files)
 
-            # 保留最后一批的 patterns
-            merged_result.patterns = batch_result.patterns
+                # 合并季度信息
+                for season_key, season_info in batch_result.seasons_info.items():
+                    if season_key in merged_result.seasons_info:
+                        # 累加集数
+                        existing = merged_result.seasons_info[season_key]
+                        if isinstance(existing, dict) and isinstance(season_info, dict):
+                            existing['count'] = (
+                                existing.get('count', 0) + season_info.get('count', 0)
+                            )
+                    else:
+                        merged_result.seasons_info[season_key] = season_info
+
+                # 更新已处理的硬链接列表，用于后续批次冲突检测
+                previous_hardlinks.extend(batch_result.main_files.values())
+
+                # 保留最后一批的 patterns
+                merged_result.patterns = batch_result.patterns
 
         if not merged_result.has_files:
             logger.warning('📭 批量处理完成但没有生成任何重命名映射')
