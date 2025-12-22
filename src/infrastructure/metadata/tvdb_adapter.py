@@ -522,11 +522,16 @@ class TVDBAdapter(IMetadataClient):
                     else:
                         display_title = original_title
 
-                    episodes_list.append({
+                    ep_entry = {
                         'episode': ep.get('number'),
                         'title': display_title,
                         'type': ep_type
-                    })
+                    }
+                    # Add runtime if available
+                    runtime = ep.get('runtime')
+                    if runtime:
+                        ep_entry['runtime'] = runtime
+                    episodes_list.append(ep_entry)
 
                 # Build type summary for specials
                 type_summary = {
@@ -554,10 +559,15 @@ class TVDBAdapter(IMetadataClient):
                     else:
                         display_title = original_title
 
-                    episodes_list.append({
+                    ep_entry = {
                         'episode': ep.get('number'),
                         'title': display_title
-                    })
+                    }
+                    # Add runtime if available
+                    runtime = ep.get('runtime')
+                    if runtime:
+                        ep_entry['runtime'] = runtime
+                    episodes_list.append(ep_entry)
 
                 season_entry = {
                     'season': season_num,
