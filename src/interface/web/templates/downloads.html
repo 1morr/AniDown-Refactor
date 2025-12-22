@@ -356,9 +356,22 @@
             <div class="flex-1 overflow-y-auto bg-slate-50/30 dark:bg-[#121214] relative scrollbar-thin">
                 <!-- 表头 -->
                 <div class="sticky top-0 z-10 grid grid-cols-12 gap-4 px-6 py-2 bg-slate-50 dark:bg-[#1c1c1f] border-b border-slate-200 dark:border-white/5 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                    <div class="col-span-6 md:col-span-7 pl-2">文件信息</div>
-                    <div class="col-span-2 md:col-span-1 text-right hidden md:block">大小</div>
-                    <div class="col-span-2 md:col-span-1 text-center hidden md:block">状态</div>
+                    <div class="col-span-6 md:col-span-7 pl-2 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex items-center gap-2" onclick="hardlinkManager.toggleSort('name')" title="点击排序">
+                        文件信息
+                        <span id="sort-indicator-name" class="text-[10px]"></span>
+                    </div>
+                    <div class="col-span-2 md:col-span-1 text-right hidden md:block cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors" onclick="hardlinkManager.toggleSort('size')" title="点击排序">
+                        <span class="inline-flex items-center gap-1">
+                            大小
+                            <span id="sort-indicator-size" class="text-[10px]"></span>
+                        </span>
+                    </div>
+                    <div class="col-span-2 md:col-span-1 text-center hidden md:block cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors" onclick="hardlinkManager.toggleSort('status')" title="点击排序">
+                        <span class="inline-flex items-center gap-1">
+                            状态
+                            <span id="sort-indicator-status" class="text-[10px]"></span>
+                        </span>
+                    </div>
                     <div class="col-span-6 md:col-span-3">重命名 / 目标文件名</div>
                 </div>
 
@@ -1199,6 +1212,8 @@
             this.selectedFiles = new Set();
             this.currentFilter = 'all'; // all, video, subtitle, other
             this.lastClickedIndex = null; // 记录上次点击的索引，用于 Shift 多选
+            this.sortColumn = 'name'; // name, size, status
+            this.sortOrder = 'asc'; // asc, desc
         }
 
         async loadTorrentFiles(hashId) {
@@ -1235,6 +1250,7 @@
 
                 this.renderTorrentHeader(data.torrent_info);
                 this.updateCounts();
+                this.updateSortIndicators();
                 this.renderFilesList();
 
             } catch (error) {
@@ -1288,6 +1304,42 @@
             });
         }
 
+        // 切换排序
+        toggleSort(column) {
+            if (this.sortColumn === column) {
+                // 同一列，切换排序顺序
+                this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                // 不同列，设置新列并默认升序
+                this.sortColumn = column;
+                this.sortOrder = 'asc';
+            }
+            this.updateSortIndicators();
+            this.renderFilesList();
+        }
+
+        // 更新排序指示器
+        updateSortIndicators() {
+            // 清除所有指示器
+            ['name', 'size', 'status'].forEach(col => {
+                const indicator = document.getElementById(`sort-indicator-${col}`);
+                if (indicator) {
+                    indicator.innerHTML = '';
+                }
+            });
+
+            // 设置当前排序列的指示器
+            const currentIndicator = document.getElementById(`sort-indicator-${this.sortColumn}`);
+            if (currentIndicator) {
+                if (this.sortOrder === 'asc') {
+                    currentIndicator.innerHTML = '<i class="fa-solid fa-sort-up"></i>';
+                } else {
+                    currentIndicator.innerHTML = '<i class="fa-solid fa-sort-down"></i>';
+                }
+                currentIndicator.classList.add('text-blue-600', 'dark:text-blue-400');
+            }
+        }
+
         // 更新底部动作按钮状态 (Create/Delete/Rename)
         updateActionButtons() {
             const btnCreate = document.getElementById('btn-create-link');
@@ -1323,10 +1375,32 @@
         renderFilesList() {
             const filesList = document.getElementById('manager-file-list');
             const emptyState = document.getElementById('empty-state-filter');
-            
+
             // 1. 筛选文件
-            const filteredFiles = this.torrentFiles.map((file, index) => ({...file, originalIndex: index}))
+            let filteredFiles = this.torrentFiles.map((file, index) => ({...file, originalIndex: index}))
                 .filter(file => this.currentFilter === 'all' || file.category === this.currentFilter);
+
+            // 2. 排序文件
+            filteredFiles.sort((a, b) => {
+                let compareResult = 0;
+
+                switch (this.sortColumn) {
+                    case 'name':
+                        compareResult = a.name.localeCompare(b.name);
+                        break;
+                    case 'size':
+                        compareResult = a.size - b.size;
+                        break;
+                    case 'status':
+                        // 已链接排在前面
+                        const aStatus = a.has_hardlink ? 1 : 0;
+                        const bStatus = b.has_hardlink ? 1 : 0;
+                        compareResult = bStatus - aStatus;
+                        break;
+                }
+
+                return this.sortOrder === 'asc' ? compareResult : -compareResult;
+            });
 
             if (filteredFiles.length === 0) {
                 filesList.innerHTML = '';
