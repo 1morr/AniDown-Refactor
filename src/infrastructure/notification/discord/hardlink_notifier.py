@@ -56,7 +56,7 @@ class DiscordHardlinkNotifier(IHardlinkNotifier):
         """
         通知硬链接创建成功。
 
-        使用详细的 Embed 格式，包含 Torrent ID、TVDB 使用情况、重命名示例等。
+        使用详细的 Embed 格式，包含 Hash、TVDB 使用情况、重命名示例等。
 
         Args:
             notification: 硬链接通知数据

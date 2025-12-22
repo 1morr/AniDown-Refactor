@@ -888,13 +888,13 @@ class DownloadManager:
                 upload_status='success'
             )
 
-            # Send notification
-            self._notify_download_start(
-                anime_title=anime_title,
-                season=season,
-                episode=1,
+            # Send notification (same format as RSS, to RSS channel)
+            self._notify_download_task(
+                project_name=anime_title,
+                hash_id=hash_id,
+                anime_title=f'手动上传 - {anime_title}',
                 subtitle_group=subtitle_group,
-                hash_id=hash_id
+                download_path=save_path
             )
 
             return True

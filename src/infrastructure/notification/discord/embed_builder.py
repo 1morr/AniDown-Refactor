@@ -226,7 +226,7 @@ class EmbedBuilder:
         fields = [
             {'name': '👥 字幕组', 'value': subtitle_group or '未知', 'inline': True},
             {'name': '📺 季度', 'value': f'第 {season} 季' if season > 0 else '电影/OVA', 'inline': True},
-            {'name': '🔑 哈希', 'value': f'`{hash_id[:8]}...`', 'inline': True}
+            {'name': ':hash: Hash', 'value': f'`{hash_id[:8]}...`', 'inline': True}
         ]
 
         return self._add_fields(embed, fields)
@@ -264,7 +264,7 @@ class EmbedBuilder:
 
         fields = [
             {'name': '👥 字幕组', 'value': subtitle_group or '未知', 'inline': True},
-            {'name': '🔑 哈希', 'value': f'`{hash_id[:8]}...`', 'inline': True}
+            {'name': ':hash: Hash', 'value': f'`{hash_id[:8]}...`', 'inline': True}
         ]
 
         return self._add_fields(embed, fields)
@@ -298,7 +298,7 @@ class EmbedBuilder:
 
         if hash_id:
             fields.append({
-                'name': '🔑 哈希',
+                'name': ':hash: Hash',
                 'value': f'`{hash_id[:8]}...`',
                 'inline': True
             })
@@ -592,7 +592,7 @@ class EmbedBuilder:
         fields = [
             {'name': '🎬 动漫标题', 'value': display_title, 'inline': False},
             {'name': '👥 字幕组', 'value': subtitle_group or '未知', 'inline': True},
-            {'name': '🔑 哈希', 'value': f'`{hash_id[:8]}...`' if hash_id else '未知', 'inline': True},
+            {'name': ':hash: Hash', 'value': f'`{hash_id[:8]}...`' if hash_id else '未知', 'inline': True},
             {'name': '📁 下载路径', 'value': f'`{self._truncate_path(download_path)}`', 'inline': False}
         ]
 
@@ -745,7 +745,7 @@ class EmbedBuilder:
         content_path_display = f'`{content_path}`' if content_path else '未知'
 
         fields = [
-            {'name': '🔑 Torrent ID', 'value': f'`{torrent_id[:8]}...`' if torrent_id else '未知', 'inline': True},
+            {'name': ':hash: Hash', 'value': f'`{torrent_id[:8]}...`' if torrent_id else '未知', 'inline': True},
             {'name': '💾 保存路径', 'value': save_path_display, 'inline': False},
             {'name': '📂 内容路径', 'value': content_path_display, 'inline': False}
         ]
@@ -794,7 +794,7 @@ class EmbedBuilder:
         total_hardlinks = video_count + subtitle_count
 
         fields = [
-            {'name': '🔑 Torrent ID', 'value': f'`{torrent_id[:8]}...`' if torrent_id else '未知', 'inline': True},
+            {'name': ':hash: Hash', 'value': f'`{torrent_id[:8]}...`' if torrent_id else '未知', 'inline': True},
             {'name': '👥 字幕组', 'value': subtitle_group or '未知', 'inline': True},
             {'name': '📺 使用 TVDB', 'value': '是' if tvdb_used else '否', 'inline': True},
             {'name': '✏️ 重命名方式', 'value': rename_method[:30] if rename_method else '未知', 'inline': True},
@@ -804,16 +804,9 @@ class EmbedBuilder:
             {'name': '📁 硬链接路径', 'value': f'`{hardlink_path}`' if hardlink_path else '未知', 'inline': False}
         ]
 
-        # 添加最多 3 个重命名示例（只显示重命名后的文件名）
+        # 添加最多 3 个重命名示例（显示完整的 原文件名 → 新文件名 格式）
         if rename_examples:
-            # 提取 → 后面的部分作为重命名结果
-            renamed_files = []
-            for ex in rename_examples[:3]:
-                if ' → ' in ex:
-                    renamed_files.append(f'`{ex.split(" → ")[-1]}`')
-                else:
-                    renamed_files.append(f'`{ex}`')
-            examples_text = '\n'.join(renamed_files)
+            examples_text = '\n'.join(f'`{ex}`' for ex in rename_examples[:3])
             fields.append({
                 'name': '✨ 重命名结果',
                 'value': examples_text,
