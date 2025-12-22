@@ -1198,6 +1198,7 @@
             this.torrentFiles = [];
             this.selectedFiles = new Set();
             this.currentFilter = 'all'; // all, video, subtitle, other
+            this.lastClickedIndex = null; // 记录上次点击的索引，用于 Shift 多选
         }
 
         async loadTorrentFiles(hashId) {
@@ -1385,7 +1386,7 @@
                             <div class="pt-1 shrink-0">
                                 <input type="checkbox" class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer transition-all"
                                     data-index="${index}" ${isSelected ? 'checked' : ''}
-                                    onchange="hardlinkManager.toggleFileSelection(${index})">
+                                    onclick="hardlinkManager.handleCheckboxClick(event, ${index})">
                             </div>
                             <div class="text-lg opacity-80 pt-0.5 shrink-0">${item.category === 'video' ? '<i class="fa-solid fa-file-video text-blue-500"></i>' : (item.category === 'subtitle' ? '<i class="fa-solid fa-closed-captioning text-amber-500"></i>' : '<i class="fa-regular fa-file text-slate-400"></i>')}</div>
                             <div class="min-w-0 flex-1 flex flex-col justify-center">
@@ -1424,17 +1425,55 @@
             filesList.innerHTML = html;
         }
 
+        // 处理复选框点击事件（支持 Shift 多选）
+        handleCheckboxClick(event, index) {
+            const checkbox = event.target;
+
+            // Shift + 点击实现范围多选
+            if (event.shiftKey && this.lastClickedIndex !== null && this.lastClickedIndex !== index) {
+                // 阻止默认行为
+                event.preventDefault();
+
+                const start = Math.min(this.lastClickedIndex, index);
+                const end = Math.max(this.lastClickedIndex, index);
+
+                // 获取当前筛选下可见的文件索引
+                const visibleIndices = this.torrentFiles
+                    .map((f, idx) => ({file: f, index: idx}))
+                    .filter(item => this.currentFilter === 'all' || item.file.category === this.currentFilter)
+                    .map(item => item.index);
+
+                // 选中范围内所有可见的文件
+                for (let i = start; i <= end; i++) {
+                    if (visibleIndices.includes(i)) {
+                        this.selectedFiles.add(i);
+                    }
+                }
+
+                // 记录本次点击
+                this.lastClickedIndex = index;
+
+                // 批量更新后重新渲染
+                this.updateActionButtons();
+                this.renderFilesList();
+                return;
+            }
+
+            // 普通点击逻辑
+            this.toggleFileSelection(index, checkbox.checked);
+        }
+
         // 切换单个文件选择
-        toggleFileSelection(index) {
+        toggleFileSelection(index, isChecked) {
             const checkbox = document.querySelector(`input[type="checkbox"][data-index="${index}"]`);
             const customNameInput = document.querySelector(`.custom-name-input[data-index="${index}"]`);
             const file = this.torrentFiles[index];
 
-            if (checkbox.checked) {
+            if (isChecked) {
                 this.selectedFiles.add(index);
                 customNameInput.disabled = false;
                 customNameInput.focus();
-                
+
                 // 智能预填充：如果是已硬链文件，显示当前名；如果是新文件，可选择预填原名
                 if (file.has_hardlink && file.hardlink_info) {
                     customNameInput.value = file.hardlink_info.hardlink_path.split(/[/\\]/).pop();
@@ -1447,12 +1486,15 @@
                 customNameInput.value = ''; // 清空输入框，视觉上复位
             }
 
+            // 记录本次点击的索引
+            this.lastClickedIndex = index;
+
             // 更新按钮状态
             this.updateActionButtons();
 
             // 重新渲染当前行样式 (不必重绘整个列表，提升性能)
             const row = checkbox.closest('.file-row');
-            if (checkbox.checked) {
+            if (isChecked) {
                 row.classList.add('bg-blue-50/50', 'dark:bg-blue-900/10', 'border-blue-500');
                 row.classList.remove('border-transparent');
             } else {
