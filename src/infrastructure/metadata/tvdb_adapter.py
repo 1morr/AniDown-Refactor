@@ -149,7 +149,26 @@ class TVDBAdapter(IMetadataClient):
             response.raise_for_status()
 
             result = response.json()
-            return result.get('data', {})
+            data = result.get('data', {})
+
+            # Extract season names from seasons array
+            season_names: Dict[int, str] = {}
+            for season in data.get('seasons', []):
+                # Only get official aired order seasons
+                season_type = season.get('type', {})
+                if season_type.get('type') == 'official':
+                    season_num = season.get('number')
+                    season_name = season.get('name', '')
+                    if season_num is not None and season_name:
+                        season_names[season_num] = season_name
+
+            # Store season names in the data for later use
+            data['_season_names'] = season_names
+
+            if season_names:
+                logger.debug(f'📋 获取到 {len(season_names)} 个季度名称: {season_names}')
+
+            return data
 
         except requests.exceptions.RequestException as e:
             logger.error(f'❌ 获取TVDB系列详情失败：{e}')
@@ -376,6 +395,62 @@ class TVDBAdapter(IMetadataClient):
         )
         return None
 
+    def get_episode_extended(self, episode_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Get extended information for an episode.
+
+        Args:
+            episode_id: Episode identifier.
+
+        Returns:
+            Episode extended data if found, None otherwise.
+        """
+        if not self._enabled:
+            return None
+
+        try:
+            url = f'{self.BASE_URL}/episodes/{episode_id}/extended'
+
+            response = requests.get(
+                url,
+                headers=self._get_headers(),
+                timeout=self.DEFAULT_TIMEOUT
+            )
+            response.raise_for_status()
+
+            result = response.json()
+            return result.get('data', {})
+
+        except requests.exceptions.RequestException as e:
+            logger.debug(f'获取 Episode {episode_id} 详情失败：{e}')
+            return None
+
+    def _get_special_category(self, episode_id: int) -> str:
+        """
+        Get the Special Category for an episode from TVDB.
+
+        Fetches episode extended data and extracts the Special Category
+        from tagOptions.
+
+        Args:
+            episode_id: Episode identifier.
+
+        Returns:
+            Special Category name (e.g., 'Movies', 'Episodic Special')
+            or 'Uncategorized' if not found.
+        """
+        ep_data = self.get_episode_extended(episode_id)
+        if not ep_data:
+            return 'Uncategorized'
+
+        # Find Special Category in tagOptions
+        tag_options = ep_data.get('tagOptions', [])
+        for tag in tag_options:
+            if tag.get('tagName') == 'Special Category':
+                return tag.get('name', 'Uncategorized')
+
+        return 'Uncategorized'
+
     def generate_ai_format(
         self,
         series_data: Dict[str, Any],
@@ -385,13 +460,14 @@ class TVDBAdapter(IMetadataClient):
         Generate AI-friendly format for series data.
 
         Args:
-            series_data: Series information.
+            series_data: Series information (includes _season_names from get_series_extended).
             episodes: List of episodes.
 
         Returns:
-            AI-formatted data structure.
+            AI-formatted data structure with season names and episode types.
         """
         main_name = series_data.get('name', '')
+        season_names = series_data.get('_season_names', {})
 
         # Group episodes by season
         seasons_dict: Dict[int, List[Dict[str, Any]]] = {}
@@ -410,28 +486,90 @@ class TVDBAdapter(IMetadataClient):
             season_episodes.sort(key=lambda x: x.get('number', 0))
 
             episodes_list = []
-            for ep in season_episodes:
-                original_title = ep.get('name', 'Untitled')
-                english_title = ep.get('englishName', '')
 
-                # Build display title with English in parentheses
-                if (english_title and
-                        english_title != original_title and
-                        english_title.strip()):
-                    display_title = f'{original_title} ({english_title})'
-                else:
-                    display_title = original_title
+            # For Season 0 (Specials), group by type from TVDB
+            if season_num == 0:
+                # Fetch Special Category for each episode from TVDB API
+                logger.info(f'  获取 {len(season_episodes)} 个特别篇的分类信息...')
+                episode_categories: Dict[int, str] = {}
+                for ep in season_episodes:
+                    ep_id = ep.get('id')
+                    if ep_id:
+                        category = self._get_special_category(ep_id)
+                        episode_categories[ep_id] = category
 
-                episodes_list.append({
-                    'episode': ep.get('number'),
-                    'title': display_title
+                # Group specials by type
+                type_groups: Dict[str, List[Dict[str, Any]]] = {}
+                for ep in season_episodes:
+                    ep_id = ep.get('id')
+                    ep_type = episode_categories.get(ep_id, 'Uncategorized')
+                    if ep_type not in type_groups:
+                        type_groups[ep_type] = []
+                    type_groups[ep_type].append(ep)
+
+                # Build episodes list with type info
+                for ep in season_episodes:
+                    original_title = ep.get('name', 'Untitled')
+                    english_title = ep.get('englishName', '')
+                    ep_id = ep.get('id')
+                    ep_type = episode_categories.get(ep_id, 'Uncategorized')
+
+                    # Build display title with English in parentheses
+                    if (english_title and
+                            english_title != original_title and
+                            english_title.strip()):
+                        display_title = f'{original_title} ({english_title})'
+                    else:
+                        display_title = original_title
+
+                    episodes_list.append({
+                        'episode': ep.get('number'),
+                        'title': display_title,
+                        'type': ep_type
+                    })
+
+                # Build type summary for specials
+                type_summary = {
+                    ep_type: len(eps) for ep_type, eps in type_groups.items()
+                }
+
+                seasons.append({
+                    'season': season_num,
+                    'season_name': season_names.get(season_num, 'Specials'),
+                    'total_episodes': len(season_episodes),
+                    'type_breakdown': type_summary,
+                    'episodes': episodes_list
                 })
+            else:
+                # Regular seasons
+                for ep in season_episodes:
+                    original_title = ep.get('name', 'Untitled')
+                    english_title = ep.get('englishName', '')
 
-            seasons.append({
-                'season': season_num,
-                'total_episodes': len(season_episodes),
-                'episodes': episodes_list
-            })
+                    # Build display title with English in parentheses
+                    if (english_title and
+                            english_title != original_title and
+                            english_title.strip()):
+                        display_title = f'{original_title} ({english_title})'
+                    else:
+                        display_title = original_title
+
+                    episodes_list.append({
+                        'episode': ep.get('number'),
+                        'title': display_title
+                    })
+
+                season_entry = {
+                    'season': season_num,
+                    'total_episodes': len(season_episodes),
+                    'episodes': episodes_list
+                }
+
+                # Add season name if available
+                if season_num in season_names:
+                    season_entry['season_name'] = season_names[season_num]
+
+                seasons.append(season_entry)
 
         return {
             'series_name': main_name,
@@ -447,7 +585,8 @@ class TVDBAdapter(IMetadataClient):
         """
         Simplify AI format data for reduced token usage.
 
-        Removes individual episode titles to save tokens.
+        Removes individual episode titles to save tokens, but keeps
+        season names and special type breakdowns.
 
         Args:
             ai_format_data: Full AI format data.
@@ -463,10 +602,20 @@ class TVDBAdapter(IMetadataClient):
         }
 
         for season in ai_format_data['seasons']:
-            simplified_data['seasons'].append({
+            season_entry = {
                 'season': season['season'],
                 'total_episodes': season['total_episodes']
                 # Omit episodes array to reduce tokens
-            })
+            }
+
+            # Keep season_name if present
+            if 'season_name' in season:
+                season_entry['season_name'] = season['season_name']
+
+            # Keep type_breakdown for specials
+            if 'type_breakdown' in season:
+                season_entry['type_breakdown'] = season['type_breakdown']
+
+            simplified_data['seasons'].append(season_entry)
 
         return simplified_data
