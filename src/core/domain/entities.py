@@ -207,3 +207,58 @@ class HardlinkRecord:
     def file_size_mb(self) -> float:
         """Return file size in megabytes."""
         return self.file_size / (1024 * 1024)
+
+
+@dataclass
+class SubtitleRecord:
+    """
+    Subtitle file record entity.
+
+    Represents a subtitle file associated with an anime video.
+
+    Attributes:
+        id: Unique identifier in the database.
+        anime_id: Reference to the associated AnimeInfo.
+        video_file_path: Path to the associated video file.
+        subtitle_path: Path to the subtitle file.
+        original_name: Original subtitle file name from the archive.
+        language_tag: Language tag (chs, cht, eng, jpn, etc.).
+        subtitle_format: Subtitle format (ass, srt, sub, etc.).
+        source_archive: Name of the source archive file.
+        match_method: Method used for matching (ai or manual).
+        created_at: Timestamp when the record was created.
+        updated_at: Timestamp when the record was last updated.
+    """
+    id: Optional[int] = None
+    anime_id: int = 0
+    video_file_path: str = ''
+    subtitle_path: str = ''
+    original_name: str = ''
+    language_tag: str = ''
+    subtitle_format: str = ''
+    source_archive: str = ''
+    match_method: str = 'ai'
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    @property
+    def is_ai_matched(self) -> bool:
+        """Check if this subtitle was matched by AI."""
+        return self.match_method == 'ai'
+
+    @property
+    def is_manual_matched(self) -> bool:
+        """Check if this subtitle was manually matched."""
+        return self.match_method == 'manual'
+
+    @property
+    def display_language(self) -> str:
+        """Return display-friendly language name."""
+        language_map = {
+            'chs': '简体中文',
+            'cht': '繁體中文',
+            'eng': 'English',
+            'jpn': '日本語',
+            'kor': '한국어',
+        }
+        return language_map.get(self.language_tag, self.language_tag)

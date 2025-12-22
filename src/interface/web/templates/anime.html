@@ -452,6 +452,158 @@
             </div>
         </div>
     </div>
+
+    <!-- ============================================ -->
+    <!-- 7. 字幕管理 Modal -->
+    <!-- ============================================ -->
+    <div id="modal-subtitles" class="fixed inset-0 z-50 hidden flex items-center justify-center">
+        <div class="modal-backdrop" onclick="closeModal('modal-subtitles')"></div>
+
+        <div class="modal-content bg-white dark:bg-[#18181b] w-full max-w-4xl h-[80vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden ring-1 ring-slate-900/5 transition-all transform scale-100">
+
+            <!-- Header -->
+            <div class="px-6 py-4 border-b border-slate-100 dark:border-white/5 flex justify-between items-start bg-slate-50/50 dark:bg-[#18181b]">
+                <div class="space-y-1">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                            <i class="fa-solid fa-closed-captioning"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-slate-800 dark:text-white" id="subtitles-modal-title">字幕管理</h3>
+                    </div>
+                    <div id="subtitles-modal-summary" class="text-xs text-slate-500 dark:text-slate-400 pl-11 flex gap-4">
+                        <span>加载中...</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="openAddSubtitleModal()" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition-colors flex items-center gap-1.5">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> AI添加字幕
+                    </button>
+                    <button onclick="closeModal('modal-subtitles')" class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-200 dark:hover:bg-white/10 text-slate-400 transition-colors">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 控制栏 -->
+            <div class="px-6 py-3 border-b border-slate-100 dark:border-white/5 bg-slate-50/30 dark:bg-white/[0.02] flex flex-wrap items-center gap-4">
+                <!-- 排序控制 -->
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-slate-500 dark:text-gray-500">排序:</span>
+                    <div class="flex rounded-lg overflow-hidden border border-slate-200 dark:border-white/10">
+                        <button onclick="setSubtitleSortOrder('asc')" id="subtitle-sort-asc"
+                            class="px-2.5 py-1 text-xs font-medium bg-blue-500 text-white transition-colors flex items-center gap-1">
+                            <i class="fa-solid fa-arrow-up-1-9 text-[10px]"></i> 顺序
+                        </button>
+                        <button onclick="setSubtitleSortOrder('desc')" id="subtitle-sort-desc"
+                            class="px-2.5 py-1 text-xs font-medium bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-gray-400 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors flex items-center gap-1">
+                            <i class="fa-solid fa-arrow-down-9-1 text-[10px]"></i> 倒序
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 文件夹筛选按钮 -->
+                <div class="flex items-center gap-2 flex-wrap" id="subtitle-folder-buttons">
+                    <!-- JS 动态填充 -->
+                </div>
+
+                <!-- 统计信息 -->
+                <div class="ml-auto text-xs text-slate-400 dark:text-gray-500" id="subtitle-filter-stats">
+                    <!-- JS 动态填充 -->
+                </div>
+            </div>
+
+            <!-- Content -->
+            <div class="flex-1 overflow-y-auto p-6 space-y-3 scrollbar-thin" id="subtitles-content">
+                <!-- JS 填充 -->
+                <div class="text-center py-8 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i></div>
+            </div>
+
+            <!-- Footer -->
+            <div class="border-t border-slate-200 dark:border-white/10 bg-white dark:bg-[#18181b] p-4 flex justify-end">
+                <button onclick="closeModal('modal-subtitles')" class="px-4 py-2 rounded-lg bg-slate-500 hover:bg-slate-600 text-white text-sm font-medium transition-colors">
+                    <i class="fa-solid fa-xmark mr-1"></i> 关闭
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- 8. AI添加字幕 Modal -->
+    <!-- ============================================ -->
+    <div id="modal-add-subtitle" class="fixed inset-0 z-50 hidden flex items-center justify-center">
+        <div class="modal-backdrop" onclick="closeModal('modal-add-subtitle')"></div>
+        <div class="modal-content bg-white dark:bg-[#1e1e20] w-full max-w-lg rounded-xl shadow-2xl overflow-hidden">
+            <!-- Header -->
+            <div class="bg-emerald-600 px-6 py-4 flex justify-between items-center">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-wand-magic-sparkles"></i> AI添加字幕</h3>
+                <button onclick="closeModal('modal-add-subtitle')" class="text-white/80 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+
+            <div class="p-6 space-y-5">
+                <!-- Info -->
+                <div class="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-lg p-3 flex gap-3 items-start">
+                    <i class="fa-solid fa-circle-info text-emerald-600 dark:text-emerald-500 mt-0.5"></i>
+                    <div class="text-sm text-emerald-700 dark:text-emerald-200">
+                        上传字幕压缩档，AI将自动匹配字幕与对应的影片文件。
+                    </div>
+                </div>
+
+                <!-- 上传区域 -->
+                <div id="subtitle-upload-zone"
+                     class="border-2 border-dashed border-slate-300 dark:border-white/20 rounded-lg p-8 text-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50/50 dark:hover:border-emerald-500/50 dark:hover:bg-emerald-500/5 transition-colors"
+                     ondragover="event.preventDefault(); this.classList.add('border-emerald-400', 'bg-emerald-50/50', 'dark:border-emerald-500/50', 'dark:bg-emerald-500/5');"
+                     ondragleave="this.classList.remove('border-emerald-400', 'bg-emerald-50/50', 'dark:border-emerald-500/50', 'dark:bg-emerald-500/5');"
+                     ondrop="handleSubtitleDrop(event)"
+                     onclick="document.getElementById('subtitle-file-input').click()">
+                    <input type="file" id="subtitle-file-input" class="hidden" accept=".zip,.rar,.7z,.tar,.gz" onchange="handleSubtitleFileSelect(event)">
+                    <i class="fa-solid fa-cloud-arrow-up text-4xl text-slate-300 dark:text-gray-600 mb-3"></i>
+                    <p class="text-sm text-slate-600 dark:text-gray-300 font-medium">拖拽压缩档到此处或点击上传</p>
+                    <p class="text-xs text-slate-400 dark:text-gray-500 mt-2">支持 .zip, .rar, .7z 格式</p>
+                </div>
+
+                <!-- 已选择文件 -->
+                <div id="subtitle-selected-file" class="hidden bg-slate-50 dark:bg-white/5 rounded-lg p-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <i class="fa-solid fa-file-zipper text-2xl text-emerald-500"></i>
+                            <div>
+                                <p class="text-sm font-medium text-slate-700 dark:text-white" id="subtitle-filename">-</p>
+                                <p class="text-xs text-slate-400 dark:text-gray-500" id="subtitle-filesize">-</p>
+                            </div>
+                        </div>
+                        <button onclick="clearSubtitleFile()" class="text-slate-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 进度显示 -->
+                <div id="subtitle-progress" class="hidden space-y-3">
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-spinner fa-spin text-emerald-500"></i>
+                        <span class="text-sm text-slate-600 dark:text-gray-300" id="subtitle-progress-text">正在处理...</span>
+                    </div>
+                    <div class="w-full bg-slate-200 dark:bg-white/10 rounded-full h-2">
+                        <div id="subtitle-progress-bar" class="bg-emerald-500 h-2 rounded-full transition-all" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- 匹配结果 -->
+                <div id="subtitle-result" class="hidden space-y-3">
+                    <div class="text-sm font-bold text-slate-700 dark:text-white">匹配结果</div>
+                    <div id="subtitle-result-content" class="space-y-2 max-h-40 overflow-y-auto">
+                        <!-- JS 填充 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="px-6 py-4 bg-slate-50 dark:bg-[#1e1e20] border-t border-slate-200 dark:border-white/10 flex justify-end gap-3">
+                <button onclick="closeAddSubtitleModal()" class="px-4 py-2 rounded bg-slate-500 hover:bg-slate-600 text-white text-sm font-medium transition-colors"><i class="fa-solid fa-xmark mr-1"></i> 关闭</button>
+                <button onclick="submitSubtitleArchive()" id="btn-submit-subtitle" class="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> 开始匹配</button>
+            </div>
+        </div>
+    </div>
 {% endblock %}
 
 {% block scripts %}
@@ -728,6 +880,9 @@
                         <div class="flex justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
                             <button onclick="openFilesModal(${anime.id})" class="w-7 h-7 rounded-md flex items-center justify-center bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 text-blue-500 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 transition-colors" title="查看文件">
                                 <i class="fa-solid fa-folder-open text-xs"></i>
+                            </button>
+                            <button onclick="openSubtitlesModal(${anime.id}, '${escapeJs(anime.short_title || anime.original_title)}')" class="w-7 h-7 rounded-md flex items-center justify-center bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/20 text-emerald-500 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 transition-colors" title="字幕管理">
+                                <i class="fa-solid fa-closed-captioning text-xs"></i>
                             </button>
                             <button onclick="openRebuildModal(${anime.id}, '${escapeJs(anime.short_title || anime.original_title)}', '${escapeJs(anime.original_title)}')" class="w-7 h-7 rounded-md flex items-center justify-center bg-amber-50 hover:bg-amber-100 dark:bg-amber-500/10 dark:hover:bg-amber-500/20 text-amber-500 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20 transition-colors" title="正则重建">
                                 <i class="fa-solid fa-code text-xs"></i>
@@ -1141,6 +1296,524 @@
         } finally {
             btn.disabled = false;
             btn.innerHTML = '<i class="fa-solid fa-refresh mr-1"></i> 开始重建';
+        }
+    }
+
+    // =============================================================================
+    // 字幕管理功能
+    // =============================================================================
+
+    let currentSubtitleAnimeId = null;
+    let currentSubtitleAnimeTitle = null;
+    let selectedSubtitleFile = null;
+    let subtitleSortOrder = 'asc';  // 'asc' or 'desc'
+    let subtitleFolderFilter = '';  // 空表示显示全部
+    let subtitleDataCache = null;   // 缓存API返回的数据
+
+    // 打开字幕管理 Modal
+    async function openSubtitlesModal(animeId, animeTitle) {
+        currentSubtitleAnimeId = animeId;
+        currentSubtitleAnimeTitle = animeTitle;
+        subtitleSortOrder = 'asc';  // 重置排序
+        subtitleFolderFilter = '';   // 重置筛选
+        subtitleDataCache = null;
+
+        document.getElementById('subtitles-modal-title').textContent = `${animeTitle} - 字幕管理`;
+        document.getElementById('subtitles-modal-summary').innerHTML = '<span>加载中...</span>';
+        document.getElementById('subtitles-content').innerHTML = '<div class="text-center py-8 text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl"></i></div>';
+
+        // 重置控制栏状态
+        updateSubtitleSortButtons();
+        document.getElementById('subtitle-folder-buttons').innerHTML = '';
+        document.getElementById('subtitle-filter-stats').textContent = '';
+
+        openModal('modal-subtitles');
+        await loadSubtitlesList();
+    }
+
+    // 设置排序顺序
+    function setSubtitleSortOrder(order) {
+        if (subtitleSortOrder === order) return;
+        subtitleSortOrder = order;
+        updateSubtitleSortButtons();
+        if (subtitleDataCache) {
+            renderSubtitlesContent(subtitleDataCache);
+        }
+    }
+
+    // 更新排序按钮样式
+    function updateSubtitleSortButtons() {
+        const ascBtn = document.getElementById('subtitle-sort-asc');
+        const descBtn = document.getElementById('subtitle-sort-desc');
+
+        if (subtitleSortOrder === 'asc') {
+            ascBtn.className = 'px-2.5 py-1 text-xs font-medium bg-blue-500 text-white transition-colors flex items-center gap-1';
+            descBtn.className = 'px-2.5 py-1 text-xs font-medium bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-gray-400 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors flex items-center gap-1';
+        } else {
+            descBtn.className = 'px-2.5 py-1 text-xs font-medium bg-blue-500 text-white transition-colors flex items-center gap-1';
+            ascBtn.className = 'px-2.5 py-1 text-xs font-medium bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-gray-400 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors flex items-center gap-1';
+        }
+    }
+
+    // 设置文件夹筛选
+    function setSubtitleFolderFilter(folder) {
+        subtitleFolderFilter = folder;
+        updateFolderFilterButtons();
+        if (subtitleDataCache) {
+            renderSubtitlesContent(subtitleDataCache);
+        }
+    }
+
+    // 更新文件夹筛选按钮样式
+    function updateFolderFilterButtons() {
+        const container = document.getElementById('subtitle-folder-buttons');
+        const buttons = container.querySelectorAll('button');
+        buttons.forEach(btn => {
+            const btnFolder = btn.dataset.folder || '';
+            if (btnFolder === subtitleFolderFilter) {
+                btn.className = 'px-3 py-1 text-xs font-medium rounded-full bg-blue-500 text-white transition-colors';
+            } else {
+                btn.className = 'px-3 py-1 text-xs font-medium rounded-full bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-white/15 transition-colors';
+            }
+        });
+    }
+
+    // 从路径中提取文件夹名（仅最后一级）
+    function extractFolderName(path) {
+        const parts = path.split(/[/\\]/);
+        if (parts.length <= 1) return '根目录';
+        // 返回倒数第二个部分（即文件的父文件夹名）
+        return parts[parts.length - 2] || '根目录';
+    }
+
+    // 从路径中提取完整文件夹路径
+    function extractFolder(path) {
+        // 处理 Windows 和 Unix 路径
+        const parts = path.split(/[/\\]/);
+        if (parts.length <= 1) return '根目录';
+        // 返回除了文件名之外的路径部分
+        return parts.slice(0, -1).join('/');
+    }
+
+    // 加载字幕列表
+    async function loadSubtitlesList() {
+        try {
+            const response = await fetch(`/api/anime/${currentSubtitleAnimeId}/subtitles`);
+            const data = await response.json();
+
+            if (data.error) {
+                document.getElementById('subtitles-content').innerHTML = `
+                    <div class="text-center py-8 text-red-500">
+                        <i class="fa-solid fa-exclamation-circle text-2xl mb-2"></i>
+                        <p>${escapeHtml(data.error)}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // 缓存数据
+            subtitleDataCache = data;
+
+            // 更新摘要
+            document.getElementById('subtitles-modal-summary').innerHTML = `
+                <span><i class="fa-solid fa-closed-captioning mr-1"></i> ${data.total_subtitles || 0} 个字幕</span>
+                <span><i class="fa-solid fa-video mr-1"></i> ${data.total_videos || 0} 个影片</span>
+            `;
+
+            // 更新文件夹筛选下拉框
+            updateFolderFilterOptions(data);
+
+            // 渲染内容
+            renderSubtitlesContent(data);
+
+        } catch (error) {
+            document.getElementById('subtitles-content').innerHTML = `
+                <div class="text-center py-8 text-red-500">
+                    <i class="fa-solid fa-exclamation-circle text-2xl mb-2"></i>
+                    <p>加载失败: ${escapeHtml(error.message)}</p>
+                </div>
+            `;
+        }
+    }
+
+    // 更新文件夹筛选按钮
+    function updateFolderFilterOptions(data) {
+        const container = document.getElementById('subtitle-folder-buttons');
+        const folderMap = new Map(); // folder full path -> display name
+
+        if (data.video_files) {
+            for (const video of data.video_files) {
+                const folder = extractFolder(video.path);
+                if (!folderMap.has(folder)) {
+                    const displayName = extractFolderName(video.path);
+                    folderMap.set(folder, displayName);
+                }
+            }
+        }
+
+        // 只有多个文件夹时才显示按钮
+        if (folderMap.size <= 1) {
+            container.innerHTML = '';
+            return;
+        }
+
+        // 生成按钮 HTML
+        let html = `<button onclick="setSubtitleFolderFilter('')" data-folder="" class="px-3 py-1 text-xs font-medium rounded-full bg-blue-500 text-white transition-colors">全部</button>`;
+
+        // 按显示名排序
+        const sortedFolders = Array.from(folderMap.entries()).sort((a, b) =>
+            a[1].localeCompare(b[1], undefined, { numeric: true, sensitivity: 'base' })
+        );
+
+        for (const [folder, displayName] of sortedFolders) {
+            html += `<button onclick="setSubtitleFolderFilter('${escapeHtml(folder)}')" data-folder="${escapeHtml(folder)}" class="px-3 py-1 text-xs font-medium rounded-full bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-white/15 transition-colors">${escapeHtml(displayName)}</button>`;
+        }
+        container.innerHTML = html;
+    }
+
+    // 渲染字幕内容
+    function renderSubtitlesContent(data) {
+        const content = document.getElementById('subtitles-content');
+
+        if (!data.video_files || data.video_files.length === 0) {
+            content.innerHTML = `
+                <div class="text-center py-8">
+                    <i class="fa-solid fa-video-slash text-4xl text-slate-300 dark:text-gray-600 mb-3"></i>
+                    <p class="text-slate-500 dark:text-gray-400">暂无影片文件</p>
+                    <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">请先下载并创建硬链接</p>
+                </div>
+            `;
+            document.getElementById('subtitle-filter-stats').textContent = '';
+            return;
+        }
+
+        // 将字幕按影片分组
+        const subtitlesByVideo = {};
+        if (data.subtitles) {
+            for (const sub of data.subtitles) {
+                const videoPath = sub.video_file_path;
+                if (!subtitlesByVideo[videoPath]) {
+                    subtitlesByVideo[videoPath] = [];
+                }
+                subtitlesByVideo[videoPath].push(sub);
+            }
+        }
+
+        // 复制并处理影片列表
+        let videoFiles = [...data.video_files];
+
+        // 按文件夹筛选
+        if (subtitleFolderFilter) {
+            videoFiles = videoFiles.filter(v => extractFolder(v.path) === subtitleFolderFilter);
+        }
+
+        // 排序：使用自然排序（处理数字）
+        videoFiles.sort((a, b) => {
+            const nameA = a.path.split(/[/\\]/).pop();
+            const nameB = b.path.split(/[/\\]/).pop();
+            return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+        });
+
+        if (subtitleSortOrder === 'desc') {
+            videoFiles.reverse();
+        }
+
+        // 更新筛选统计
+        const totalVideos = data.video_files.length;
+        const filteredVideos = videoFiles.length;
+        const statsEl = document.getElementById('subtitle-filter-stats');
+        if (subtitleFolderFilter) {
+            statsEl.textContent = `显示 ${filteredVideos} / ${totalVideos} 个影片`;
+        } else {
+            statsEl.textContent = `共 ${totalVideos} 个影片`;
+        }
+
+        if (videoFiles.length === 0) {
+            content.innerHTML = `
+                <div class="text-center py-8">
+                    <i class="fa-solid fa-filter-circle-xmark text-4xl text-slate-300 dark:text-gray-600 mb-3"></i>
+                    <p class="text-slate-500 dark:text-gray-400">当前文件夹无影片文件</p>
+                    <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">请选择其他文件夹或查看全部</p>
+                </div>
+            `;
+            return;
+        }
+
+        // 直接渲染影片列表（不再按文件夹分组）
+        let html = '';
+
+        for (const video of videoFiles) {
+            const subs = subtitlesByVideo[video.path] || [];
+            const videoBasename = video.path.split(/[/\\]/).pop();
+
+            html += `
+                <div class="bg-slate-50 dark:bg-white/[0.03] rounded-lg overflow-hidden border border-slate-200/50 dark:border-white/5">
+                    <div class="px-4 py-2.5 border-b border-slate-200/50 dark:border-white/5 flex items-center justify-between">
+                        <div class="flex items-center gap-3 min-w-0 flex-1">
+                            <i class="fa-solid fa-video text-blue-500 text-sm flex-shrink-0"></i>
+                            <span class="text-sm font-medium text-slate-700 dark:text-white truncate" title="${escapeHtml(video.path)}">${escapeHtml(videoBasename)}</span>
+                        </div>
+                        <div class="flex items-center gap-2 flex-shrink-0 ml-2">
+                            ${subs.length > 0
+                                ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">${subs.length} 字幕</span>`
+                                : `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 dark:bg-white/10 dark:text-gray-400">无字幕</span>`
+                            }
+                        </div>
+                    </div>
+            `;
+
+            if (subs.length > 0) {
+                html += '<div class="divide-y divide-slate-200/50 dark:divide-white/5">';
+                for (const sub of subs) {
+                    const langBadge = getLanguageBadge(sub.language_tag);
+                    const subtitleBasename = sub.subtitle_path.split(/[/\\]/).pop();
+
+                    html += `
+                        <div class="px-4 py-2 flex items-center justify-between group hover:bg-slate-100 dark:hover:bg-white/5">
+                            <div class="flex items-center gap-3 min-w-0 flex-1">
+                                <i class="fa-solid fa-closed-captioning text-emerald-500 text-sm flex-shrink-0"></i>
+                                <div class="min-w-0 flex-1">
+                                    <span class="text-xs text-slate-600 dark:text-gray-300 truncate block">${escapeHtml(subtitleBasename)}</span>
+                                    <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+                                        ${langBadge}
+                                        <span class="text-[10px] text-slate-400 dark:text-gray-500">${escapeHtml(sub.subtitle_format || '-')}</span>
+                                        ${sub.source_archive ? `<span class="text-[10px] text-slate-400 dark:text-gray-500">来源: ${escapeHtml(sub.source_archive)}</span>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                            <button onclick="deleteSubtitle(${sub.id})" class="opacity-0 group-hover:opacity-100 w-6 h-6 rounded flex items-center justify-center bg-red-50 hover:bg-red-100 dark:bg-red-500/10 dark:hover:bg-red-500/20 text-red-500 dark:text-red-400 transition-all flex-shrink-0 ml-2" title="删除字幕">
+                                <i class="fa-solid fa-trash text-[10px]"></i>
+                            </button>
+                        </div>
+                    `;
+                }
+                html += '</div>';
+            } else {
+                html += `
+                    <div class="px-4 py-2 text-center text-xs text-slate-400 dark:text-gray-500">
+                        <i class="fa-solid fa-closed-captioning mr-1"></i> 暂无字幕
+                    </div>
+                `;
+            }
+
+            html += '</div>';
+        }
+
+        content.innerHTML = html;
+    }
+
+    // 获取语言标签徽章
+    function getLanguageBadge(tag) {
+        const langMap = {
+            'chs': { name: '简中', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' },
+            'cht': { name: '繁中', color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' },
+            'jpn': { name: '日语', color: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300' },
+            'eng': { name: '英语', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' },
+            'kor': { name: '韩语', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' },
+        };
+
+        const lang = langMap[tag] || { name: tag || '未知', color: 'bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-400' };
+        return `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${lang.color}">${lang.name}</span>`;
+    }
+
+    // 删除字幕
+    async function deleteSubtitle(subtitleId) {
+        if (!confirm('确定要删除这个字幕吗？字幕文件也将被删除。')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/anime/${currentSubtitleAnimeId}/subtitles/${subtitleId}?delete_file=true`, {
+                method: 'DELETE'
+            });
+
+            const data = await response.json();
+
+            if (data.error) {
+                showError('删除失败: ' + data.error);
+                return;
+            }
+
+            showSuccess('字幕删除成功');
+            await loadSubtitlesList();
+
+        } catch (error) {
+            showError('删除失败: ' + error.message);
+        }
+    }
+
+    // 打开添加字幕 Modal
+    function openAddSubtitleModal() {
+        // 重置状态
+        selectedSubtitleFile = null;
+        document.getElementById('subtitle-file-input').value = '';
+        document.getElementById('subtitle-upload-zone').classList.remove('hidden');
+        document.getElementById('subtitle-selected-file').classList.add('hidden');
+        document.getElementById('subtitle-progress').classList.add('hidden');
+        document.getElementById('subtitle-result').classList.add('hidden');
+        document.getElementById('btn-submit-subtitle').disabled = true;
+
+        openModal('modal-add-subtitle');
+    }
+
+    // 关闭添加字幕 Modal
+    function closeAddSubtitleModal() {
+        closeModal('modal-add-subtitle');
+        // 如果有匹配成功，刷新列表
+        if (document.getElementById('subtitle-result').classList.contains('hidden') === false) {
+            loadSubtitlesList();
+        }
+    }
+
+    // 处理拖放
+    function handleSubtitleDrop(event) {
+        event.preventDefault();
+        event.target.classList.remove('border-emerald-400', 'bg-emerald-50/50', 'dark:border-emerald-500/50', 'dark:bg-emerald-500/5');
+
+        const files = event.dataTransfer.files;
+        if (files.length > 0) {
+            handleSubtitleFile(files[0]);
+        }
+    }
+
+    // 处理文件选择
+    function handleSubtitleFileSelect(event) {
+        const files = event.target.files;
+        if (files.length > 0) {
+            handleSubtitleFile(files[0]);
+        }
+    }
+
+    // 处理文件
+    function handleSubtitleFile(file) {
+        // 检查扩展名
+        const allowedExtensions = ['.zip', '.rar', '.7z', '.tar', '.gz'];
+        const ext = '.' + file.name.split('.').pop().toLowerCase();
+
+        if (!allowedExtensions.includes(ext)) {
+            showError(`不支持的文件格式: ${ext}。支持格式: ${allowedExtensions.join(', ')}`);
+            return;
+        }
+
+        selectedSubtitleFile = file;
+
+        // 显示选中文件
+        document.getElementById('subtitle-upload-zone').classList.add('hidden');
+        document.getElementById('subtitle-selected-file').classList.remove('hidden');
+        document.getElementById('subtitle-filename').textContent = file.name;
+        document.getElementById('subtitle-filesize').textContent = formatFileSize(file.size);
+        document.getElementById('btn-submit-subtitle').disabled = false;
+    }
+
+    // 清除选中文件
+    function clearSubtitleFile() {
+        selectedSubtitleFile = null;
+        document.getElementById('subtitle-file-input').value = '';
+        document.getElementById('subtitle-upload-zone').classList.remove('hidden');
+        document.getElementById('subtitle-selected-file').classList.add('hidden');
+        document.getElementById('btn-submit-subtitle').disabled = true;
+    }
+
+    // 提交字幕压缩档
+    async function submitSubtitleArchive() {
+        if (!selectedSubtitleFile || !currentSubtitleAnimeId) {
+            showError('请选择文件');
+            return;
+        }
+
+        const btn = document.getElementById('btn-submit-subtitle');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> 处理中...';
+
+        // 显示进度
+        document.getElementById('subtitle-selected-file').classList.add('hidden');
+        document.getElementById('subtitle-progress').classList.remove('hidden');
+        document.getElementById('subtitle-progress-text').textContent = '正在上传并处理...';
+        document.getElementById('subtitle-progress-bar').style.width = '30%';
+
+        try {
+            const formData = new FormData();
+            formData.append('archive', selectedSubtitleFile);
+
+            document.getElementById('subtitle-progress-text').textContent = '正在调用AI匹配字幕...';
+            document.getElementById('subtitle-progress-bar').style.width = '60%';
+
+            const response = await fetch(`/api/anime/${currentSubtitleAnimeId}/subtitles/match`, {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            document.getElementById('subtitle-progress-bar').style.width = '100%';
+
+            if (data.error) {
+                document.getElementById('subtitle-progress').classList.add('hidden');
+                showError('匹配失败: ' + data.error);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles mr-1"></i> 开始匹配';
+                clearSubtitleFile();
+                return;
+            }
+
+            // 显示结果
+            document.getElementById('subtitle-progress').classList.add('hidden');
+            document.getElementById('subtitle-result').classList.remove('hidden');
+
+            let resultHtml = '';
+
+            if (data.matched && data.matched.length > 0) {
+                resultHtml += `<div class="text-xs text-emerald-600 dark:text-emerald-400 font-bold mb-2">✅ 成功匹配 ${data.matched.length} 个字幕</div>`;
+                for (const m of data.matched) {
+                    resultHtml += `
+                        <div class="text-xs py-1 flex items-center gap-2">
+                            <i class="fa-solid fa-check text-emerald-500"></i>
+                            <span class="text-slate-600 dark:text-gray-300">${escapeHtml(m.subtitle)} → ${escapeHtml(m.video)}</span>
+                            ${getLanguageBadge(m.language_tag)}
+                        </div>
+                    `;
+                }
+            }
+
+            if (data.failed && data.failed.length > 0) {
+                resultHtml += `<div class="text-xs text-red-600 dark:text-red-400 font-bold mt-3 mb-2">❌ 失败 ${data.failed.length} 个</div>`;
+                for (const f of data.failed) {
+                    resultHtml += `
+                        <div class="text-xs py-1 flex items-center gap-2">
+                            <i class="fa-solid fa-xmark text-red-500"></i>
+                            <span class="text-slate-600 dark:text-gray-300">${escapeHtml(f.subtitle)}: ${escapeHtml(f.reason)}</span>
+                        </div>
+                    `;
+                }
+            }
+
+            if (data.unmatched_subtitles && data.unmatched_subtitles.length > 0) {
+                resultHtml += `<div class="text-xs text-amber-600 dark:text-amber-400 font-bold mt-3 mb-2">⚠️ 未匹配 ${data.unmatched_subtitles.length} 个</div>`;
+                for (const u of data.unmatched_subtitles) {
+                    resultHtml += `
+                        <div class="text-xs py-1 flex items-center gap-2">
+                            <i class="fa-solid fa-question text-amber-500"></i>
+                            <span class="text-slate-500 dark:text-gray-400">${escapeHtml(u)}</span>
+                        </div>
+                    `;
+                }
+            }
+
+            if (!resultHtml) {
+                resultHtml = '<div class="text-xs text-slate-500 dark:text-gray-400">未匹配到任何字幕</div>';
+            }
+
+            document.getElementById('subtitle-result-content').innerHTML = resultHtml;
+
+            showSuccess(`字幕匹配完成: ${data.total_matched || 0} 个成功`);
+
+        } catch (error) {
+            document.getElementById('subtitle-progress').classList.add('hidden');
+            showError('处理失败: ' + error.message);
+            clearSubtitleFile();
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles mr-1"></i> 开始匹配';
         }
     }
 </script>

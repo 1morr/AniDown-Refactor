@@ -38,6 +38,7 @@ class AnimeInfo(Base):
     hardlinks = relationship('Hardlink', back_populates='anime')
     hardlink_attempts = relationship('HardlinkAttempt', back_populates='anime')
     download_history = relationship('DownloadHistory', back_populates='anime')
+    subtitles = relationship('SubtitleFile', back_populates='anime', cascade='all, delete-orphan')
 
     __table_args__ = (
         Index('idx_anime_title', 'original_title'),
@@ -367,3 +368,33 @@ class AIKeyDailyCount(Base):
 
     def __repr__(self):
         return f"<AIKeyDailyCount(purpose='{self.purpose}', key_id='{self.key_id}', date='{self.date_utc}', count={self.count})>"
+
+
+class SubtitleFile(Base):
+    """字幕文件表"""
+
+    __tablename__ = 'subtitle_files'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    anime_id = Column(Integer, ForeignKey('anime_info.id'), nullable=False)
+    video_file_path = Column(Text, nullable=False)    # 关联的影片文件路径
+    subtitle_path = Column(Text, nullable=False)      # 字幕文件的完整路径
+    original_name = Column(Text, nullable=False)      # 字幕原始文件名
+    language_tag = Column(Text)                       # 语言标签: chs, cht, eng, jpn等
+    subtitle_format = Column(Text)                    # 字幕格式: ass, srt, sub等
+    source_archive = Column(Text)                     # 来源压缩档名
+    match_method = Column(Text, default='ai')         # 匹配方式: ai, manual
+    created_at = Column(TIMESTAMP, default=get_utc_now)
+    updated_at = Column(TIMESTAMP, default=get_utc_now, onupdate=get_utc_now)
+
+    # 关系
+    anime = relationship('AnimeInfo', back_populates='subtitles')
+
+    __table_args__ = (
+        UniqueConstraint('video_file_path', 'subtitle_path', name='uq_subtitle_video'),
+        Index('idx_subtitle_anime', 'anime_id'),
+        Index('idx_subtitle_video', 'video_file_path'),
+    )
+
+    def __repr__(self):
+        return f"<SubtitleFile(id={self.id}, video='{self.video_file_path}', subtitle='{self.subtitle_path}')>"

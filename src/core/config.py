@@ -129,6 +129,8 @@ class OpenAIConfig(BaseModel):
     title_parse: TaskConfig = Field(default_factory=TaskConfig)
     # 多文件重命名
     multi_file_rename: TaskConfig = Field(default_factory=TaskConfig)
+    # 字幕匹配（不在配置页面显示，只能手动修改config.json，默认fallback到multi_file_rename）
+    subtitle_match: TaskConfig = Field(default_factory=TaskConfig)
 
     # 标题解析重试次数
     title_parse_retries: int = Field(default=3, ge=0, le=10)

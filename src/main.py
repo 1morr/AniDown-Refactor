@@ -144,6 +144,89 @@ def init_key_pools():
     else:
         logger.warning('⚠️ Multi-File Rename 未配置 API Key')
 
+    # 初始化 subtitle_match key pool（如果未配置则 fallback 到 multi_file_rename）
+    subtitle_match_pool = container.subtitle_match_pool()
+    subtitle_match_breaker = container.subtitle_match_breaker()
+    subtitle_match_config = config.openai.subtitle_match
+
+    # 检查是否有单独配置 subtitle_match
+    has_subtitle_match_config = (
+        subtitle_match_config.api_key or subtitle_match_config.api_key_pool
+    )
+
+    if has_subtitle_match_config:
+        # 使用独立的 subtitle_match 配置
+        subtitle_keys = []
+        if subtitle_match_config.api_key_pool:
+            for idx, key_entry in enumerate(subtitle_match_config.api_key_pool):
+                if key_entry.enabled and key_entry.api_key:
+                    subtitle_keys.append(KeySpec(
+                        key_id=f'sm_key_{idx}',
+                        name=key_entry.name or f'Key {idx + 1}',
+                        api_key=key_entry.api_key,
+                        base_url=subtitle_match_config.base_url,
+                        model=subtitle_match_config.model,
+                        rpm_limit=key_entry.rpm,
+                        rpd_limit=key_entry.rpd,
+                        enabled=True,
+                        extra_body=subtitle_match_config.extra_body
+                    ))
+        elif subtitle_match_config.api_key:
+            subtitle_keys.append(KeySpec(
+                key_id='sm_key_0',
+                name='Primary Key',
+                api_key=subtitle_match_config.api_key,
+                base_url=subtitle_match_config.base_url,
+                model=subtitle_match_config.model,
+                rpm_limit=0,
+                rpd_limit=0,
+                enabled=True,
+                extra_body=subtitle_match_config.extra_body
+            ))
+        if subtitle_keys:
+            subtitle_match_pool.configure(subtitle_keys)
+            register_pool(subtitle_match_pool)
+            register_breaker(subtitle_match_breaker)
+            subtitle_match_pool.restore_counts_from_db()
+            logger.info(f'🔑 Subtitle Match Key Pool 已配置: {len(subtitle_keys)} 个 Key')
+    elif rename_keys:
+        # Fallback: 使用 multi_file_rename 的配置
+        # 创建带 sm_ 前缀的 Key ID 以区分统计
+        fallback_keys = []
+        for idx, key_entry in enumerate(rename_config.api_key_pool) if rename_config.api_key_pool else []:
+            if key_entry.enabled and key_entry.api_key:
+                fallback_keys.append(KeySpec(
+                    key_id=f'sm_key_{idx}',
+                    name=key_entry.name or f'Key {idx + 1}',
+                    api_key=key_entry.api_key,
+                    base_url=rename_config.base_url,
+                    model=rename_config.model,
+                    rpm_limit=key_entry.rpm,
+                    rpd_limit=key_entry.rpd,
+                    enabled=True,
+                    extra_body=rename_config.extra_body
+                ))
+        if not fallback_keys and rename_config.api_key:
+            fallback_keys.append(KeySpec(
+                key_id='sm_key_0',
+                name='Primary Key',
+                api_key=rename_config.api_key,
+                base_url=rename_config.base_url,
+                model=rename_config.model,
+                rpm_limit=0,
+                rpd_limit=0,
+                enabled=True,
+                extra_body=rename_config.extra_body
+            ))
+        if fallback_keys:
+            subtitle_match_pool.configure(fallback_keys)
+            register_pool(subtitle_match_pool)
+            register_breaker(subtitle_match_breaker)
+            subtitle_match_pool.restore_counts_from_db()
+            logger.info(f'🔑 Subtitle Match Key Pool 已配置 (fallback): {len(fallback_keys)} 个 Key')
+    else:
+        logger.warning('⚠️ Subtitle Match 未配置 API Key（也没有 Rename 配置可 fallback）')
+
 
 def init_discord_webhook():
     """初始化 Discord Webhook 客户端"""

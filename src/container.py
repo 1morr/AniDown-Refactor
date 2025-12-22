@@ -17,6 +17,7 @@ from src.infrastructure.database.session import DatabaseSessionManager
 from src.infrastructure.repositories.anime_repository import AnimeRepository
 from src.infrastructure.repositories.download_repository import DownloadRepository
 from src.infrastructure.repositories.history_repository import HistoryRepository
+from src.infrastructure.repositories.subtitle_repository import SubtitleRepository
 
 # External Adapters
 from src.infrastructure.downloader.qbit_adapter import QBitAdapter
@@ -28,6 +29,7 @@ from src.infrastructure.ai.key_pool import KeyPool
 from src.infrastructure.ai.circuit_breaker import CircuitBreaker
 from src.infrastructure.ai.title_parser import AITitleParser
 from src.infrastructure.ai.file_renamer import AIFileRenamer
+from src.infrastructure.ai.subtitle_matcher import AISubtitleMatcher
 
 # Discord Notification Components
 from src.infrastructure.notification.discord.webhook_client import DiscordWebhookClient
@@ -54,6 +56,7 @@ from src.services.anime_service import AnimeService
 from src.services.rss_service import RSSService
 from src.services.download_manager import DownloadManager
 from src.services.file_service import FileService
+from src.services.subtitle_service import SubtitleService
 
 # Utility Services
 from src.services.ai_debug_service import AIDebugService
@@ -100,6 +103,7 @@ class Container(containers.DeclarativeContainer):
     anime_repo = providers.Singleton(AnimeRepository)
     download_repo = providers.Singleton(DownloadRepository)
     history_repo = providers.Singleton(HistoryRepository)
+    subtitle_repo = providers.Singleton(SubtitleRepository)
 
     # ===== External Adapters =====
     qb_client = providers.Singleton(QBitAdapter)
@@ -146,6 +150,29 @@ class Container(containers.DeclarativeContainer):
         key_pool=rename_pool,
         circuit_breaker=rename_breaker,
         api_client=rename_api_client
+    )
+
+    # Subtitle Match: KeyPool & CircuitBreaker
+    # 如果subtitle_match未配置，则fallback到multi_file_rename配置
+    subtitle_match_api_client = providers.Singleton(
+        OpenAIClient,
+        timeout=config.openai.subtitle_match.timeout
+        if config.openai.subtitle_match.api_key or config.openai.subtitle_match.api_key_pool
+        else config.openai.multi_file_rename.timeout
+    )
+    subtitle_match_pool = providers.Singleton(
+        KeyPool,
+        purpose='subtitle_match'
+    )
+    subtitle_match_breaker = providers.Singleton(
+        CircuitBreaker,
+        purpose='subtitle_match'
+    )
+    subtitle_matcher = providers.Singleton(
+        AISubtitleMatcher,
+        key_pool=subtitle_match_pool,
+        circuit_breaker=subtitle_match_breaker,
+        api_client=subtitle_match_api_client
     )
 
     # ===== Notification Components =====
@@ -223,6 +250,13 @@ class Container(containers.DeclarativeContainer):
     file_service = providers.Singleton(
         FileService,
         history_repo=history_repo
+    )
+
+    subtitle_service = providers.Singleton(
+        SubtitleService,
+        subtitle_repo=subtitle_repo,
+        history_repo=history_repo,
+        subtitle_matcher=subtitle_matcher
     )
 
     # ===== Core Orchestrator =====

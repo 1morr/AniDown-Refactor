@@ -170,3 +170,49 @@ MULTI_FILE_RENAME_RESPONSE_FORMAT: ResponseFormat = {
 SIMPLE_JSON_RESPONSE_FORMAT: ResponseFormat = {
     'type': 'json_object'
 }
+
+
+# 字幕匹配响应格式
+SUBTITLE_MATCH_RESPONSE_FORMAT: ResponseFormat = {
+    'type': 'json_schema',
+    'json_schema': {
+        'name': 'subtitle_match_response',
+        'strict': True,
+        'schema': {
+            'type': 'object',
+            'additionalProperties': False,
+            'required': ['matches', 'unmatched_subtitles', 'videos_without_subtitle'],
+            'properties': {
+                'matches': {
+                    'type': 'array',
+                    'description': 'List of matched video-subtitle pairs',
+                    'items': {
+                        'type': 'object',
+                        'additionalProperties': False,
+                        'required': ['video_file', 'subtitle_file', 'language_tag', 'new_name'],
+                        'properties': {
+                            'video_file': _string_field('Video file path'),
+                            'subtitle_file': _string_field('Original subtitle file name'),
+                            'language_tag': _string_field(
+                                'Standardized language tag: chs, cht, eng, jpn, kor, etc.'
+                            ),
+                            'new_name': _string_field(
+                                'New subtitle file name (without Season directory prefix)'
+                            )
+                        }
+                    }
+                },
+                'unmatched_subtitles': {
+                    'type': 'array',
+                    'items': _string_field('Subtitle files that could not be matched'),
+                    'description': 'Subtitle files without matching video'
+                },
+                'videos_without_subtitle': {
+                    'type': 'array',
+                    'items': _string_field('Video files without matching subtitle'),
+                    'description': 'Video files that have no subtitle match'
+                }
+            }
+        }
+    }
+}

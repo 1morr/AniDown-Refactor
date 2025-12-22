@@ -6,6 +6,7 @@ from dependency_injector.wiring import inject, Provide
 
 from src.container import Container
 from src.services.anime_service import AnimeService
+from src.services.subtitle_service import SubtitleService
 from src.interface.web.utils import (
     APIResponse,
     handle_api_errors,
@@ -303,3 +304,155 @@ def api_get_anime_stats(
         total_count=total_count,
         type_counts=type_counts
     )
+
+
+# =============================================================================
+# 字幕管理 API
+# =============================================================================
+
+
+@anime_bp.route('/api/anime/<int:anime_id>/subtitles')
+@inject
+@handle_api_errors
+def api_get_subtitles(
+    anime_id: int,
+    subtitle_service: SubtitleService = Provide[Container.subtitle_service]
+):
+    """
+    获取动漫字幕列表 API。
+
+    Args:
+        anime_id: 动漫ID
+
+    Returns:
+        字幕列表和影片列表
+    """
+    if anime_id < 1:
+        return APIResponse.bad_request('动漫ID必须大于0')
+
+    logger.api_request(f'获取字幕列表 - 动漫ID:{anime_id}')
+
+    result = subtitle_service.get_subtitles_for_anime(anime_id)
+
+    logger.api_success(
+        f'/api/anime/{anime_id}/subtitles',
+        f'字幕数:{result.get("total_subtitles", 0)}'
+    )
+
+    return APIResponse.success(**result)
+
+
+@anime_bp.route('/api/anime/<int:anime_id>/subtitles/match', methods=['POST'])
+@inject
+@handle_api_errors
+def api_match_subtitles(
+    anime_id: int,
+    anime_service: AnimeService = Provide[Container.anime_service],
+    subtitle_service: SubtitleService = Provide[Container.subtitle_service]
+):
+    """
+    AI 匹配字幕 API。
+
+    上传字幕压缩档，AI 自动匹配影片和字幕。
+
+    Args:
+        anime_id: 动漫ID
+
+    Form Data:
+        archive: 压缩档文件 (zip, rar, 7z)
+
+    Returns:
+        匹配结果
+    """
+    if anime_id < 1:
+        return APIResponse.bad_request('动漫ID必须大于0')
+
+    # 检查文件上传
+    if 'archive' not in request.files:
+        return APIResponse.bad_request('请上传字幕压缩档')
+
+    file = request.files['archive']
+    if file.filename == '':
+        return APIResponse.bad_request('请选择文件')
+
+    # 检查文件扩展名
+    allowed_extensions = {'.zip', '.rar', '.7z', '.tar', '.gz'}
+    import os
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in allowed_extensions:
+        return APIResponse.bad_request(
+            f'不支持的文件格式: {ext}。支持格式: {", ".join(allowed_extensions)}'
+        )
+
+    logger.api_request(f'AI匹配字幕 - 动漫ID:{anime_id}, 文件:{file.filename}')
+
+    # 获取动漫标题（用于 AI 上下文）
+    anime_details = anime_service.get_anime_details(anime_id)
+    anime_title = anime_details.get('short_title', None)
+
+    # 读取文件内容
+    archive_content = file.read()
+
+    # 调用服务处理
+    result = subtitle_service.process_subtitle_archive(
+        anime_id=anime_id,
+        archive_content=archive_content,
+        archive_name=file.filename,
+        anime_title=anime_title
+    )
+
+    if result.get('success'):
+        logger.api_success(
+            f'/api/anime/{anime_id}/subtitles/match',
+            f'匹配成功:{result.get("total_matched", 0)}个'
+        )
+        return APIResponse.success(**result)
+    else:
+        error_msg = result.get('error', 'AI匹配失败')
+        logger.api_error_msg(f'/api/anime/{anime_id}/subtitles/match', error_msg)
+        return APIResponse.internal_error(error_msg)
+
+
+@anime_bp.route('/api/anime/<int:anime_id>/subtitles/<int:subtitle_id>', methods=['DELETE'])
+@inject
+@handle_api_errors
+def api_delete_subtitle(
+    anime_id: int,
+    subtitle_id: int,
+    subtitle_service: SubtitleService = Provide[Container.subtitle_service]
+):
+    """
+    删除字幕记录 API。
+
+    Args:
+        anime_id: 动漫ID
+        subtitle_id: 字幕记录ID
+
+    Query Params:
+        delete_file: 是否同时删除文件 (默认 true)
+
+    Returns:
+        删除结果
+    """
+    if anime_id < 1:
+        return APIResponse.bad_request('动漫ID必须大于0')
+    if subtitle_id < 1:
+        return APIResponse.bad_request('字幕ID必须大于0')
+
+    # 获取查询参数
+    delete_file_str = request.args.get('delete_file', 'true').lower()
+    delete_file = delete_file_str in ('true', '1', 'yes')
+
+    logger.api_request(
+        f'删除字幕 - 动漫ID:{anime_id}, 字幕ID:{subtitle_id}, 删除文件:{delete_file}'
+    )
+
+    result = subtitle_service.delete_subtitle(subtitle_id, delete_file=delete_file)
+
+    if result.get('success'):
+        logger.api_success(f'/api/anime/{anime_id}/subtitles/{subtitle_id}', '删除成功')
+        return APIResponse.success(message='字幕删除成功', **result)
+    else:
+        error_msg = result.get('error', '删除失败')
+        logger.api_error_msg(f'/api/anime/{anime_id}/subtitles/{subtitle_id}', error_msg)
+        return APIResponse.internal_error(error_msg)
