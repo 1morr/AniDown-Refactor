@@ -4,6 +4,7 @@
 处理 torrent 文件和磁力链接的手动上传
 """
 import base64
+import re
 import tempfile
 import os
 
@@ -124,15 +125,27 @@ def submit_manual_upload(
 
     elif upload_type == 'magnet':
         magnet_link = data.get('magnet_link', '').strip()
-        if not magnet_link:
-            return APIResponse.bad_request('請輸入磁力鏈接')
-        if not magnet_link.startswith('magnet:'):
-            return APIResponse.bad_request('無效的磁力鏈接格式')
+        torrent_hash = data.get('torrent_hash', '').strip().lower()
 
-        # 提取 hash 用于重复检查
-        hash_id = get_torrent_hash_from_magnet(magnet_link)
-        if not hash_id:
-            return APIResponse.bad_request('無法從磁力鏈接提取hash')
+        if magnet_link:
+            # 使用磁力链接
+            if not magnet_link.startswith('magnet:'):
+                return APIResponse.bad_request('無效的磁力鏈接格式')
+
+            # 提取 hash 用于重复检查
+            hash_id = get_torrent_hash_from_magnet(magnet_link)
+            if not hash_id:
+                return APIResponse.bad_request('無法從磁力鏈接提取hash')
+        elif torrent_hash:
+            # 使用直接输入的hash
+            if not re.match(r'^[a-f0-9]{40}$', torrent_hash):
+                return APIResponse.bad_request('無效的Hash格式，請輸入40位十六進制字符')
+
+            hash_id = torrent_hash
+            # 构建磁力链接供后续处理使用
+            data['magnet_link'] = f'magnet:?xt=urn:btih:{torrent_hash}'
+        else:
+            return APIResponse.bad_request('請輸入磁力鏈接或 Torrent Hash')
 
     if not anime_title:
         return APIResponse.bad_request('請輸入動漫名稱')

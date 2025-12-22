@@ -60,16 +60,16 @@
                     </div>
                 </div>
 
-                <!-- Mode B: 磁力链输入区 -->
+                <!-- Mode B: 磁力链/Hash 输入区 -->
                 <div id="section-magnet" class="hidden">
-                    <label class="block text-xs font-bold text-slate-500 dark:text-gray-500 uppercase mb-2 ml-1">磁力链接 <span class="text-red-500">*</span></label>
+                    <label class="block text-xs font-bold text-slate-500 dark:text-gray-500 uppercase mb-2 ml-1">磁力链接 / Hash <span class="text-red-500">*</span></label>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
                             <i class="fa-solid fa-magnet text-slate-400 dark:text-gray-500"></i>
                         </div>
-                        <input type="text" id="magnet-link" class="input-field w-full rounded-lg py-3 pl-10 pr-4 text-sm font-mono placeholder-slate-400 dark:placeholder-gray-600" placeholder="magnet:?xt=urn:btih:..." >
+                        <input type="text" id="magnet-link" class="input-field w-full rounded-lg py-3 pl-10 pr-4 text-sm font-mono placeholder-slate-400 dark:placeholder-gray-600" placeholder="magnet:?xt=urn:btih:... 或 40位Hash" >
                     </div>
-                    <p class="text-[10px] text-slate-400 dark:text-gray-500 mt-2 ml-1">系统将自动解析磁力链接中的元数据</p>
+                    <p class="text-[10px] text-slate-400 dark:text-gray-500 mt-2 ml-1">支持完整磁力链接或直接输入 40 位 Torrent Hash</p>
                 </div>
 
             </div>
@@ -190,7 +190,7 @@
                     <p class="text-xs font-bold text-slate-500 dark:text-gray-500 uppercase">功能特性</p>
                     <ul class="text-sm text-slate-600 dark:text-gray-400 space-y-2">
                         <li class="flex items-start gap-2"><i class="fa-solid fa-check text-emerald-500 mt-1"></i> 支持 Torrent 文件上传</li>
-                        <li class="flex items-start gap-2"><i class="fa-solid fa-check text-emerald-500 mt-1"></i> 支持磁力链接输入</li>
+                        <li class="flex items-start gap-2"><i class="fa-solid fa-check text-emerald-500 mt-1"></i> 支持磁力链接和 Hash 输入</li>
                         <li class="flex items-start gap-2"><i class="fa-solid fa-check text-emerald-500 mt-1"></i> 自动创建动漫信息记录</li>
                         <li class="flex items-start gap-2"><i class="fa-solid fa-check text-emerald-500 mt-1"></i> 自动添加到 qBittorrent</li>
                     </ul>
@@ -243,7 +243,7 @@
         const btnMagnet = document.getElementById('btn-magnet');
         const sectionTorrent = document.getElementById('section-torrent');
         const sectionMagnet = document.getElementById('section-magnet');
-        
+
         const title = document.getElementById('mode-title');
         const desc = document.getElementById('mode-desc');
 
@@ -255,7 +255,7 @@
             // 内容切换
             sectionTorrent.classList.remove('hidden');
             sectionMagnet.classList.add('hidden');
-            
+
             // 文本更新
             title.innerText = "Torrent 文件上传";
             desc.innerText = "选择本地 .torrent 文件进行解析";
@@ -269,14 +269,14 @@
             sectionMagnet.classList.remove('hidden');
 
             // 文本更新
-            title.innerText = "磁力链接输入";
-            desc.innerText = "输入 magnet 链接进行下载";
+            title.innerText = "磁力链接 / Hash 输入";
+            desc.innerText = "输入磁力链接或 Torrent Hash";
         }
-        
+
         // 简单的淡入动画重置
         const container = document.getElementById('input-container');
         container.classList.remove('animate-fade-in');
-        void container.offsetWidth; 
+        void container.offsetWidth;
         container.classList.add('animate-fade-in');
     }
 
@@ -347,7 +347,7 @@
                 window.showFlashMessage('error', '请选择 Torrent 文件');
                 return;
             }
-            
+
             // 将文件转换为Base64
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -356,13 +356,24 @@
             };
             reader.readAsDataURL(fileInput.files[0]);
             return;
-        } else {
-            const magnetLink = document.getElementById('magnet-link').value;
-            if (!magnetLink) {
-                window.showFlashMessage('error', '请输入磁力链接');
+        } else if (currentMode === 'magnet') {
+            const magnetInput = document.getElementById('magnet-link').value.trim();
+            if (!magnetInput) {
+                window.showFlashMessage('error', '请输入磁力链接或 Hash');
                 return;
             }
-            requestData.magnet_link = magnetLink;
+
+            // 判断输入是磁力链接还是hash
+            if (magnetInput.toLowerCase().startsWith('magnet:')) {
+                // 磁力链接
+                requestData.magnet_link = magnetInput;
+            } else if (/^[a-f0-9]{40}$/i.test(magnetInput)) {
+                // 40位十六进制hash
+                requestData.torrent_hash = magnetInput.toLowerCase();
+            } else {
+                window.showFlashMessage('error', '请输入有效的磁力链接或 40 位 Hash');
+                return;
+            }
         }
 
         sendUploadRequest(requestData);
