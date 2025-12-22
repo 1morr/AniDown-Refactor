@@ -504,7 +504,9 @@ class RSSProcessor:
                 hash_id=item.hash_id or record.hash.value if record.hash else '',
                 anime_title=parse_result.clean_title,
                 subtitle_group=parse_result.subtitle_group,
-                download_path=download_path
+                download_path=download_path,
+                season=parse_result.season,
+                episode=parse_result.episode
             )
 
             return True
@@ -541,7 +543,9 @@ class RSSProcessor:
         hash_id: str,
         anime_title: str,
         subtitle_group: str,
-        download_path: str
+        download_path: str,
+        season: int = 1,
+        episode: Optional[int] = None
     ) -> None:
         """
         Send download task notification.
@@ -552,6 +556,8 @@ class RSSProcessor:
             anime_title: Clean anime title.
             subtitle_group: Subtitle group name.
             download_path: Download directory.
+            season: Season number.
+            episode: Episode number (if applicable).
         """
         if self._rss_notifier:
             self._rss_notifier.notify_download_task(
@@ -560,7 +566,9 @@ class RSSProcessor:
                     hash_id=hash_id,
                     anime_title=anime_title,
                     subtitle_group=subtitle_group,
-                    download_path=download_path
+                    download_path=download_path,
+                    season=season,
+                    episode=episode
                 )
             )
 

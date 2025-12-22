@@ -126,7 +126,9 @@ class DiscordRSSNotifier(IRSSNotifier):
             hash_id=notification.hash_id,
             anime_title=notification.anime_title,
             subtitle_group=notification.subtitle_group,
-            download_path=notification.download_path
+            download_path=notification.download_path,
+            season=notification.season,
+            episode=notification.episode
         )
 
         response = self._client.send(embeds=[embed], channel_type='rss')

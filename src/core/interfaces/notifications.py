@@ -157,12 +157,16 @@ class RSSTaskNotification:
         anime_title: Original parsed title.
         subtitle_group: Subtitle group name.
         download_path: Download save path.
+        season: Season number.
+        episode: Episode number (if applicable).
     """
     project_name: str
     hash_id: str
     anime_title: str
     subtitle_group: str
     download_path: str
+    season: int = 1
+    episode: Optional[int] = None
 
 
 @dataclass

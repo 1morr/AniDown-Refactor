@@ -717,7 +717,9 @@ class DownloadManager:
                 hash_id=hash_id,
                 anime_title=parse_result.clean_title,
                 subtitle_group=parse_result.subtitle_group,
-                download_path=save_path
+                download_path=save_path,
+                season=parse_result.season,
+                episode=parse_result.episode
             )
 
             return True
@@ -751,8 +753,8 @@ class DownloadManager:
         anime_season = anime_info.season_number
         anime_category = 'movie' if anime_info.category == Category.MOVIE else 'tv'
 
-        # Try to extract episode number from title
-        episode = self._extract_episode_from_title(title)
+        # Try to extract episode number from title (using database regex if available)
+        episode = self._extract_episode_from_title(title, anime_id=anime_id)
 
         # Generate save path
         save_path = self._generate_save_path({
@@ -791,7 +793,9 @@ class DownloadManager:
             hash_id=hash_id,
             anime_title=anime_short_title,
             subtitle_group=anime_subtitle_group,
-            download_path=save_path
+            download_path=save_path,
+            season=anime_season,
+            episode=episode
         )
 
         return True
@@ -894,7 +898,8 @@ class DownloadManager:
                 hash_id=hash_id,
                 anime_title=f'手动上传 - {anime_title}',
                 subtitle_group=subtitle_group,
-                download_path=save_path
+                download_path=save_path,
+                season=season
             )
 
             return True
@@ -1644,16 +1649,46 @@ class DownloadManager:
             else:
                 return config.link_target_path
 
-    def _extract_episode_from_title(self, title: str) -> Optional[int]:
-        """Extract episode number from title."""
-        patterns = [
+    def _extract_episode_from_title(
+        self,
+        title: str,
+        anime_id: Optional[int] = None
+    ) -> Optional[int]:
+        """
+        Extract episode number from title.
+
+        Args:
+            title: Original title string.
+            anime_id: Optional anime ID to use database-stored regex pattern.
+
+        Returns:
+            Episode number or None.
+        """
+        # First try using database-stored episode_regex if anime_id provided
+        if anime_id:
+            try:
+                patterns = self._anime_repo.get_patterns(anime_id)
+                if patterns and patterns.get('episode_regex'):
+                    episode_regex = patterns['episode_regex']
+                    match = re.search(episode_regex, title, re.IGNORECASE)
+                    if match:
+                        try:
+                            return int(match.group(1))
+                        except (ValueError, IndexError):
+                            pass
+                    logger.debug(f'📺 数据库正则 "{episode_regex}" 未匹配到集数')
+            except Exception as e:
+                logger.warning(f'⚠️ 获取数据库正则失败: {e}')
+
+        # Fallback to default patterns
+        default_patterns = [
             r'[\[\s](\d{1,3})[\]\s]',  # [01] or 01
             r'E(\d{1,3})',  # E01
             r'第(\d{1,3})[话集]',  # 第01话
             r'- (\d{1,3}) ',  # - 01
         ]
 
-        for pattern in patterns:
+        for pattern in default_patterns:
             match = re.search(pattern, title, re.IGNORECASE)
             if match:
                 try:
@@ -1690,7 +1725,9 @@ class DownloadManager:
         hash_id: str,
         anime_title: str,
         subtitle_group: str,
-        download_path: str
+        download_path: str,
+        season: int = 1,
+        episode: Optional[int] = None
     ) -> None:
         """Send download task notification (immediate, per task)."""
         if self._rss_notifier:
@@ -1701,7 +1738,9 @@ class DownloadManager:
                         hash_id=hash_id or '',
                         anime_title=anime_title,
                         subtitle_group=subtitle_group,
-                        download_path=download_path
+                        download_path=download_path,
+                        season=season,
+                        episode=episode
                     )
                 )
             except Exception as e:

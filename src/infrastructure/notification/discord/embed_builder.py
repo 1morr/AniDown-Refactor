@@ -565,7 +565,9 @@ class EmbedBuilder:
         hash_id: str,
         anime_title: str,
         subtitle_group: str,
-        download_path: str
+        download_path: str,
+        season: int = 1,
+        episode: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         构建 RSS 下载任务通知 Embed（即时发送）。
@@ -576,10 +578,17 @@ class EmbedBuilder:
             anime_title: 原始动漫标题
             subtitle_group: 字幕组
             download_path: 下载路径
+            season: 季度
+            episode: 集数（可选）
 
         Returns:
             Embed 字典
         """
+        # 构建集数显示
+        ep_text = f'S{season:02d}'
+        if episode is not None:
+            ep_text += f'E{episode:02d}'
+
         embed = self._base_embed(
             title='📥 下载任务已添加',
             description=f'**{project_name}**',
@@ -592,6 +601,7 @@ class EmbedBuilder:
         fields = [
             {'name': '🎬 动漫标题', 'value': display_title, 'inline': False},
             {'name': '👥 字幕组', 'value': subtitle_group or '未知', 'inline': True},
+            {'name': '📺 季/集', 'value': ep_text, 'inline': True},
             {'name': ':hash: Hash', 'value': f'`{hash_id[:8]}...`' if hash_id else '未知', 'inline': True},
             {'name': '📁 下载路径', 'value': f'`{self._truncate_path(download_path)}`', 'inline': False}
         ]
