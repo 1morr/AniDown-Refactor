@@ -6,7 +6,9 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 import json
 
-from src.core.config import config, RSSFeed, OpenAIConfig, LanguagePriorityConfig
+from src.core.config import (
+    config, RSSFeed, OpenAIConfig, LanguagePriorityConfig
+)
 from src.interface.web.utils import (
     APIResponse,
     handle_api_errors,
@@ -97,6 +99,41 @@ def update_config():
     if 'discord_hardlink_webhook' in data:
         config.set('discord.hardlink_webhook_url', data['discord_hardlink_webhook'])
 
+    # 独立 Key Pools 配置
+    if 'key_pools' in data:
+        try:
+            pools_data = json.loads(data['key_pools'] or '[]')
+            key_pools = []
+            for pool_data in pools_data:
+                if isinstance(pool_data, dict) and pool_data.get('name'):
+                    # 转换 api_keys 为 KeyPoolEntry 对象
+                    api_keys = []
+                    for key_data in pool_data.get('api_keys', []):
+                        if isinstance(key_data, dict) and key_data.get('api_key'):
+                            api_keys.append(OpenAIConfig.KeyPoolEntry(
+                                name=key_data.get('name', ''),
+                                api_key=key_data.get('api_key', ''),
+                                rpm=int(key_data.get('rpm', 0)),
+                                rpd=int(key_data.get('rpd', 0)),
+                                enabled=bool(key_data.get('enabled', True))
+                            ))
+                    key_pools.append(OpenAIConfig.KeyPoolDefinition(
+                        name=pool_data['name'],
+                        base_url=pool_data.get('base_url', 'https://api.openai.com/v1'),
+                        model=pool_data.get('model', 'gpt-4'),
+                        api_keys=api_keys
+                    ))
+            config.set('openai.key_pools', key_pools)
+        except Exception as e:
+            return _handle_config_error(
+                is_ajax,
+                f'Key Pools 配置解析失败: {e}'
+            )
+
+    # 标题解析 Pool 选择
+    if 'title_parse_pool_name' in data:
+        config.set('openai.title_parse.pool_name', data['title_parse_pool_name'])
+
     # OpenAI - 标题解析配置
     if 'openai_title_parse_key' in data:
         config.set('openai.title_parse.api_key', data['openai_title_parse_key'])
@@ -141,21 +178,6 @@ def update_config():
         except ValueError:
             return _handle_config_error(is_ajax, '标题解析 API 超时时间必须是整数')
 
-    # OpenAI - 标题解析 Key Pool
-    if 'openai_title_parse_pool' in data:
-        try:
-            pool_data = json.loads(data['openai_title_parse_pool'] or '[]')
-            pool_entries = []
-            for item in pool_data:
-                if isinstance(item, dict) and (item.get('api_key') or '').strip():
-                    pool_entries.append(OpenAIConfig.APIKeyEntry(**item))
-            config.set('openai.title_parse.api_key_pool', pool_entries)
-        except Exception as e:
-            return _handle_config_error(
-                is_ajax,
-                f'标题解析 Key Pool 配置解析失败: {e}'
-            )
-
     # 语言优先级配置
     if 'language_priorities' in data:
         try:
@@ -173,6 +195,10 @@ def update_config():
                 is_ajax,
                 f'语言优先级配置解析失败: {e}'
             )
+
+    # 多文件重命名 Pool 选择
+    if 'multi_file_rename_pool_name' in data:
+        config.set('openai.multi_file_rename.pool_name', data['multi_file_rename_pool_name'])
 
     # OpenAI - 多文件重命名配置
     if 'openai_multi_rename_key' in data:
@@ -218,20 +244,63 @@ def update_config():
         except ValueError:
             return _handle_config_error(is_ajax, '多文件重命名 API 超时时间必须是整数')
 
-    # OpenAI - 多文件重命名 Key Pool
-    if 'openai_multi_rename_pool' in data:
+    # 字幕匹配 Pool 选择
+    if 'subtitle_match_pool_name' in data:
+        config.set('openai.subtitle_match.pool_name', data['subtitle_match_pool_name'])
+
+    # OpenAI - 字幕匹配配置
+    if 'openai_subtitle_match_key' in data:
+        config.set('openai.subtitle_match.api_key', data['openai_subtitle_match_key'])
+
+    if 'openai_subtitle_match_model' in data:
+        config.set(
+            'openai.subtitle_match.model',
+            data['openai_subtitle_match_model'] or 'gpt-4'
+        )
+
+    if 'openai_subtitle_match_base_url' in data:
+        config.set(
+            'openai.subtitle_match.base_url',
+            data['openai_subtitle_match_base_url'] or 'https://api.openai.com/v1'
+        )
+
+    if 'openai_subtitle_match_extra_body' in data:
+        extra_body = data['openai_subtitle_match_extra_body'].strip()
+        # 验证JSON格式（如果不为空）
+        if extra_body:
+            try:
+                json.loads(extra_body)
+                config.set('openai.subtitle_match.extra_body', extra_body)
+            except json.JSONDecodeError:
+                return _handle_config_error(
+                    is_ajax,
+                    '字幕匹配 Extra Body 必须是合法的 JSON 格式'
+                )
+        else:
+            config.set('openai.subtitle_match.extra_body', '')
+
+    # OpenAI - 字幕匹配超时时间
+    if 'openai_subtitle_match_timeout' in data:
         try:
-            pool_data = json.loads(data['openai_multi_rename_pool'] or '[]')
-            pool_entries = []
-            for item in pool_data:
-                if isinstance(item, dict) and (item.get('api_key') or '').strip():
-                    pool_entries.append(OpenAIConfig.APIKeyEntry(**item))
-            config.set('openai.multi_file_rename.api_key_pool', pool_entries)
-        except Exception as e:
-            return _handle_config_error(
-                is_ajax,
-                f'多文件重命名 Key Pool 配置解析失败: {e}'
-            )
+            timeout = int(data['openai_subtitle_match_timeout'])
+            if timeout < 10 or timeout > 600:
+                return _handle_config_error(
+                    is_ajax,
+                    '字幕匹配 API 超时时间必须在 10-600 秒之间'
+                )
+            config.set('openai.subtitle_match.timeout', timeout)
+        except ValueError:
+            return _handle_config_error(is_ajax, '字幕匹配 API 超时时间必须是整数')
+
+    # OpenAI - 字幕匹配重试次数
+    if 'openai_subtitle_match_retries' in data:
+        try:
+            retries = int(data['openai_subtitle_match_retries'])
+            if retries < 0:
+                return _handle_config_error(is_ajax, '字幕匹配重试次数不能为负数')
+            config.set('openai.subtitle_match_retries', retries)
+        except ValueError:
+            return _handle_config_error(is_ajax, '字幕匹配重试次数必须是整数')
 
     if 'openai_title_parse_retries' in data:
         try:

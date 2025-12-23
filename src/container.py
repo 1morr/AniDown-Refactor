@@ -157,7 +157,7 @@ class Container(containers.DeclarativeContainer):
     subtitle_match_api_client = providers.Singleton(
         OpenAIClient,
         timeout=config.openai.subtitle_match.timeout
-        if config.openai.subtitle_match.api_key or config.openai.subtitle_match.api_key_pool
+        if config.openai.subtitle_match.api_key or config.openai.subtitle_match.pool_name
         else config.openai.multi_file_rename.timeout
     )
     subtitle_match_pool = providers.Singleton(

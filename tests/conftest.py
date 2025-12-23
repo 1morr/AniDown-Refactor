@@ -99,21 +99,33 @@ def test_config_path(tmp_path_factory) -> Path:
             'movie_folder_name': 'Movies'
         },
         'openai': {
+            'key_pools': [],
             'title_parse': {
+                'pool_name': '',
                 'api_key': '',
-                'api_key_pool': [],
                 'base_url': 'https://api.openai.com/v1',
                 'model': 'gpt-4',
-                'extra_body': ''
+                'extra_body': '',
+                'timeout': 180
             },
             'multi_file_rename': {
+                'pool_name': '',
                 'api_key': '',
-                'api_key_pool': [],
                 'base_url': 'https://api.openai.com/v1',
                 'model': 'gpt-4',
-                'extra_body': ''
+                'extra_body': '',
+                'timeout': 360
+            },
+            'subtitle_match': {
+                'pool_name': '',
+                'api_key': '',
+                'base_url': 'https://api.openai.com/v1',
+                'model': 'gpt-4',
+                'extra_body': '',
+                'timeout': 180
             },
             'title_parse_retries': 3,
+            'subtitle_match_retries': 3,
             'rate_limits': {
                 'max_consecutive_errors': 5,
                 'key_cooldown_seconds': 30,
@@ -330,8 +342,15 @@ def requires_ai(real_config):
 
     Skips test if OpenAI is not configured.
     """
-    title_parse = real_config.get('openai', {}).get('title_parse', {})
-    if not title_parse.get('api_key') and not title_parse.get('api_key_pool'):
+    openai_config = real_config.get('openai', {})
+    title_parse = openai_config.get('title_parse', {})
+    key_pools = openai_config.get('key_pools', [])
+
+    # 检查是否有独立配置或使用了 key_pool
+    has_standalone = bool(title_parse.get('api_key'))
+    has_pool = bool(title_parse.get('pool_name') and key_pools)
+
+    if not has_standalone and not has_pool:
         pytest.skip('OpenAI API not configured')
     return title_parse
 

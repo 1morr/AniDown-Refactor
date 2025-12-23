@@ -188,10 +188,77 @@
                         当前优先级：<span id="current_priority_display" class="font-medium text-slate-600 dark:text-gray-300"></span>
                     </p>
                 </div>
+
+                <!-- 独立 Key Pools -->
+                <div class="border border-slate-200 dark:border-white/10 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="text-sm font-semibold text-slate-700 dark:text-gray-300">API Key Pools</h4>
+                        <button type="button" onclick="addKeyPool()" class="px-3 py-1.5 text-xs rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-gray-200">
+                            <i class="fa-solid fa-plus mr-1"></i> 添加 Pool
+                        </button>
+                    </div>
+                    <p class="text-xs text-slate-400 dark:text-gray-500 mb-4">创建独立的 Key Pool，可被多个任务共享使用。每个 Pool 包含 base_url、model 和多个 API Key。</p>
+
+                    <div id="key_pools_container" class="space-y-4">
+                        {% for pool in config.openai.key_pools %}
+                        <div class="key-pool-card border border-slate-300 dark:border-white/20 rounded-lg p-4 bg-slate-50 dark:bg-white/5">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="flex items-center gap-3">
+                                    <i class="fa-solid fa-layer-group text-blue-500"></i>
+                                    <input type="text" class="pool-name-input input-field w-48" value="{{ pool.name }}" placeholder="Pool 名称">
+                                </div>
+                                <button type="button" onclick="removeKeyPool(this)" class="text-slate-400 hover:text-red-500" title="删除 Pool">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">Base URL</label>
+                                    <input type="text" class="pool-base-url input-field" value="{{ pool.base_url }}">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">Model</label>
+                                    <input type="text" class="pool-model input-field" value="{{ pool.model }}">
+                                </div>
+                            </div>
+
+                            <!-- Pool 内的 API Keys -->
+                            <div class="border-t border-slate-200 dark:border-white/10 pt-3">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-xs font-medium text-slate-600 dark:text-gray-300">API Keys</span>
+                                    <button type="button" onclick="addKeyToPool(this)" class="text-xs text-blue-500 hover:text-blue-600">
+                                        <i class="fa-solid fa-plus mr-1"></i> 添加 Key
+                                    </button>
+                                </div>
+                                <div class="pool-keys-list space-y-2">
+                                    {% for key in pool.api_keys %}
+                                    <div class="pool-key-item grid grid-cols-12 gap-2 items-center">
+                                        <input type="text" class="pool-key-name input-field col-span-3 text-sm" value="{{ key.name }}" placeholder="名称">
+                                        <input type="password" class="pool-key-value input-field col-span-4 text-sm" value="{{ key.api_key }}" placeholder="API Key">
+                                        <input type="number" class="pool-key-rpm input-field col-span-2 text-sm" value="{{ key.rpm }}" placeholder="RPM">
+                                        <input type="number" class="pool-key-rpd input-field col-span-2 text-sm" value="{{ key.rpd }}" placeholder="RPD">
+                                        <div class="col-span-1 flex items-center gap-1">
+                                            <input type="checkbox" class="pool-key-enabled" {{ 'checked' if key.enabled else '' }}>
+                                            <button type="button" onclick="removeKeyFromPool(this)" class="text-slate-400 hover:text-red-500">
+                                                <i class="fa-solid fa-times text-xs"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
                 <!-- 标题解析 -->
                 <div class="border border-slate-200 dark:border-white/10 rounded-lg p-4">
                     <h4 class="text-sm font-semibold text-slate-700 dark:text-gray-300 mb-4">标题解析</h4>
-                    <div class="grid grid-cols-1 gap-4">
+
+                    <!-- 独立配置（选择 Pool 后禁用） -->
+                    <div id="title_parse_standalone_config" class="grid grid-cols-1 gap-4 {{ 'opacity-50 pointer-events-none' if config.openai.title_parse.pool_name else '' }}">
                         <div>
                             <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">API Base URL</label>
                             <input type="text" id="ai_title_parse_base_url" class="input-field" value="{{ config.get('openai.title_parse.base_url', 'https://api.openai.com/v1') }}">
@@ -200,17 +267,32 @@
                             <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">API Key</label>
                             <div class="relative">
                                 <input type="password" id="ai_title_parse_api_key" class="input-field pr-8" value="{{ config.get('openai.title_parse.api_key', '') }}">
-                                <button onclick="togglePassword('ai_title_parse_api_key')" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-white">
+                                <button type="button" onclick="togglePassword('ai_title_parse_api_key')" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-white">
                                     <i class="fa-solid fa-eye"></i>
                                 </button>
                             </div>
-                            <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">单 Key（兼容旧配置，可选）。若配置了 Key Pool，将优先使用 Key Pool。</p>
                         </div>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
-                                <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">模型 (Model)</label>
-                                <input type="text" id="ai_title_parse_model" class="input-field" value="{{ config.get('openai.title_parse.model', 'gpt-4') }}">
-                            </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">模型 (Model)</label>
+                            <input type="text" id="ai_title_parse_model" class="input-field" value="{{ config.get('openai.title_parse.model', 'gpt-4') }}">
+                        </div>
+                    </div>
+
+                    <!-- Pool 选择 -->
+                    <div class="mt-4">
+                        <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">使用 Key Pool</label>
+                        <select id="title_parse_pool_select" class="input-field" onchange="onPoolSelect('title_parse')">
+                            <option value="">-- 不使用 Pool (独立配置) --</option>
+                            {% for pool in config.openai.key_pools %}
+                            <option value="{{ pool.name }}" {{ 'selected' if config.openai.title_parse.pool_name == pool.name else '' }}>{{ pool.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">选择 Key Pool 后将使用该 Pool 的 Base URL、Model 和 API Keys</p>
+                    </div>
+
+                    <!-- 任务特定配置（始终可用） -->
+                    <div class="grid grid-cols-1 gap-4 mt-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">标题解析重试次数</label>
                                 <input type="number" id="ai_title_parse_retries" class="input-field" value="{{ config.get('openai.title_parse_retries', 3) }}">
@@ -218,68 +300,13 @@
                             <div>
                                 <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">API 超时时间 (秒)</label>
                                 <input type="number" id="ai_title_parse_timeout" class="input-field" min="10" max="600" value="{{ config.get('openai.title_parse.timeout', 180) }}">
-                                <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">推荐: 180 秒 (范围: 10-600)</p>
+                                <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">推荐: 180 秒</p>
                             </div>
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">Extra Body (JSON格式)</label>
                             <textarea id="ai_title_parse_extra_body" class="input-field min-h-[80px] font-mono text-xs" placeholder='例如启用思考模式: {"thinking": {"type": "enabled"}}'>{{ config.get('openai.title_parse.extra_body', '') }}</textarea>
-                            <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">可选。额外的API参数，用于启用思考模式等高级功能。必须是合法的JSON格式。</p>
-                        </div>
-                    </div>
-
-                    <!-- Key Pool -->
-                    <div class="mt-6 border-t border-slate-200 dark:border-white/10 pt-4">
-                        <div class="flex items-center justify-between mb-3">
-                            <div>
-                                <h5 class="text-sm font-semibold text-slate-700 dark:text-gray-300">API Key Pool</h5>
-                                <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">
-                                    每个 Key 可设置 RPM / RPD（0 表示不限制）。总容量会随 Key 数量自动增加（总计为启用 Key 的求和）。
-                                </p>
-                            </div>
-                            <button type="button" onclick="addAiKeyRow('title_parse')" class="px-3 py-2 text-sm rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-gray-200">
-                                <i class="fa-solid fa-plus mr-1"></i> 添加 Key
-                            </button>
-                        </div>
-
-                        <div class="text-xs text-slate-500 dark:text-gray-400 mb-3">
-                            总 RPM: <span id="title_parse_total_rpm" class="font-semibold">0</span>
-                            <span class="mx-2">|</span>
-                            总 RPD: <span id="title_parse_total_rpd" class="font-semibold">0</span>
-                        </div>
-
-                        <div id="ai_title_parse_pool_list" class="space-y-3">
-                            {% for key in config.openai.title_parse.api_key_pool %}
-                            <div class="ai-key-item border border-slate-200 dark:border-white/10 rounded-lg p-3" data-purpose="title_parse">
-                                <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-                                    <div class="md:col-span-3">
-                                        <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">名称</label>
-                                        <input type="text" class="input-field ai-key-name" value="{{ key.name }}">
-                                    </div>
-                                    <div class="md:col-span-4">
-                                        <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">API Key</label>
-                                        <input type="password" class="input-field ai-key-value" value="{{ key.api_key }}">
-                                    </div>
-                                    <div class="md:col-span-2">
-                                        <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">RPM</label>
-                                        <input type="number" class="input-field ai-key-rpm" value="{{ key.rpm }}">
-                                    </div>
-                                    <div class="md:col-span-2">
-                                        <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">RPD</label>
-                                        <input type="number" class="input-field ai-key-rpd" value="{{ key.rpd }}">
-                                    </div>
-                                    <div class="md:col-span-1 flex items-center justify-between gap-2">
-                                        <label class="flex items-center gap-2 text-xs text-slate-600 dark:text-gray-300 cursor-pointer">
-                                            <input type="checkbox" class="ai-key-enabled w-4 h-4" {{ 'checked' if key.enabled else '' }}>
-                                            启用
-                                        </label>
-                                        <button type="button" onclick="removeAiKeyRow(this)" class="text-slate-400 hover:text-red-500" title="删除">
-                                            <i class="fa-solid fa-trash"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                            {% endfor %}
+                            <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">可选。额外的API参数，此设置独立于 Key Pool，始终使用本任务的配置。</p>
                         </div>
                     </div>
                 </div>
@@ -287,7 +314,9 @@
                 <!-- 多文件重命名 -->
                 <div class="border border-slate-200 dark:border-white/10 rounded-lg p-4">
                     <h4 class="text-sm font-semibold text-slate-700 dark:text-gray-300 mb-4">多文件重命名</h4>
-                    <div class="grid grid-cols-1 gap-4">
+
+                    <!-- 独立配置（选择 Pool 后禁用） -->
+                    <div id="multi_file_rename_standalone_config" class="grid grid-cols-1 gap-4 {{ 'opacity-50 pointer-events-none' if config.openai.multi_file_rename.pool_name else '' }}">
                         <div>
                             <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">API Base URL</label>
                             <input type="text" id="ai_multi_rename_base_url" class="input-field" value="{{ config.get('openai.multi_file_rename.base_url', 'https://api.openai.com/v1') }}">
@@ -296,29 +325,37 @@
                             <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">API Key</label>
                             <div class="relative">
                                 <input type="password" id="ai_multi_rename_api_key" class="input-field pr-8" value="{{ config.get('openai.multi_file_rename.api_key', '') }}">
-                                <button onclick="togglePassword('ai_multi_rename_api_key')" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-white">
+                                <button type="button" onclick="togglePassword('ai_multi_rename_api_key')" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-white">
                                     <i class="fa-solid fa-eye"></i>
                                 </button>
                             </div>
-                            <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">单 Key（兼容旧配置，可选）。若配置了 Key Pool，将优先使用 Key Pool。</p>
                         </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">模型 (Model)</label>
-                                <input type="text" id="ai_multi_rename_model" class="input-field" value="{{ config.get('openai.multi_file_rename.model', 'gpt-4') }}">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">API 超时时间 (秒)</label>
-                                <input type="number" id="ai_multi_rename_timeout" class="input-field" min="10" max="600" value="{{ config.get('openai.multi_file_rename.timeout', 180) }}">
-                                <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">推荐: 360 秒 (批处理需更长时间, 范围: 10-600)</p>
-                            </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">模型 (Model)</label>
+                            <input type="text" id="ai_multi_rename_model" class="input-field" value="{{ config.get('openai.multi_file_rename.model', 'gpt-4') }}">
                         </div>
+                    </div>
+
+                    <!-- Pool 选择 -->
+                    <div class="mt-4">
+                        <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">使用 Key Pool</label>
+                        <select id="multi_file_rename_pool_select" class="input-field" onchange="onPoolSelect('multi_file_rename')">
+                            <option value="">-- 不使用 Pool (独立配置) --</option>
+                            {% for pool in config.openai.key_pools %}
+                            <option value="{{ pool.name }}" {{ 'selected' if config.openai.multi_file_rename.pool_name == pool.name else '' }}>{{ pool.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">选择 Key Pool 后将使用该 Pool 的 Base URL、Model 和 API Keys</p>
+                    </div>
+
+                    <!-- 任务特定配置（始终可用） -->
+                    <div class="grid grid-cols-1 gap-4 mt-4">
                         <div>
                             <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">Extra Body (JSON格式)</label>
                             <textarea id="ai_multi_rename_extra_body" class="input-field min-h-[80px] font-mono text-xs" placeholder='例如启用思考模式: {"thinking": {"type": "enabled"}}'>{{ config.get('openai.multi_file_rename.extra_body', '') }}</textarea>
-                            <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">可选。额外的API参数，用于启用思考模式等高级功能。必须是合法的JSON格式。</p>
+                            <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">可选。额外的API参数，此设置独立于 Key Pool，始终使用本任务的配置。</p>
                         </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                                 <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">最大批次大小</label>
                                 <input type="number" id="ai_batch_size" class="input-field" value="{{ config.get('ai_processing.max_batch_size', 30) }}">
@@ -327,61 +364,69 @@
                                 <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">批次重试次数</label>
                                 <input type="number" id="ai_batch_retries" class="input-field" value="{{ config.get('ai_processing.batch_processing_retries', 2) }}">
                             </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">API 超时时间 (秒)</label>
+                                <input type="number" id="ai_multi_rename_timeout" class="input-field" min="10" max="600" value="{{ config.get('openai.multi_file_rename.timeout', 180) }}">
+                                <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">推荐: 360 秒</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 字幕匹配 -->
+                <div class="border border-slate-200 dark:border-white/10 rounded-lg p-4">
+                    <h4 class="text-sm font-semibold text-slate-700 dark:text-gray-300 mb-4">字幕匹配</h4>
+
+                    <!-- 独立配置（选择 Pool 后禁用） -->
+                    <div id="subtitle_match_standalone_config" class="grid grid-cols-1 gap-4 {{ 'opacity-50 pointer-events-none' if config.openai.subtitle_match.pool_name else '' }}">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">API Base URL</label>
+                            <input type="text" id="ai_subtitle_match_base_url" class="input-field" value="{{ config.get('openai.subtitle_match.base_url', 'https://api.openai.com/v1') }}">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">API Key</label>
+                            <div class="relative">
+                                <input type="password" id="ai_subtitle_match_api_key" class="input-field pr-8" value="{{ config.get('openai.subtitle_match.api_key', '') }}">
+                                <button type="button" onclick="togglePassword('ai_subtitle_match_api_key')" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-white">
+                                    <i class="fa-solid fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">模型 (Model)</label>
+                            <input type="text" id="ai_subtitle_match_model" class="input-field" value="{{ config.get('openai.subtitle_match.model', 'gpt-4') }}">
                         </div>
                     </div>
 
-                    <!-- Key Pool -->
-                    <div class="mt-6 border-t border-slate-200 dark:border-white/10 pt-4">
-                        <div class="flex items-center justify-between mb-3">
-                            <div>
-                                <h5 class="text-sm font-semibold text-slate-700 dark:text-gray-300">API Key Pool</h5>
-                                <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">
-                                    每个 Key 可设置 RPM / RPD（0 表示不限制）。总容量会随 Key 数量自动增加（总计为启用 Key 的求和）。
-                                </p>
-                            </div>
-                            <button type="button" onclick="addAiKeyRow('multi_file_rename')" class="px-3 py-2 text-sm rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-gray-200">
-                                <i class="fa-solid fa-plus mr-1"></i> 添加 Key
-                            </button>
-                        </div>
-
-                        <div class="text-xs text-slate-500 dark:text-gray-400 mb-3">
-                            总 RPM: <span id="multi_file_rename_total_rpm" class="font-semibold">0</span>
-                            <span class="mx-2">|</span>
-                            总 RPD: <span id="multi_file_rename_total_rpd" class="font-semibold">0</span>
-                        </div>
-
-                        <div id="ai_multi_rename_pool_list" class="space-y-3">
-                            {% for key in config.openai.multi_file_rename.api_key_pool %}
-                            <div class="ai-key-item border border-slate-200 dark:border-white/10 rounded-lg p-3" data-purpose="multi_file_rename">
-                                <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-                                    <div class="md:col-span-3">
-                                        <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">名称</label>
-                                        <input type="text" class="input-field ai-key-name" value="{{ key.name }}">
-                                    </div>
-                                    <div class="md:col-span-4">
-                                        <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">API Key</label>
-                                        <input type="password" class="input-field ai-key-value" value="{{ key.api_key }}">
-                                    </div>
-                                    <div class="md:col-span-2">
-                                        <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">RPM</label>
-                                        <input type="number" class="input-field ai-key-rpm" value="{{ key.rpm }}">
-                                    </div>
-                                    <div class="md:col-span-2">
-                                        <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">RPD</label>
-                                        <input type="number" class="input-field ai-key-rpd" value="{{ key.rpd }}">
-                                    </div>
-                                    <div class="md:col-span-1 flex items-center justify-between gap-2">
-                                        <label class="flex items-center gap-2 text-xs text-slate-600 dark:text-gray-300 cursor-pointer">
-                                            <input type="checkbox" class="ai-key-enabled w-4 h-4" {{ 'checked' if key.enabled else '' }}>
-                                            启用
-                                        </label>
-                                        <button type="button" onclick="removeAiKeyRow(this)" class="text-slate-400 hover:text-red-500" title="删除">
-                                            <i class="fa-solid fa-trash"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
+                    <!-- Pool 选择 -->
+                    <div class="mt-4">
+                        <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">使用 Key Pool</label>
+                        <select id="subtitle_match_pool_select" class="input-field" onchange="onPoolSelect('subtitle_match')">
+                            <option value="">-- 不使用 Pool (独立配置) --</option>
+                            {% for pool in config.openai.key_pools %}
+                            <option value="{{ pool.name }}" {{ 'selected' if config.openai.subtitle_match.pool_name == pool.name else '' }}>{{ pool.name }}</option>
                             {% endfor %}
+                        </select>
+                        <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">选择 Key Pool 后将使用该 Pool 的 Base URL、Model 和 API Keys</p>
+                    </div>
+
+                    <!-- 任务特定配置（始终可用） -->
+                    <div class="grid grid-cols-1 gap-4 mt-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">Extra Body (JSON格式)</label>
+                            <textarea id="ai_subtitle_match_extra_body" class="input-field min-h-[80px] font-mono text-xs" placeholder='例如启用思考模式: {"thinking": {"type": "enabled"}}'>{{ config.get('openai.subtitle_match.extra_body', '') }}</textarea>
+                            <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">可选。额外的API参数，此设置独立于 Key Pool，始终使用本任务的配置。</p>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">字幕匹配重试次数</label>
+                                <input type="number" id="ai_subtitle_match_retries" class="input-field" value="{{ config.get('openai.subtitle_match_retries', 3) }}">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">API 超时时间 (秒)</label>
+                                <input type="number" id="ai_subtitle_match_timeout" class="input-field" min="10" max="600" value="{{ config.get('openai.subtitle_match.timeout', 180) }}">
+                                <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">推荐: 180 秒</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -729,101 +774,156 @@
         input.type = input.type === 'password' ? 'text' : 'password';
     }
 
-    // AI Key Pool helpers
-    function addAiKeyRow(purpose, initial = null) {
-        const container = purpose === 'title_parse'
-            ? document.getElementById('ai_title_parse_pool_list')
-            : document.getElementById('ai_multi_rename_pool_list');
+    // ========== 独立 Key Pool 管理 ==========
 
-        const name = initial?.name ?? '';
-        const api_key = initial?.api_key ?? '';
-        const rpm = (initial?.rpm ?? 0);
-        const rpd = (initial?.rpd ?? 0);
-        const enabled = (initial?.enabled ?? true);
-
+    // 添加新的 Key Pool
+    function addKeyPool() {
+        const container = document.getElementById('key_pools_container');
         const div = document.createElement('div');
-        div.className = 'ai-key-item border border-slate-200 dark:border-white/10 rounded-lg p-3';
-        div.dataset.purpose = purpose;
+        div.className = 'key-pool-card border border-slate-300 dark:border-white/20 rounded-lg p-4 bg-slate-50 dark:bg-white/5';
         div.innerHTML = `
-            <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-                <div class="md:col-span-3">
-                    <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">名称</label>
-                    <input type="text" class="input-field ai-key-name" value="${name}">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-layer-group text-blue-500"></i>
+                    <input type="text" class="pool-name-input input-field w-48" value="" placeholder="Pool 名称">
                 </div>
-                <div class="md:col-span-4">
-                    <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">API Key</label>
-                    <input type="password" class="input-field ai-key-value" value="${api_key}">
+                <button type="button" onclick="removeKeyPool(this)" class="text-slate-400 hover:text-red-500" title="删除 Pool">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">Base URL</label>
+                    <input type="text" class="pool-base-url input-field" value="https://api.openai.com/v1">
                 </div>
-                <div class="md:col-span-2">
-                    <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">RPM</label>
-                    <input type="number" class="input-field ai-key-rpm" value="${rpm}">
+                <div>
+                    <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">Model</label>
+                    <input type="text" class="pool-model input-field" value="gpt-4">
                 </div>
-                <div class="md:col-span-2">
-                    <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">RPD</label>
-                    <input type="number" class="input-field ai-key-rpd" value="${rpd}">
-                </div>
-                <div class="md:col-span-1 flex items-center justify-between gap-2">
-                    <label class="flex items-center gap-2 text-xs text-slate-600 dark:text-gray-300 cursor-pointer">
-                        <input type="checkbox" class="ai-key-enabled w-4 h-4" ${enabled ? 'checked' : ''}>
-                        启用
-                    </label>
-                    <button type="button" onclick="removeAiKeyRow(this)" class="text-slate-400 hover:text-red-500" title="删除">
-                        <i class="fa-solid fa-trash"></i>
+            </div>
+
+            <div class="border-t border-slate-200 dark:border-white/10 pt-3">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-medium text-slate-600 dark:text-gray-300">API Keys</span>
+                    <button type="button" onclick="addKeyToPool(this)" class="text-xs text-blue-500 hover:text-blue-600">
+                        <i class="fa-solid fa-plus mr-1"></i> 添加 Key
                     </button>
+                </div>
+                <div class="pool-keys-list space-y-2">
                 </div>
             </div>
         `;
-
-        // 绑定变化事件以刷新总量
-        div.querySelectorAll('input').forEach(inp => {
-            inp.addEventListener('input', () => updateAiPoolTotals(purpose));
-            inp.addEventListener('change', () => updateAiPoolTotals(purpose));
-        });
-
         container.appendChild(div);
-        updateAiPoolTotals(purpose);
+
+        // 绑定 Pool 名称变化事件以更新下拉框
+        div.querySelector('.pool-name-input').addEventListener('input', updatePoolDropdowns);
     }
 
-    function removeAiKeyRow(btn) {
-        const item = btn.closest('.ai-key-item');
-        const purpose = item?.dataset?.purpose;
+    // 删除 Key Pool
+    function removeKeyPool(button) {
+        const card = button.closest('.key-pool-card');
+        if (card) {
+            card.remove();
+            updatePoolDropdowns();
+        }
+    }
+
+    // 向 Pool 添加 Key
+    function addKeyToPool(button) {
+        const card = button.closest('.key-pool-card');
+        const keysList = card.querySelector('.pool-keys-list');
+        const div = document.createElement('div');
+        div.className = 'pool-key-item grid grid-cols-12 gap-2 items-center';
+        div.innerHTML = `
+            <input type="text" class="pool-key-name input-field col-span-3 text-sm" value="" placeholder="名称">
+            <input type="password" class="pool-key-value input-field col-span-4 text-sm" value="" placeholder="API Key">
+            <input type="number" class="pool-key-rpm input-field col-span-2 text-sm" value="0" placeholder="RPM">
+            <input type="number" class="pool-key-rpd input-field col-span-2 text-sm" value="0" placeholder="RPD">
+            <div class="col-span-1 flex items-center gap-1">
+                <input type="checkbox" class="pool-key-enabled" checked>
+                <button type="button" onclick="removeKeyFromPool(this)" class="text-slate-400 hover:text-red-500">
+                    <i class="fa-solid fa-times text-xs"></i>
+                </button>
+            </div>
+        `;
+        keysList.appendChild(div);
+    }
+
+    // 从 Pool 删除 Key
+    function removeKeyFromPool(button) {
+        const item = button.closest('.pool-key-item');
         if (item) item.remove();
-        if (purpose) updateAiPoolTotals(purpose);
     }
 
-    function updateAiPoolTotals(purpose) {
-        const items = document.querySelectorAll(`.ai-key-item[data-purpose="${purpose}"]`);
-        let totalRpm = 0;
-        let totalRpd = 0;
-        items.forEach(item => {
-            const enabled = item.querySelector('.ai-key-enabled')?.checked;
-            if (!enabled) return;
-            const rpm = parseInt(item.querySelector('.ai-key-rpm')?.value || '0', 10) || 0;
-            const rpd = parseInt(item.querySelector('.ai-key-rpd')?.value || '0', 10) || 0;
-            totalRpm += rpm;
-            totalRpd += rpd;
+    // 收集所有 Key Pools 数据
+    function collectKeyPools() {
+        const pools = [];
+        document.querySelectorAll('.key-pool-card').forEach(card => {
+            const name = (card.querySelector('.pool-name-input')?.value || '').trim();
+            if (!name) return; // 跳过没有名称的 Pool
+
+            const base_url = (card.querySelector('.pool-base-url')?.value || '').trim();
+            const model = (card.querySelector('.pool-model')?.value || '').trim();
+
+            const api_keys = [];
+            card.querySelectorAll('.pool-key-item').forEach(keyItem => {
+                const api_key = (keyItem.querySelector('.pool-key-value')?.value || '').trim();
+                if (!api_key) return; // 跳过空 Key
+
+                api_keys.push({
+                    name: (keyItem.querySelector('.pool-key-name')?.value || '').trim(),
+                    api_key: api_key,
+                    rpm: parseInt(keyItem.querySelector('.pool-key-rpm')?.value || '0', 10) || 0,
+                    rpd: parseInt(keyItem.querySelector('.pool-key-rpd')?.value || '0', 10) || 0,
+                    enabled: !!keyItem.querySelector('.pool-key-enabled')?.checked
+                });
+            });
+
+            pools.push({ name, base_url, model, api_keys });
         });
-        const rpmEl = document.getElementById(`${purpose}_total_rpm`);
-        const rpdEl = document.getElementById(`${purpose}_total_rpd`);
-        if (rpmEl) rpmEl.textContent = String(totalRpm);
-        if (rpdEl) rpdEl.textContent = String(totalRpd);
+        return pools;
     }
 
-    function collectAiPool(purpose) {
-        const items = document.querySelectorAll(`.ai-key-item[data-purpose="${purpose}"]`);
-        const pool = [];
-        items.forEach(item => {
-            const api_key = (item.querySelector('.ai-key-value')?.value || '').trim();
-            if (!api_key) return; // 空 key 不保存
-            pool.push({
-                name: (item.querySelector('.ai-key-name')?.value || '').trim(),
-                api_key,
-                rpm: parseInt(item.querySelector('.ai-key-rpm')?.value || '0', 10) || 0,
-                rpd: parseInt(item.querySelector('.ai-key-rpd')?.value || '0', 10) || 0,
-                enabled: !!item.querySelector('.ai-key-enabled')?.checked
+    // 更新所有任务的 Pool 下拉框选项
+    function updatePoolDropdowns() {
+        const pools = collectKeyPools();
+        const dropdowns = ['title_parse_pool_select', 'multi_file_rename_pool_select', 'subtitle_match_pool_select'];
+
+        dropdowns.forEach(dropdownId => {
+            const select = document.getElementById(dropdownId);
+            if (!select) return;
+
+            const currentValue = select.value;
+            // 保留第一个选项（不使用 Pool）
+            select.innerHTML = '<option value="">-- 不使用 Pool (独立配置) --</option>';
+
+            pools.forEach(pool => {
+                const option = document.createElement('option');
+                option.value = pool.name;
+                option.textContent = pool.name;
+                if (pool.name === currentValue) {
+                    option.selected = true;
+                }
+                select.appendChild(option);
             });
         });
-        return pool;
+    }
+
+    // Pool 选择变化时禁用/启用独立配置
+    function onPoolSelect(purpose) {
+        const select = document.getElementById(`${purpose}_pool_select`);
+        const standaloneConfig = document.getElementById(`${purpose}_standalone_config`);
+
+        if (!select || !standaloneConfig) return;
+
+        if (select.value) {
+            // 选择了 Pool，禁用独立配置
+            standaloneConfig.classList.add('opacity-50', 'pointer-events-none');
+        } else {
+            // 未选择 Pool，启用独立配置
+            standaloneConfig.classList.remove('opacity-50', 'pointer-events-none');
+        }
     }
 
     // 3. 联动逻辑
@@ -928,25 +1028,37 @@
         formData.append('discord_rss_webhook', document.getElementById('discord_rss').value);
         formData.append('discord_hardlink_webhook', document.getElementById('discord_hardlink').value);
 
+        // 独立 Key Pools 配置
+        formData.append('key_pools', JSON.stringify(collectKeyPools()));
+
         // 标题解析配置
+        formData.append('title_parse_pool_name', document.getElementById('title_parse_pool_select').value);
         formData.append('openai_title_parse_key', document.getElementById('ai_title_parse_api_key').value);
         formData.append('openai_title_parse_model', document.getElementById('ai_title_parse_model').value);
         formData.append('openai_title_parse_base_url', document.getElementById('ai_title_parse_base_url').value);
         formData.append('openai_title_parse_retries', document.getElementById('ai_title_parse_retries').value);
         formData.append('openai_title_parse_timeout', document.getElementById('ai_title_parse_timeout').value);
         formData.append('openai_title_parse_extra_body', document.getElementById('ai_title_parse_extra_body').value);
-        formData.append('openai_title_parse_pool', JSON.stringify(collectAiPool('title_parse')));
 
         // 语言优先级配置
         formData.append('language_priorities', JSON.stringify(collectLanguagePriorities()));
 
         // 多文件重命名配置
+        formData.append('multi_file_rename_pool_name', document.getElementById('multi_file_rename_pool_select').value);
         formData.append('openai_multi_rename_key', document.getElementById('ai_multi_rename_api_key').value);
         formData.append('openai_multi_rename_model', document.getElementById('ai_multi_rename_model').value);
         formData.append('openai_multi_rename_base_url', document.getElementById('ai_multi_rename_base_url').value);
         formData.append('openai_multi_rename_timeout', document.getElementById('ai_multi_rename_timeout').value);
         formData.append('openai_multi_rename_extra_body', document.getElementById('ai_multi_rename_extra_body').value);
-        formData.append('openai_multi_rename_pool', JSON.stringify(collectAiPool('multi_file_rename')));
+
+        // 字幕匹配配置
+        formData.append('subtitle_match_pool_name', document.getElementById('subtitle_match_pool_select').value);
+        formData.append('openai_subtitle_match_key', document.getElementById('ai_subtitle_match_api_key').value);
+        formData.append('openai_subtitle_match_model', document.getElementById('ai_subtitle_match_model').value);
+        formData.append('openai_subtitle_match_base_url', document.getElementById('ai_subtitle_match_base_url').value);
+        formData.append('openai_subtitle_match_retries', document.getElementById('ai_subtitle_match_retries').value);
+        formData.append('openai_subtitle_match_timeout', document.getElementById('ai_subtitle_match_timeout').value);
+        formData.append('openai_subtitle_match_extra_body', document.getElementById('ai_subtitle_match_extra_body').value);
 
         // AI 处理配置
         formData.append('ai_max_batch_size', document.getElementById('ai_batch_size').value);
@@ -1012,18 +1124,17 @@
 
     document.addEventListener('DOMContentLoaded', loadConfig);
     document.addEventListener('DOMContentLoaded', () => {
-        // 初始化总量显示 & 绑定现有行事件
-        ['title_parse', 'multi_file_rename'].forEach(purpose => {
-            document.querySelectorAll(`.ai-key-item[data-purpose="${purpose}"] input`).forEach(inp => {
-                inp.addEventListener('input', () => updateAiPoolTotals(purpose));
-                inp.addEventListener('change', () => updateAiPoolTotals(purpose));
-            });
-            updateAiPoolTotals(purpose);
-        });
-
         // 初始化语言优先级拖放功能
         initLanguagePriorityDrag();
         updatePriorityDisplay();
+
+        // 绑定现有 Key Pool 名称变化事件
+        document.querySelectorAll('.key-pool-card .pool-name-input').forEach(input => {
+            input.addEventListener('input', updatePoolDropdowns);
+        });
+
+        // 初始化 Pool 下拉框选项
+        updatePoolDropdowns();
     });
 
     // 语言优先级拖放功能

@@ -93,23 +93,34 @@ class LanguagePriorityConfig(BaseModel):
 class OpenAIConfig(BaseModel):
     """AI/LLM 配置（按任务区分）"""
 
-    class APIKeyEntry(BaseModel):
-        """单个 API Key 配置（用于 Key Pool）"""
+    class KeyPoolEntry(BaseModel):
+        """独立 Key Pool 中的单个 API Key 配置"""
 
         name: str = ''
         api_key: str = ''
-        # 0 表示不限制（向后兼容：旧配置未提供限额）
+        # 0 表示不限制
         rpm: int = Field(default=0, ge=0)  # Requests Per Minute
         rpd: int = Field(default=0, ge=0)  # Requests Per Day
         enabled: bool = True
 
+    class KeyPoolDefinition(BaseModel):
+        """独立 Key Pool 定义"""
+
+        name: str  # Pool 唯一名称
+        base_url: str = 'https://api.openai.com/v1'
+        model: str = 'gpt-4'
+        api_keys: List['OpenAIConfig.KeyPoolEntry'] = Field(default_factory=list)
+
     class TaskConfig(BaseModel):
         """任务特定的 AI 配置"""
 
+        # 选择使用的 Key Pool 名称（空字符串表示使用独立配置）
+        pool_name: str = ''
+        # 独立配置（当 pool_name 为空时使用）
         api_key: str = ''
-        api_key_pool: List['OpenAIConfig.APIKeyEntry'] = Field(default_factory=list)
         base_url: str = 'https://api.openai.com/v1'
         model: str = 'gpt-4'
+        # 任务特定设置（始终使用，不受 pool 影响）
         extra_body: str = ''  # JSON格式的额外参数
         timeout: int = Field(default=180, ge=10, le=600)  # API 超时时间（秒）
 
@@ -125,15 +136,20 @@ class OpenAIConfig(BaseModel):
         # 指数退避最大上限
         max_backoff_seconds: int = Field(default=300, ge=0, le=3600)
 
+    # 独立 Key Pool 列表
+    key_pools: List[KeyPoolDefinition] = Field(default_factory=list)
+
     # 标题解析
     title_parse: TaskConfig = Field(default_factory=TaskConfig)
     # 多文件重命名
     multi_file_rename: TaskConfig = Field(default_factory=TaskConfig)
-    # 字幕匹配（不在配置页面显示，只能手动修改config.json，默认fallback到multi_file_rename）
+    # 字幕匹配
     subtitle_match: TaskConfig = Field(default_factory=TaskConfig)
 
     # 标题解析重试次数
     title_parse_retries: int = Field(default=3, ge=0, le=10)
+    # 字幕匹配重试次数
+    subtitle_match_retries: int = Field(default=3, ge=0, le=10)
 
     # Key Pool 限流/熔断配置
     rate_limits: RateLimitConfig = Field(default_factory=RateLimitConfig)

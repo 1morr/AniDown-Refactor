@@ -152,24 +152,8 @@
       <h2 class="text-lg font-bold text-slate-800 dark:text-white">API Key 状态</h2>
     </div>
 
-    <div class="overflow-x-auto">
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="text-left text-slate-500 dark:text-gray-400 border-b border-slate-200 dark:border-white/10">
-            <th class="py-2 pr-3">用途</th>
-            <th class="py-2 pr-3">Key 名称</th>
-            <th class="py-2 pr-3">状态</th>
-            <th class="py-2 pr-3">RPM (每分钟)</th>
-            <th class="py-2 pr-3">RPD (每天)</th>
-            <th class="py-2 pr-3">最近响应</th>
-            <th class="py-2 pr-3">冷却</th>
-            <th class="py-2 pr-3">操作</th>
-          </tr>
-        </thead>
-        <tbody id="keys-table" class="text-slate-700 dark:text-gray-200">
-          <tr><td colspan="8" class="py-4 text-center text-slate-400">加载中...</td></tr>
-        </tbody>
-      </table>
+    <div id="keys-container" class="space-y-6">
+      <div class="text-slate-400 dark:text-gray-500 italic text-sm">加载中...</div>
     </div>
   </section>
 
@@ -425,13 +409,38 @@ function updateQueueCard(prefix, queueData, isWaitingForKey = false) {
 }
 
 function updateKeysTable(keyPools) {
-  const tbody = document.getElementById('keys-table');
-  let rows = [];
+  const container = document.getElementById('keys-container');
 
-  for (const [purpose, pool] of Object.entries(keyPools)) {
-    if (!pool.keys) continue;
+  if (Object.keys(keyPools).length === 0) {
+    container.innerHTML = '<div class="text-slate-400 dark:text-gray-500 italic text-sm">暂无 Key 配置</div>';
+    return;
+  }
 
-    for (const key of pool.keys) {
+  const poolCards = [];
+
+  // 任务名称映射（用于显示中文）
+  const taskNameMap = {
+    'title_parse': '标题解析',
+    'multi_file_rename': '多文件重命名',
+    'subtitle_match': '字幕匹配'
+  };
+
+  for (const [poolKey, pool] of Object.entries(keyPools)) {
+    if (!pool.keys || pool.keys.length === 0) continue;
+
+    // Pool 名称和任务标签
+    const poolDisplayName = pool.pool_name || poolKey.replace('standalone_', '');
+    const isSharedPool = pool.pool_name !== null;
+    const tasks = pool.tasks || [];
+
+    // 生成任务标签
+    const taskBadges = tasks.map(task => {
+      const displayName = taskNameMap[task] || task;
+      return `<span class="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-400 rounded-full">${escapeHtml(displayName)}</span>`;
+    }).join('');
+
+    // 生成 Key 表格行
+    const keyRows = pool.keys.map(key => {
       // 状态样式
       let stateClass, stateText;
       if (key.state === 'available') {
@@ -473,7 +482,7 @@ function updateKeysTable(keyPools) {
               <div class="h-full ${rpmBarColor} transition-all" style="width: ${rpmPercent}%"></div>
             </div>
             <span class="text-xs font-mono ${rpmBlocked ? 'text-red-600 dark:text-red-400 font-medium' : ''}">${key.rpm_count}/${key.rpm_limit}${rpmWaitText}</span>
-            ${rpmBlocked ? `<button onclick="resetKeyRpm('${purpose}', '${key.key_id}')" class="ml-1 text-xs text-blue-600 dark:text-blue-400 hover:underline" title="重置 RPM">重置</button>` : ''}
+            ${rpmBlocked ? `<button onclick="resetKeyRpm('${poolKey}', '${key.key_id}')" class="ml-1 text-xs text-blue-600 dark:text-blue-400 hover:underline" title="重置 RPM">重置</button>` : ''}
           </div>`;
       } else {
         rpmHtml = `<span class="text-xs font-mono text-slate-400">${key.rpm_count}/∞</span>`;
@@ -492,7 +501,7 @@ function updateKeysTable(keyPools) {
               <div class="h-full ${rpdBarColor} transition-all" style="width: ${rpdPercent}%"></div>
             </div>
             <span class="text-xs font-mono ${rpdBlocked ? 'text-red-600 dark:text-red-400 font-medium' : ''}">${key.rpd_count}/${key.rpd_limit}</span>
-            ${rpdBlocked ? `<button onclick="resetKeyRpd('${purpose}', '${key.key_id}')" class="ml-1 text-xs text-blue-600 dark:text-blue-400 hover:underline" title="重置 RPD">重置</button>` : ''}
+            ${rpdBlocked ? `<button onclick="resetKeyRpd('${poolKey}', '${key.key_id}')" class="ml-1 text-xs text-blue-600 dark:text-blue-400 hover:underline" title="重置 RPD">重置</button>` : ''}
           </div>`;
       } else {
         rpdHtml = `<span class="text-xs font-mono text-slate-400">${key.rpd_count}/∞</span>`;
@@ -514,12 +523,12 @@ function updateKeysTable(keyPools) {
       // 操作按钮
       let actionBtn;
       if (key.disabled) {
-        actionBtn = `<button onclick="enableKey('${purpose}', '${key.key_id}')"
+        actionBtn = `<button onclick="enableKey('${poolKey}', '${key.key_id}')"
                        class="px-2 py-1 text-xs bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-400 rounded hover:bg-green-200 dark:hover:bg-green-500/30 transition-colors">
              启用
            </button>`;
       } else if (key.cooldown_remaining_seconds > 0 || rpmBlocked || rpdBlocked) {
-        actionBtn = `<button onclick="resetKeyAllLimits('${purpose}', '${key.key_id}')"
+        actionBtn = `<button onclick="resetKeyAllLimits('${poolKey}', '${key.key_id}')"
                        class="px-2 py-1 text-xs bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-400 rounded hover:bg-blue-200 dark:hover:bg-blue-500/30 transition-colors">
              全部重置
            </button>`;
@@ -528,14 +537,13 @@ function updateKeysTable(keyPools) {
       }
 
       // 详情按钮
-      const detailBtn = `<button onclick="showKeyDetail('${purpose}', '${key.key_id}', '${escapeHtml(key.name)}')"
+      const detailBtn = `<button onclick="showKeyDetail('${poolKey}', '${key.key_id}', '${escapeHtml(key.name)}')"
                            class="px-2 py-1 text-xs bg-cyan-100 text-cyan-800 dark:bg-cyan-500/20 dark:text-cyan-400 rounded hover:bg-cyan-200 dark:hover:bg-cyan-500/30 transition-colors ml-1" title="查看详情">
            <i class="fa-solid fa-chart-line"></i>
          </button>`;
 
-      rows.push(`
+      return `
         <tr class="border-b border-slate-100 dark:border-white/5 ${key.disabled ? 'opacity-60' : ''}">
-          <td class="py-2 pr-3 font-mono text-slate-500 dark:text-gray-400">${escapeHtml(purpose)}</td>
           <td class="py-2 pr-3">${escapeHtml(key.name)}</td>
           <td class="py-2 pr-3"><span class="px-2 py-0.5 text-xs font-medium ${stateClass} rounded-full">${stateText}</span></td>
           <td class="py-2 pr-3">${rpmHtml}</td>
@@ -544,13 +552,53 @@ function updateKeysTable(keyPools) {
           <td class="py-2 pr-3 font-mono">${cooldownText}</td>
           <td class="py-2 pr-3">${actionBtn}${detailBtn}</td>
         </tr>
-      `);
-    }
+      `;
+    }).join('');
+
+    // Pool 卡片
+    const poolIcon = isSharedPool ? 'fa-layer-group' : 'fa-key';
+    const poolTypeLabel = isSharedPool
+      ? '<span class="text-xs text-slate-500 dark:text-gray-400 ml-2">共享 Pool</span>'
+      : '<span class="text-xs text-slate-500 dark:text-gray-400 ml-2">独立配置</span>';
+
+    poolCards.push(`
+      <div class="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-4">
+        <!-- Pool 头部 -->
+        <div class="flex items-center flex-wrap gap-2 mb-3">
+          <i class="fa-solid ${poolIcon} text-cyan-600 dark:text-cyan-400"></i>
+          <span class="font-semibold text-slate-800 dark:text-white">${escapeHtml(poolDisplayName)}</span>
+          ${poolTypeLabel}
+          <div class="flex gap-1 ml-auto flex-wrap">
+            ${taskBadges}
+          </div>
+        </div>
+
+        <!-- Keys 表格 -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-slate-500 dark:text-gray-400 border-b border-slate-200 dark:border-white/10">
+                <th class="py-2 pr-3">Key 名称</th>
+                <th class="py-2 pr-3">状态</th>
+                <th class="py-2 pr-3">RPM (每分钟)</th>
+                <th class="py-2 pr-3">RPD (每天)</th>
+                <th class="py-2 pr-3">最近响应</th>
+                <th class="py-2 pr-3">冷却</th>
+                <th class="py-2 pr-3">操作</th>
+              </tr>
+            </thead>
+            <tbody class="text-slate-700 dark:text-gray-200">
+              ${keyRows}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `);
   }
 
-  tbody.innerHTML = rows.length > 0
-    ? rows.join('')
-    : '<tr><td colspan="8" class="py-4 text-center text-slate-400 dark:text-gray-500">暂无 Key 配置</td></tr>';
+  container.innerHTML = poolCards.length > 0
+    ? poolCards.join('')
+    : '<div class="text-slate-400 dark:text-gray-500 italic text-sm">暂无 Key 配置</div>';
 }
 
 function updateCircuitBreakers(breakers) {
@@ -561,9 +609,16 @@ function updateCircuitBreakers(breakers) {
     return;
   }
 
+  // 任务名称映射（用于显示中文）
+  const taskNameMap = {
+    'title_parse': '标题解析',
+    'multi_file_rename': '多文件重命名',
+    'subtitle_match': '字幕匹配'
+  };
+
   const cards = [];
 
-  for (const [purpose, breaker] of Object.entries(breakers)) {
+  for (const [breakerKey, breaker] of Object.entries(breakers)) {
     // 状态判断
     const state = breaker.state;
     let statusClass, statusText, statusBadgeClass;
@@ -586,6 +641,17 @@ function updateCircuitBreakers(breakers) {
       ? `${Math.round(breaker.remaining_seconds)}s`
       : '-';
 
+    // 显示名称和任务标签
+    const displayName = breaker.pool_name || breakerKey.replace('standalone_', '');
+    const isSharedBreaker = breaker.pool_name !== null;
+    const tasks = breaker.tasks || [];
+
+    // 生成任务标签
+    const taskBadges = tasks.map(task => {
+      const taskDisplayName = taskNameMap[task] || task;
+      return `<span class="px-1.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-400 rounded">${escapeHtml(taskDisplayName)}</span>`;
+    }).join('');
+
     // 探测信息
     let probeInfo = '';
     if (state === 'half_open') {
@@ -604,18 +670,28 @@ function updateCircuitBreakers(breakers) {
       : '';
 
     const resetBtn = breaker.is_open
-      ? `<button onclick="resetCircuitBreaker('${purpose}')"
+      ? `<button onclick="resetCircuitBreaker('${breakerKey}')"
                  class="mt-2 px-3 py-1.5 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors">
            <i class="fa-solid fa-unlock mr-1"></i>解除熔断
          </button>`
       : '';
 
+    const breakerIcon = isSharedBreaker ? 'fa-layer-group' : 'fa-shield-halved';
+    const breakerTypeLabel = isSharedBreaker
+      ? '<span class="text-xs text-slate-500 dark:text-gray-400">共享</span>'
+      : '';
+
     cards.push(`
       <div class="p-4 rounded-lg ${statusClass}">
-        <div class="flex items-center justify-between mb-2">
-          <span class="font-semibold text-slate-800 dark:text-white">${escapeHtml(purpose)}</span>
+        <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
+          <div class="flex items-center gap-2">
+            <i class="fa-solid ${breakerIcon} text-slate-600 dark:text-gray-400"></i>
+            <span class="font-semibold text-slate-800 dark:text-white">${escapeHtml(displayName)}</span>
+            ${breakerTypeLabel}
+          </div>
           <span class="px-2 py-0.5 text-xs font-medium ${statusBadgeClass} rounded-full">${statusText}</span>
         </div>
+        ${tasks.length > 0 ? `<div class="flex gap-1 flex-wrap mb-2">${taskBadges}</div>` : ''}
         ${state === 'open' ? `
           <div class="text-sm text-slate-600 dark:text-gray-400">
             剩余时间: <span class="font-mono font-medium">${remainingText}</span>

@@ -9,6 +9,7 @@ import logging
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
+from src.core.config import config
 from src.core.exceptions import (
     AICircuitBreakerError,
     AIKeyExhaustedError,
@@ -366,8 +367,8 @@ class AIFileRenamer(IFileRenamer):
                 f'使用 Key {reservation.key_id}'
             )
 
-            # 解析 extra_body
-            extra_params = self._parse_extra_body(reservation.extra_body)
+            # 解析 extra_body（从任务配置读取，不是从 pool）
+            extra_params = self._parse_extra_body(config.openai.multi_file_rename.extra_body)
 
             # 调用 API
             response = self._api_client.call(

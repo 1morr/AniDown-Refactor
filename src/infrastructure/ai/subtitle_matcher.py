@@ -9,6 +9,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
+from src.core.config import config
 from src.core.exceptions import (
     AICircuitBreakerError,
     AIKeyExhaustedError,
@@ -213,8 +214,8 @@ class AISubtitleMatcher:
                     f'使用 Key {reservation.key_id}'
                 )
 
-                # 解析 extra_body
-                extra_params = self._parse_extra_body(reservation.extra_body)
+                # 解析 extra_body（从任务配置读取，不是从 pool）
+                extra_params = self._parse_extra_body(config.openai.subtitle_match.extra_body)
 
                 # 构建消息
                 messages = [

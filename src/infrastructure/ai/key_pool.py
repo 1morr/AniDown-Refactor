@@ -1026,6 +1026,11 @@ class KeyPool:
 _pools: Dict[str, KeyPool] = {}
 _pools_lock = threading.Lock()
 
+# 命名 Key Pool 注册表
+_named_pools: Dict[str, KeyPool] = {}
+# 任务用途到 Pool 名称的映射
+_purpose_to_pool: Dict[str, str] = {}
+
 
 def get_pool(purpose: str) -> Optional[KeyPool]:
     """
@@ -1062,3 +1067,161 @@ def get_all_pools() -> Dict[str, KeyPool]:
     """
     with _pools_lock:
         return dict(_pools)
+
+
+def register_named_pool(pool: KeyPool, pool_name: str) -> None:
+    """
+    注册命名 Key Pool。
+
+    Args:
+        pool: KeyPool 实例
+        pool_name: Pool 唯一名称
+    """
+    with _pools_lock:
+        _named_pools[pool_name] = pool
+        logger.info(f'🔑 注册命名 Key Pool: {pool_name}')
+
+
+def get_named_pool(pool_name: str) -> Optional[KeyPool]:
+    """
+    获取指定名称的命名 Key Pool。
+
+    Args:
+        pool_name: Pool 名称
+
+    Returns:
+        KeyPool 实例或 None
+    """
+    with _pools_lock:
+        return _named_pools.get(pool_name)
+
+
+def get_all_named_pools() -> Dict[str, KeyPool]:
+    """
+    获取所有已注册的命名 Key Pool。
+
+    Returns:
+        {pool_name: KeyPool} 字典
+    """
+    with _pools_lock:
+        return dict(_named_pools)
+
+
+def bind_purpose_to_pool(purpose: str, pool_name: str) -> None:
+    """
+    绑定任务用途到命名 Pool。
+
+    Args:
+        purpose: 任务用途标识（如 'title_parse'）
+        pool_name: Pool 名称
+    """
+    with _pools_lock:
+        _purpose_to_pool[purpose] = pool_name
+        logger.info(f'🔗 绑定任务 {purpose} → Pool "{pool_name}"')
+
+
+def get_pool_for_purpose(purpose: str) -> Optional[KeyPool]:
+    """
+    获取任务用途对应的 Key Pool。
+
+    优先查找绑定的命名 Pool，如果没有则回退到用途 Pool。
+
+    Args:
+        purpose: 任务用途标识
+
+    Returns:
+        KeyPool 实例或 None
+    """
+    with _pools_lock:
+        # 优先查找绑定的命名 Pool
+        pool_name = _purpose_to_pool.get(purpose)
+        if pool_name:
+            pool = _named_pools.get(pool_name)
+            if pool:
+                return pool
+            else:
+                logger.warning(
+                    f'⚠️ 任务 {purpose} 绑定的 Pool "{pool_name}" 不存在，回退到独立配置'
+                )
+
+        # 回退到用途 Pool
+        return _pools.get(purpose)
+
+
+def get_pools_grouped_by_name() -> Dict[str, Dict[str, Any]]:
+    """
+    获取按 Pool 名称分组的 Key Pool 信息（用于 UI 显示）。
+
+    Returns:
+        {
+            'MiMo': {
+                'pool': KeyPool 实例,
+                'pool_name': 'MiMo',
+                'tasks': ['title_parse', 'multi_file_rename', 'subtitle_match']
+            },
+            'standalone_title_parse': {
+                'pool': KeyPool 实例,
+                'pool_name': None,
+                'tasks': ['title_parse']
+            }
+        }
+    """
+    with _pools_lock:
+        result = {}
+
+        # 1. 处理命名 Pool（可能被多个任务共享）
+        for pool_name, pool in _named_pools.items():
+            # 找出所有绑定到此 pool 的任务
+            tasks = [
+                purpose for purpose, bound_pool_name in _purpose_to_pool.items()
+                if bound_pool_name == pool_name
+            ]
+            result[pool_name] = {
+                'pool': pool,
+                'pool_name': pool_name,
+                'tasks': tasks
+            }
+
+        # 2. 处理独立 Pool（没有绑定到命名 Pool 的任务）
+        # 收集所有命名 Pool 的实例，用于排重
+        named_pool_instances = set(id(p) for p in _named_pools.values())
+
+        for purpose, pool in _pools.items():
+            # 跳过已经在命名 pool 中的实例（通过 pool:XXX 注册的别名）
+            if id(pool) in named_pool_instances:
+                continue
+
+            # 检查此任务是否已经在某个命名 pool 的 tasks 列表中
+            is_bound = purpose in _purpose_to_pool
+            if not is_bound:
+                # 这是一个独立配置的 pool
+                standalone_key = f'standalone_{purpose}'
+                result[standalone_key] = {
+                    'pool': pool,
+                    'pool_name': None,  # 标记为独立 pool
+                    'tasks': [purpose]
+                }
+
+        return result
+
+
+def get_purpose_to_pool_mapping() -> Dict[str, str]:
+    """
+    获取任务用途到 Pool 名称的映射。
+
+    Returns:
+        {purpose: pool_name} 字典
+    """
+    with _pools_lock:
+        return dict(_purpose_to_pool)
+
+
+def clear_all_registries() -> None:
+    """
+    清空所有注册表（用于测试或重新初始化）。
+    """
+    with _pools_lock:
+        _pools.clear()
+        _named_pools.clear()
+        _purpose_to_pool.clear()
+        logger.info('🧹 已清空所有 Key Pool 注册表')

@@ -10,8 +10,12 @@ from typing import Any, Dict, Optional
 from flask import Blueprint, render_template, request
 
 from src.interface.web.utils import APIResponse, handle_api_errors, WebLogger
-from src.infrastructure.ai.key_pool import get_pool, get_all_pools
-from src.infrastructure.ai.circuit_breaker import get_breaker, get_all_breakers
+from src.infrastructure.ai.key_pool import (
+    get_pool, get_all_pools, get_pool_for_purpose, get_pools_grouped_by_name
+)
+from src.infrastructure.ai.circuit_breaker import (
+    get_breaker, get_all_breakers, get_breaker_for_purpose, get_breakers_grouped_by_name
+)
 from src.infrastructure.repositories.ai_key_repository import ai_key_repository
 from src.infrastructure.repositories.history_repository import HistoryRepository
 from src.services.queue.webhook_queue import get_webhook_queue
@@ -44,13 +48,14 @@ def get_status():
     获取完整的 AI/队列状态。
 
     返回所有队列、Key Pool 和熔断器的当前状态。
+    Key Pool 和熔断器按 Pool 名称分组显示，包含使用该 Pool 的任务列表。
 
     Returns:
         JSON 响应包含:
         - webhook_queue: Webhook 队列状态
         - rss_queue: RSS 队列状态
-        - key_pools: 所有 Key Pool 状态
-        - circuit_breakers: 所有熔断器状态
+        - key_pools: 按 Pool 名称分组的 Key Pool 状态
+        - circuit_breakers: 按 Pool 名称分组的熔断器状态
     """
     logger.api_request('/api/ai-queue/status', 'GET')
 
@@ -58,15 +63,21 @@ def get_status():
     webhook_queue = get_webhook_queue()
     rss_queue = get_rss_queue()
 
-    # 获取所有 Key Pool 状态
+    # 获取按名称分组的 Key Pool 状态
     key_pools_status = {}
-    for purpose, pool in get_all_pools().items():
-        key_pools_status[purpose] = pool.get_status()
+    for pool_name, info in get_pools_grouped_by_name().items():
+        pool_status = info['pool'].get_status()
+        pool_status['pool_name'] = info['pool_name']  # 命名 Pool 的名称，独立 Pool 为 None
+        pool_status['tasks'] = info['tasks']  # 使用此 Pool 的任务列表
+        key_pools_status[pool_name] = pool_status
 
-    # 获取所有熔断器状态
+    # 获取按名称分组的熔断器状态
     breakers_status = {}
-    for purpose, breaker in get_all_breakers().items():
-        breakers_status[purpose] = breaker.get_status()
+    for pool_name, info in get_breakers_grouped_by_name().items():
+        breaker_status = info['breaker'].get_status()
+        breaker_status['pool_name'] = info['pool_name']
+        breaker_status['tasks'] = info['tasks']
+        breakers_status[pool_name] = breaker_status
 
     logger.api_success('/api/ai-queue/status', '获取状态成功')
     return APIResponse.success(data={
@@ -84,7 +95,7 @@ def reset_key_cooldown(purpose: str, key_id: str):
     重置指定 Key 的冷却状态。
 
     Args:
-        purpose: Key Pool 用途标识（如 'title_parse'）
+        purpose: Key Pool 用途标识（如 'title_parse'）或 Pool 名称
         key_id: Key 唯一标识
 
     Returns:
@@ -94,7 +105,8 @@ def reset_key_cooldown(purpose: str, key_id: str):
     """
     logger.api_request(f'/api/ai-queue/key/{purpose}/{key_id}/reset', 'POST')
 
-    pool = get_pool(purpose)
+    # 使用 get_pool_for_purpose 来支持共享 Pool
+    pool = get_pool_for_purpose(purpose) or get_pool(purpose)
     if not pool:
         logger.api_error_msg(
             f'/api/ai-queue/key/{purpose}/{key_id}/reset',
@@ -126,7 +138,7 @@ def enable_key(purpose: str, key_id: str):
     可以通过此接口手动重新启用。
 
     Args:
-        purpose: Key Pool 用途标识（如 'title_parse'）
+        purpose: Key Pool 用途标识（如 'title_parse'）或 Pool 名称
         key_id: Key 唯一标识
 
     Returns:
@@ -136,7 +148,8 @@ def enable_key(purpose: str, key_id: str):
     """
     logger.api_request(f'/api/ai-queue/key/{purpose}/{key_id}/enable', 'POST')
 
-    pool = get_pool(purpose)
+    # 使用 get_pool_for_purpose 来支持共享 Pool
+    pool = get_pool_for_purpose(purpose) or get_pool(purpose)
     if not pool:
         logger.api_error_msg(
             f'/api/ai-queue/key/{purpose}/{key_id}/enable',
@@ -165,7 +178,7 @@ def reset_key_rpm(purpose: str, key_id: str):
     重置指定 Key 的 RPM 计数。
 
     Args:
-        purpose: Key Pool 用途标识
+        purpose: Key Pool 用途标识或 Pool 名称
         key_id: Key 唯一标识
 
     Returns:
@@ -173,7 +186,8 @@ def reset_key_rpm(purpose: str, key_id: str):
     """
     logger.api_request(f'/api/ai-queue/key/{purpose}/{key_id}/reset-rpm', 'POST')
 
-    pool = get_pool(purpose)
+    # 使用 get_pool_for_purpose 来支持共享 Pool
+    pool = get_pool_for_purpose(purpose) or get_pool(purpose)
     if not pool:
         logger.api_error_msg(
             f'/api/ai-queue/key/{purpose}/{key_id}/reset-rpm',
@@ -202,7 +216,7 @@ def reset_key_rpd(purpose: str, key_id: str):
     重置指定 Key 的 RPD 计数。
 
     Args:
-        purpose: Key Pool 用途标识
+        purpose: Key Pool 用途标识或 Pool 名称
         key_id: Key 唯一标识
 
     Returns:
@@ -210,7 +224,8 @@ def reset_key_rpd(purpose: str, key_id: str):
     """
     logger.api_request(f'/api/ai-queue/key/{purpose}/{key_id}/reset-rpd', 'POST')
 
-    pool = get_pool(purpose)
+    # 使用 get_pool_for_purpose 来支持共享 Pool
+    pool = get_pool_for_purpose(purpose) or get_pool(purpose)
     if not pool:
         logger.api_error_msg(
             f'/api/ai-queue/key/{purpose}/{key_id}/reset-rpd',
@@ -239,7 +254,7 @@ def reset_key_all_limits(purpose: str, key_id: str):
     重置指定 Key 的所有限制（冷却、RPM、RPD）。
 
     Args:
-        purpose: Key Pool 用途标识
+        purpose: Key Pool 用途标识或 Pool 名称
         key_id: Key 唯一标识
 
     Returns:
@@ -247,7 +262,8 @@ def reset_key_all_limits(purpose: str, key_id: str):
     """
     logger.api_request(f'/api/ai-queue/key/{purpose}/{key_id}/reset-all', 'POST')
 
-    pool = get_pool(purpose)
+    # 使用 get_pool_for_purpose 来支持共享 Pool
+    pool = get_pool_for_purpose(purpose) or get_pool(purpose)
     if not pool:
         logger.api_error_msg(
             f'/api/ai-queue/key/{purpose}/{key_id}/reset-all',
@@ -276,7 +292,7 @@ def reset_circuit_breaker(purpose: str):
     重置指定用途的熔断器。
 
     Args:
-        purpose: 熔断器用途标识
+        purpose: 熔断器用途标识或 Pool 名称
 
     Returns:
         JSON 响应:
@@ -285,7 +301,8 @@ def reset_circuit_breaker(purpose: str):
     """
     logger.api_request(f'/api/ai-queue/circuit/{purpose}/reset', 'POST')
 
-    breaker = get_breaker(purpose)
+    # 使用 get_breaker_for_purpose 来支持共享熔断器
+    breaker = get_breaker_for_purpose(purpose) or get_breaker(purpose)
     if not breaker:
         logger.api_error_msg(
             f'/api/ai-queue/circuit/{purpose}/reset',
@@ -563,7 +580,7 @@ def get_key_history(purpose: str, key_id: str):
     获取指定 Key 的使用历史记录。
 
     Args:
-        purpose: Key Pool 用途标识（如 'title_parse'）
+        purpose: Key Pool 用途标识（如 'title_parse'）或 Pool 名称
         key_id: Key 唯一标识
 
     Query Parameters:
@@ -577,8 +594,8 @@ def get_key_history(purpose: str, key_id: str):
     """
     logger.api_request(f'/api/ai-queue/key/{purpose}/{key_id}/history', 'GET')
 
-    # 验证 Key Pool 存在
-    pool = get_pool(purpose)
+    # 使用 get_pool_for_purpose 来支持共享 Pool
+    pool = get_pool_for_purpose(purpose) or get_pool(purpose)
     if not pool:
         logger.api_error_msg(
             f'/api/ai-queue/key/{purpose}/{key_id}/history',
@@ -620,7 +637,7 @@ def get_key_stats(purpose: str, key_id: str):
     获取指定 Key 的使用统计信息。
 
     Args:
-        purpose: Key Pool 用途标识（如 'title_parse'）
+        purpose: Key Pool 用途标识（如 'title_parse'）或 Pool 名称
         key_id: Key 唯一标识
 
     Returns:
@@ -636,8 +653,8 @@ def get_key_stats(purpose: str, key_id: str):
     """
     logger.api_request(f'/api/ai-queue/key/{purpose}/{key_id}/stats', 'GET')
 
-    # 验证 Key Pool 存在
-    pool = get_pool(purpose)
+    # 使用 get_pool_for_purpose 来支持共享 Pool
+    pool = get_pool_for_purpose(purpose) or get_pool(purpose)
     if not pool:
         logger.api_error_msg(
             f'/api/ai-queue/key/{purpose}/{key_id}/stats',

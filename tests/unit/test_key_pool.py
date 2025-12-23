@@ -425,26 +425,39 @@ class TestKeyPoolIntegration:
         """Test loading keys from real configuration."""
         from src.infrastructure.ai.key_pool import KeyPool, KeySpec
 
-        title_parse_config = real_config.get('openai', {}).get('title_parse', {})
-        key_pool_config = title_parse_config.get('api_key_pool', [])
+        openai_config = real_config.get('openai', {})
+        title_parse_config = openai_config.get('title_parse', {})
+        key_pools = openai_config.get('key_pools', [])
 
-        if not key_pool_config:
-            pytest.skip('No API key pool configured')
+        # 获取任务使用的 pool 名称
+        pool_name = title_parse_config.get('pool_name', '')
+
+        # 如果没有配置 pool，则跳过测试
+        if not pool_name:
+            pytest.skip('No key pool configured for title_parse')
+
+        # 查找对应的 pool 定义
+        pool_def = next(
+            (p for p in key_pools if p.get('name') == pool_name),
+            None
+        )
+        if not pool_def:
+            pytest.skip(f'Key pool "{pool_name}" not found')
 
         pool = KeyPool(purpose='title_parse')
 
         keys = [
             KeySpec(
-                key_id=f"key_{i}",
+                key_id=f'key_{i}',
                 name=key.get('name', f'Key {i}'),
                 api_key=key.get('api_key', ''),
-                base_url=title_parse_config.get('base_url', 'https://api.openai.com/v1'),
-                model=title_parse_config.get('model', 'gpt-4'),
+                base_url=pool_def.get('base_url', 'https://api.openai.com/v1'),
+                model=pool_def.get('model', 'gpt-4'),
                 rpm_limit=key.get('rpm', 0),
                 rpd_limit=key.get('rpd', 0),
                 enabled=key.get('enabled', True)
             )
-            for i, key in enumerate(key_pool_config)
+            for i, key in enumerate(pool_def.get('api_keys', []))
             if key.get('api_key')
         ]
 

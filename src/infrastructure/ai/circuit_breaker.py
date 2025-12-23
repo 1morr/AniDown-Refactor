@@ -348,6 +348,9 @@ class CircuitBreaker:
 _breakers: Dict[str, CircuitBreaker] = {}
 _breakers_lock = threading.Lock()
 
+# 命名熔断器注册表（与命名 Key Pool 对应）
+_named_breakers: Dict[str, CircuitBreaker] = {}
+
 
 def get_breaker(purpose: str) -> Optional[CircuitBreaker]:
     """
@@ -384,3 +387,140 @@ def get_all_breakers() -> Dict[str, CircuitBreaker]:
     """
     with _breakers_lock:
         return dict(_breakers)
+
+
+def register_named_breaker(breaker: CircuitBreaker, pool_name: str) -> None:
+    """
+    注册命名熔断器（与命名 Key Pool 对应）。
+
+    Args:
+        breaker: CircuitBreaker 实例
+        pool_name: Pool 唯一名称
+    """
+    with _breakers_lock:
+        _named_breakers[pool_name] = breaker
+        logger.info(f'🔌 注册命名熔断器: {pool_name}')
+
+
+def get_named_breaker(pool_name: str) -> Optional[CircuitBreaker]:
+    """
+    获取指定名称的命名熔断器。
+
+    Args:
+        pool_name: Pool 名称
+
+    Returns:
+        CircuitBreaker 实例或 None
+    """
+    with _breakers_lock:
+        return _named_breakers.get(pool_name)
+
+
+def get_all_named_breakers() -> Dict[str, CircuitBreaker]:
+    """
+    获取所有已注册的命名熔断器。
+
+    Returns:
+        {pool_name: CircuitBreaker} 字典
+    """
+    with _breakers_lock:
+        return dict(_named_breakers)
+
+
+def get_breaker_for_purpose(purpose: str) -> Optional[CircuitBreaker]:
+    """
+    获取任务用途对应的熔断器。
+
+    优先查找绑定的命名熔断器（通过 key_pool 的 purpose-to-pool 映射），
+    如果没有则回退到用途熔断器。
+
+    Args:
+        purpose: 任务用途标识
+
+    Returns:
+        CircuitBreaker 实例或 None
+    """
+    # 导入在函数内部避免循环引用
+    from src.infrastructure.ai.key_pool import _purpose_to_pool, _pools_lock
+
+    with _breakers_lock:
+        # 优先查找绑定的命名熔断器
+        with _pools_lock:
+            pool_name = _purpose_to_pool.get(purpose)
+
+        if pool_name:
+            breaker = _named_breakers.get(pool_name)
+            if breaker:
+                return breaker
+            else:
+                logger.warning(
+                    f'⚠️ 任务 {purpose} 绑定的熔断器 "{pool_name}" 不存在，回退到独立配置'
+                )
+
+        # 回退到用途熔断器
+        return _breakers.get(purpose)
+
+
+def get_breakers_grouped_by_name() -> Dict[str, Dict[str, Any]]:
+    """
+    获取按 Pool 名称分组的熔断器信息（用于 UI 显示）。
+
+    Returns:
+        {
+            'MiMo': {
+                'breaker': CircuitBreaker 实例,
+                'pool_name': 'MiMo',
+                'tasks': ['title_parse', 'multi_file_rename', 'subtitle_match']
+            },
+            ...
+        }
+    """
+    # 导入在函数内部避免循环引用
+    from src.infrastructure.ai.key_pool import _purpose_to_pool, _pools_lock
+
+    with _breakers_lock:
+        result = {}
+
+        # 1. 处理命名熔断器（可能被多个任务共享）
+        for pool_name, breaker in _named_breakers.items():
+            with _pools_lock:
+                tasks = [
+                    purpose for purpose, bound_pool_name in _purpose_to_pool.items()
+                    if bound_pool_name == pool_name
+                ]
+            result[pool_name] = {
+                'breaker': breaker,
+                'pool_name': pool_name,
+                'tasks': tasks
+            }
+
+        # 2. 处理独立熔断器（没有绑定到命名 Pool 的任务）
+        # 收集所有命名熔断器的实例，用于排重
+        named_breaker_instances = set(id(b) for b in _named_breakers.values())
+
+        with _pools_lock:
+            for purpose, breaker in _breakers.items():
+                # 跳过已经在命名熔断器中的实例
+                if id(breaker) in named_breaker_instances:
+                    continue
+
+                is_bound = purpose in _purpose_to_pool
+                if not is_bound:
+                    standalone_key = f'standalone_{purpose}'
+                    result[standalone_key] = {
+                        'breaker': breaker,
+                        'pool_name': None,
+                        'tasks': [purpose]
+                    }
+
+        return result
+
+
+def clear_all_breaker_registries() -> None:
+    """
+    清空所有熔断器注册表（用于测试或重新初始化）。
+    """
+    with _breakers_lock:
+        _breakers.clear()
+        _named_breakers.clear()
+        logger.info('🧹 已清空所有熔断器注册表')

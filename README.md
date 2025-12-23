@@ -330,14 +330,26 @@ python -m src.main
     "category": "AniDown"
   },
   "openai": {
+    "key_pools": [
+      {
+        "name": "MyPool",
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-4",
+        "api_keys": [
+          { "name": "Key 1", "api_key": "sk-xxx", "rpm": 60, "rpd": 1000, "enabled": true }
+        ]
+      }
+    ],
     "title_parse": {
-      "api_key": "sk-xxx",           // API Key
-      "base_url": "https://api.openai.com/v1",
-      "model": "gpt-4",
-      "api_key_pool": []             // 多 Key 配置
+      "pool_name": "MyPool",           // 使用 Key Pool
+      "extra_body": "",                // 任务特定配置
+      "timeout": 180
     },
     "multi_file_rename": {
-      // 同上，可使用不同配置
+      "pool_name": "MyPool"            // 可与 title_parse 共享同一 pool
+    },
+    "subtitle_match": {
+      "pool_name": "MyPool"
     }
   },
   "link_target_path": "/library/TV Shows",      // TV 媒體庫路徑
@@ -347,28 +359,41 @@ python -m src.main
 
 ### API Key Pool 配置
 
-支持多個 API Key 輪換使用，配置 RPM/RPD 限制：
+支持多個 API Key 輪換使用，配置 RPM/RPD 限制。Key Pool 是獨立的，可被多個任務共享：
 
 ```json
 {
   "openai": {
+    "key_pools": [
+      {
+        "name": "Pool A",
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-4",
+        "api_keys": [
+          {
+            "name": "Key 1",
+            "api_key": "sk-xxx",
+            "rpm": 60,      // 每分鐘請求限制
+            "rpd": 500,     // 每日請求限制
+            "enabled": true
+          },
+          {
+            "name": "Key 2",
+            "api_key": "sk-yyy",
+            "rpm": 60,
+            "rpd": 500,
+            "enabled": true
+          }
+        ]
+      }
+    ],
     "title_parse": {
-      "api_key_pool": [
-        {
-          "name": "Key 1",
-          "api_key": "sk-xxx",
-          "rpm": 60,      // 每分鐘請求限制
-          "rpd": 500,     // 每日請求限制
-          "enabled": true
-        },
-        {
-          "name": "Key 2",
-          "api_key": "sk-yyy",
-          "rpm": 60,
-          "rpd": 500,
-          "enabled": true
-        }
-      ]
+      "pool_name": "Pool A",    // 使用 Pool A
+      "extra_body": "",         // 任務特定配置（不在 pool 中）
+      "timeout": 180
+    },
+    "multi_file_rename": {
+      "pool_name": "Pool A"     // 也使用 Pool A（共享）
     }
   }
 }

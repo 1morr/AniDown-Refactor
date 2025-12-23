@@ -51,181 +51,118 @@ def init_database():
 
 def init_key_pools():
     """初始化 API Key Pool 和熔断器"""
+    from dependency_injector import providers
+
     from src.core.config import config
     from src.container import container
-    from src.infrastructure.ai.key_pool import KeySpec, register_pool
-    from src.infrastructure.ai.circuit_breaker import register_breaker
-
-    # 初始化 title_parse key pool
-    title_parse_pool = container.title_parse_pool()
-    title_parse_breaker = container.title_parse_breaker()
-    title_parse_config = config.openai.title_parse
-
-    keys = []
-    # 优先使用 api_key_pool
-    if title_parse_config.api_key_pool:
-        for idx, key_entry in enumerate(title_parse_config.api_key_pool):
-            if key_entry.enabled and key_entry.api_key:
-                keys.append(KeySpec(
-                    key_id=f'tp_key_{idx}',
-                    name=key_entry.name or f'Key {idx + 1}',
-                    api_key=key_entry.api_key,
-                    base_url=title_parse_config.base_url,
-                    model=title_parse_config.model,
-                    rpm_limit=key_entry.rpm,
-                    rpd_limit=key_entry.rpd,
-                    enabled=True,
-                    extra_body=title_parse_config.extra_body
-                ))
-    # 回退到单个 api_key
-    elif title_parse_config.api_key:
-        keys.append(KeySpec(
-            key_id='tp_key_0',
-            name='Primary Key',
-            api_key=title_parse_config.api_key,
-            base_url=title_parse_config.base_url,
-            model=title_parse_config.model,
-            rpm_limit=0,
-            rpd_limit=0,
-            enabled=True,
-            extra_body=title_parse_config.extra_body
-        ))
-
-    if keys:
-        title_parse_pool.configure(keys)
-        register_pool(title_parse_pool)
-        register_breaker(title_parse_breaker)
-        # 从数据库恢复 RPD 计数
-        title_parse_pool.restore_counts_from_db()
-        logger.info(f'🔑 Title Parse Key Pool 已配置: {len(keys)} 个 Key')
-    else:
-        logger.warning('⚠️ Title Parse 未配置 API Key')
-
-    # 初始化 multi_file_rename key pool
-    rename_pool = container.rename_pool()
-    rename_breaker = container.rename_breaker()
-    rename_config = config.openai.multi_file_rename
-
-    rename_keys = []
-    if rename_config.api_key_pool:
-        for idx, key_entry in enumerate(rename_config.api_key_pool):
-            if key_entry.enabled and key_entry.api_key:
-                rename_keys.append(KeySpec(
-                    key_id=f'rn_key_{idx}',
-                    name=key_entry.name or f'Key {idx + 1}',
-                    api_key=key_entry.api_key,
-                    base_url=rename_config.base_url,
-                    model=rename_config.model,
-                    rpm_limit=key_entry.rpm,
-                    rpd_limit=key_entry.rpd,
-                    enabled=True,
-                    extra_body=rename_config.extra_body
-                ))
-    elif rename_config.api_key:
-        rename_keys.append(KeySpec(
-            key_id='rn_key_0',
-            name='Primary Key',
-            api_key=rename_config.api_key,
-            base_url=rename_config.base_url,
-            model=rename_config.model,
-            rpm_limit=0,
-            rpd_limit=0,
-            enabled=True,
-            extra_body=rename_config.extra_body
-        ))
-
-    if rename_keys:
-        rename_pool.configure(rename_keys)
-        register_pool(rename_pool)
-        register_breaker(rename_breaker)
-        # 从数据库恢复 RPD 计数
-        rename_pool.restore_counts_from_db()
-        logger.info(f'🔑 Rename Key Pool 已配置: {len(rename_keys)} 个 Key')
-    else:
-        logger.warning('⚠️ Multi-File Rename 未配置 API Key')
-
-    # 初始化 subtitle_match key pool（如果未配置则 fallback 到 multi_file_rename）
-    subtitle_match_pool = container.subtitle_match_pool()
-    subtitle_match_breaker = container.subtitle_match_breaker()
-    subtitle_match_config = config.openai.subtitle_match
-
-    # 检查是否有单独配置 subtitle_match
-    has_subtitle_match_config = (
-        subtitle_match_config.api_key or subtitle_match_config.api_key_pool
+    from src.infrastructure.ai.key_pool import (
+        KeyPool, KeySpec,
+        register_pool, register_named_pool, bind_purpose_to_pool,
+        get_named_pool, clear_all_registries
+    )
+    from src.infrastructure.ai.circuit_breaker import (
+        CircuitBreaker,
+        register_breaker, register_named_breaker, get_named_breaker,
+        clear_all_breaker_registries
     )
 
-    if has_subtitle_match_config:
-        # 使用独立的 subtitle_match 配置
-        subtitle_keys = []
-        if subtitle_match_config.api_key_pool:
-            for idx, key_entry in enumerate(subtitle_match_config.api_key_pool):
-                if key_entry.enabled and key_entry.api_key:
-                    subtitle_keys.append(KeySpec(
-                        key_id=f'sm_key_{idx}',
-                        name=key_entry.name or f'Key {idx + 1}',
-                        api_key=key_entry.api_key,
-                        base_url=subtitle_match_config.base_url,
-                        model=subtitle_match_config.model,
-                        rpm_limit=key_entry.rpm,
-                        rpd_limit=key_entry.rpd,
-                        enabled=True,
-                        extra_body=subtitle_match_config.extra_body
-                    ))
-        elif subtitle_match_config.api_key:
-            subtitle_keys.append(KeySpec(
-                key_id='sm_key_0',
-                name='Primary Key',
-                api_key=subtitle_match_config.api_key,
-                base_url=subtitle_match_config.base_url,
-                model=subtitle_match_config.model,
-                rpm_limit=0,
-                rpd_limit=0,
-                enabled=True,
-                extra_body=subtitle_match_config.extra_body
-            ))
-        if subtitle_keys:
-            subtitle_match_pool.configure(subtitle_keys)
-            register_pool(subtitle_match_pool)
-            register_breaker(subtitle_match_breaker)
-            subtitle_match_pool.restore_counts_from_db()
-            logger.info(f'🔑 Subtitle Match Key Pool 已配置: {len(subtitle_keys)} 个 Key')
-    elif rename_keys:
-        # Fallback: 使用 multi_file_rename 的配置
-        # 创建带 sm_ 前缀的 Key ID 以区分统计
-        fallback_keys = []
-        for idx, key_entry in enumerate(rename_config.api_key_pool) if rename_config.api_key_pool else []:
+    # 清空现有注册表（支持配置热重载）
+    clear_all_registries()
+    clear_all_breaker_registries()
+
+    # Phase 1: 创建命名 Key Pools（从 config.openai.key_pools）
+    for pool_def in config.openai.key_pools:
+        pool_name = pool_def.name
+        if not pool_name:
+            logger.warning('⚠️ Key Pool 缺少名称，跳过')
+            continue
+
+        # 创建 KeyPool 和 CircuitBreaker
+        pool = KeyPool(purpose=f'pool:{pool_name}')
+        breaker = CircuitBreaker(purpose=f'pool:{pool_name}')
+
+        # 转换配置中的 keys
+        keys = []
+        for idx, key_entry in enumerate(pool_def.api_keys):
             if key_entry.enabled and key_entry.api_key:
-                fallback_keys.append(KeySpec(
-                    key_id=f'sm_key_{idx}',
+                keys.append(KeySpec(
+                    key_id=f'{pool_name}_key_{idx}',
                     name=key_entry.name or f'Key {idx + 1}',
                     api_key=key_entry.api_key,
-                    base_url=rename_config.base_url,
-                    model=rename_config.model,
+                    base_url=pool_def.base_url,
+                    model=pool_def.model,
                     rpm_limit=key_entry.rpm,
                     rpd_limit=key_entry.rpd,
                     enabled=True,
-                    extra_body=rename_config.extra_body
+                    extra_body=''  # extra_body 在任务级别设置，不在 pool 中
                 ))
-        if not fallback_keys and rename_config.api_key:
-            fallback_keys.append(KeySpec(
-                key_id='sm_key_0',
+
+        if keys:
+            pool.configure(keys)
+            register_named_pool(pool, pool_name)
+            register_named_breaker(breaker, pool_name)
+            pool.restore_counts_from_db()
+            logger.info(f'🔑 命名 Key Pool "{pool_name}" 已配置: {len(keys)} 个 Key')
+        else:
+            logger.warning(f'⚠️ 命名 Key Pool "{pool_name}" 没有有效的 API Key')
+
+    # Phase 2: 为每个任务绑定池或创建独立池
+    # 使用 provider 引用以便可以 override
+    task_configs = [
+        ('title_parse', config.openai.title_parse, container.title_parse_pool, container.title_parse_breaker),
+        ('multi_file_rename', config.openai.multi_file_rename, container.rename_pool, container.rename_breaker),
+        ('subtitle_match', config.openai.subtitle_match, container.subtitle_match_pool, container.subtitle_match_breaker),
+    ]
+
+    for purpose, task_config, pool_provider, breaker_provider in task_configs:
+        if task_config.pool_name:
+            # 使用命名 Pool - 获取已创建的共享实例
+            named_pool = get_named_pool(task_config.pool_name)
+            named_breaker = get_named_breaker(task_config.pool_name)
+
+            if named_pool and named_breaker:
+                # 覆盖容器 provider，使其返回共享实例
+                pool_provider.override(providers.Object(named_pool))
+                breaker_provider.override(providers.Object(named_breaker))
+
+                # 绑定任务用途到 pool 名称
+                bind_purpose_to_pool(purpose, task_config.pool_name)
+
+                # 同时注册到用途注册表（用于 API 查找）
+                register_pool(named_pool)
+                register_breaker(named_breaker)
+
+                logger.info(
+                    f'🔗 任务 {purpose} 共享 Pool "{task_config.pool_name}"'
+                )
+            else:
+                logger.warning(
+                    f'⚠️ 任务 {purpose} 引用的 Pool "{task_config.pool_name}" 不存在'
+                )
+        elif task_config.api_key:
+            # 使用独立配置（单个 API Key）
+            pool = pool_provider()
+            breaker = breaker_provider()
+
+            keys = [KeySpec(
+                key_id=f'{purpose}_key_0',
                 name='Primary Key',
-                api_key=rename_config.api_key,
-                base_url=rename_config.base_url,
-                model=rename_config.model,
+                api_key=task_config.api_key,
+                base_url=task_config.base_url,
+                model=task_config.model,
                 rpm_limit=0,
                 rpd_limit=0,
                 enabled=True,
-                extra_body=rename_config.extra_body
-            ))
-        if fallback_keys:
-            subtitle_match_pool.configure(fallback_keys)
-            register_pool(subtitle_match_pool)
-            register_breaker(subtitle_match_breaker)
-            subtitle_match_pool.restore_counts_from_db()
-            logger.info(f'🔑 Subtitle Match Key Pool 已配置 (fallback): {len(fallback_keys)} 个 Key')
-    else:
-        logger.warning('⚠️ Subtitle Match 未配置 API Key（也没有 Rename 配置可 fallback）')
+                extra_body=task_config.extra_body
+            )]
+
+            pool.configure(keys)
+            register_pool(pool)
+            register_breaker(breaker)
+            pool.restore_counts_from_db()
+            logger.info(f'🔑 任务 {purpose} 使用独立配置: 1 个 Key')
+        else:
+            logger.warning(f'⚠️ 任务 {purpose} 未配置 API Key 或 Key Pool')
 
 
 def init_discord_webhook():

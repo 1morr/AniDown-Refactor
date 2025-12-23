@@ -108,8 +108,8 @@ class AITitleParser(ITitleParser):
                 f'使用 Key {reservation.key_id}'
             )
 
-            # 解析 extra_body
-            extra_params = self._parse_extra_body(reservation.extra_body)
+            # 解析 extra_body（从任务配置读取，不是从 pool）
+            extra_params = self._parse_extra_body(config.openai.title_parse.extra_body)
 
             # 获取语言优先级配置并生成提示词
             language_priorities = self._get_language_priorities()
