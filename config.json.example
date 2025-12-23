@@ -93,7 +93,6 @@
     "target_base_path": "/storage/downloads/AniDown/"
   },
   "tvdb": {
-    "enabled": false,
     "api_key": "",
     "max_data_length": 10000
   },

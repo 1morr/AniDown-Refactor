@@ -411,7 +411,7 @@ def process_ai_test_stream(
                         try:
                             metadata_service = MetadataService(TVDBAdapter())
                             tvdb_data = metadata_service.get_tvdb_data_by_id(
-                                int(tvdb_id), ignore_enabled_check=True
+                                int(tvdb_id)
                             )
                         except Exception as e:
                             logger.error(f"获取TVDB数据失败: {e}")

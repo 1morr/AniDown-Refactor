@@ -43,11 +43,6 @@ class MetadataService:
         Returns:
             AI-formatted TVDB data if found, None otherwise.
         """
-        # Check if TVDB is enabled
-        if not config.tvdb.enabled:
-            logger.debug('TVDB功能未启用')
-            return None
-
         # Check API Key
         if not config.tvdb.api_key:
             logger.warning('⚠️ TVDB API Key未配置')
@@ -91,24 +86,17 @@ class MetadataService:
 
     def get_tvdb_data_by_id(
         self,
-        series_id: int,
-        ignore_enabled_check: bool = False
+        series_id: int
     ) -> Optional[Dict[str, Any]]:
         """
         Get TVDB data by series ID.
 
         Args:
             series_id: TVDB series ID.
-            ignore_enabled_check: Whether to ignore enabled status check.
 
         Returns:
             AI-formatted TVDB data if found, None otherwise.
         """
-        # Check if TVDB is enabled (unless ignored)
-        if not ignore_enabled_check and not config.tvdb.enabled:
-            logger.debug('TVDB功能未启用')
-            return None
-
         # Check API Key
         if not config.tvdb.api_key:
             logger.warning('⚠️ TVDB API Key未配置')

@@ -28,13 +28,12 @@ class TVDBAdapter(IMetadataClient):
     def __init__(self):
         """Initialize the TVDB adapter."""
         self._api_key = config.tvdb.api_key
-        self._enabled = config.tvdb.enabled
         self._token: Optional[str] = None
 
     @property
     def is_enabled(self) -> bool:
-        """Check if TVDB integration is enabled."""
-        return self._enabled and bool(self._api_key)
+        """Check if TVDB integration is enabled (has API key)."""
+        return bool(self._api_key)
 
     def login(self) -> bool:
         """
@@ -99,9 +98,6 @@ class TVDBAdapter(IMetadataClient):
         Returns:
             List of search results if successful, None otherwise.
         """
-        if not self._enabled:
-            return None
-
         try:
             url = f'{self.BASE_URL}/search'
             params = {'query': name, 'type': 'series'}
@@ -133,9 +129,6 @@ class TVDBAdapter(IMetadataClient):
         Returns:
             Series extended data if found, None otherwise.
         """
-        if not self._enabled:
-            return None
-
         try:
             url = f'{self.BASE_URL}/series/{series_id}/extended'
             params = {'meta': 'translations'}
@@ -191,9 +184,6 @@ class TVDBAdapter(IMetadataClient):
         Returns:
             Episode data if found, None otherwise.
         """
-        if not self._enabled:
-            return None
-
         try:
             if language == 'default':
                 url = f'{self.BASE_URL}/series/{series_id}/episodes/default'
@@ -228,9 +218,6 @@ class TVDBAdapter(IMetadataClient):
         Returns:
             List of all episodes with both original and English names.
         """
-        if not self._enabled:
-            return []
-
         # Fetch original language episodes
         logger.info('  获取原文名称...')
         original_episodes = self._fetch_all_pages(series_id, 'default')
@@ -352,9 +339,6 @@ class TVDBAdapter(IMetadataClient):
         Returns:
             Matched series data if found, None otherwise.
         """
-        if not self._enabled:
-            return None
-
         # Search for the name
         search_results = self.search_series(anime_name)
         if not search_results:
@@ -405,9 +389,6 @@ class TVDBAdapter(IMetadataClient):
         Returns:
             Episode extended data if found, None otherwise.
         """
-        if not self._enabled:
-            return None
-
         try:
             url = f'{self.BASE_URL}/episodes/{episode_id}/extended'
 

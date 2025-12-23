@@ -197,7 +197,6 @@ class PathConversionConfig(BaseModel):
 class TVDBConfig(BaseModel):
     """TVDB 配置"""
 
-    enabled: bool = False
     api_key: str = ''
     max_data_length: int = 10000
 
