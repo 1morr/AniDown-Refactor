@@ -214,8 +214,8 @@ class AppConfig(BaseSettings):
     tvdb: TVDBConfig = Field(default_factory=TVDBConfig)
 
     # 动漫硬链接路径
-    link_target_path: str = '/library/TV Shows'
-    movie_link_target_path: str = '/library/Movies'
+    link_target_path: str = '/library/Anime/TV Shows'
+    movie_link_target_path: str = '/library/Anime/Movies'
     # 真人硬链接路径
     live_action_tv_target_path: str = '/library/LiveAction/TV Shows'
     live_action_movie_target_path: str = '/library/LiveAction/Movies'

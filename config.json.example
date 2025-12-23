@@ -95,9 +95,9 @@
     "api_key": "",
     "max_data_length": 10000
   },
-  "link_target_path": "/storage/Library/Anime/TV",
+  "link_target_path": "/storage/Library/Anime/TV Shows",
   "movie_link_target_path": "/storage/Library/Anime/Movies",
-  "live_action_tv_target_path": "/storage/Library/LiveAction/TV",
+  "live_action_tv_target_path": "/storage/Library/LiveAction/TV Shows",
   "live_action_movie_target_path": "/storage/Library/LiveAction/Movies",
   "use_consistent_naming_tv": false,
   "use_consistent_naming_movie": false

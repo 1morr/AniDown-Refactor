@@ -49,13 +49,13 @@ create_directories() {
         "/data/config"
         "/data/logs"
         "/data/ai_logs"
-        "/storage/Downloads/AniDown/Anime/TV"
+        "/storage/Downloads/AniDown/Anime/TV Shows"
         "/storage/Downloads/AniDown/Anime/Movies"
-        "/storage/Downloads/AniDown/LiveAction/TV"
+        "/storage/Downloads/AniDown/LiveAction/TV Shows"
         "/storage/Downloads/AniDown/LiveAction/Movies"
-        "/storage/Library/Anime/TV"
+        "/storage/Library/Anime/TV Shows"
         "/storage/Library/Anime/Movies"
-        "/storage/Library/LiveAction/TV"
+        "/storage/Library/LiveAction/TV Shows"
         "/storage/Library/LiveAction/Movies"
     )
 
