@@ -14,6 +14,7 @@ from src.interface.web.utils import (
     handle_api_errors,
     WebLogger
 )
+from src.services.config_reloader import config_reloader, reload_config
 
 config_bp = Blueprint('config', __name__)
 logger = WebLogger(__name__)
@@ -34,6 +35,9 @@ def update_config():
     is_ajax = request.headers.get('Content-Type', '').startswith('multipart/form-data')
 
     logger.api_request("更新配置")
+
+    # 保存配置快照（用于检测端口变更）
+    config_reloader.snapshot_config()
 
     # RSS 配置 - 支持新的结构
     if 'rss_feeds' in data:
@@ -387,15 +391,43 @@ def update_config():
     # 保存配置
     config.save_config()
 
-    logger.api_success('/config/update', '配置已保存成功')
+    # 执行配置热重载
+    reload_results, restart_required, restart_items = reload_config()
+
+    # 统计热重载结果
+    success_count = sum(1 for v in reload_results.values() if v)
+    total_count = len(reload_results)
+
+    # 构建消息
+    if restart_required:
+        restart_msg = f'以下配置需要重启程序才能生效: {", ".join(restart_items)}'
+        if success_count == total_count:
+            message = f'配置已保存并热重载成功 ({success_count}/{total_count})。{restart_msg}'
+        else:
+            message = f'配置已保存，部分组件热重载失败 ({success_count}/{total_count})。{restart_msg}'
+    else:
+        if success_count == total_count:
+            message = f'配置已保存并实时生效 ({success_count}/{total_count} 组件已更新)'
+        else:
+            failed_components = [k for k, v in reload_results.items() if not v]
+            message = f'配置已保存，部分组件热重载失败: {", ".join(failed_components)}'
+
+    logger.api_success('/config/update', message)
 
     # 检查请求是否为 AJAX
     if is_ajax:
         # AJAX 请求，返回 JSON
-        return APIResponse.success(message='配置已保存成功')
+        return APIResponse.success(
+            message=message,
+            data={
+                'reload_results': reload_results,
+                'restart_required': restart_required,
+                'restart_items': restart_items
+            }
+        )
     else:
         # 普通表单提交，使用 flash 和重定向
-        flash('配置已保存成功', 'success')
+        flash(message, 'success' if success_count == total_count else 'warning')
         return redirect(url_for('config.config_page'))
 
 
