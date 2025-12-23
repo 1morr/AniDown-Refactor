@@ -80,7 +80,7 @@ class QBitTorrentConfig(BaseModel):
     category: str = 'AniDown'
     anime_folder_name: str = 'Anime'
     live_action_folder_name: str = 'LiveAction'
-    tv_folder_name: str = 'TV'
+    tv_folder_name: str = 'TV Shows'
     movie_folder_name: str = 'Movies'
 
 
@@ -127,8 +127,14 @@ class OpenAIConfig(BaseModel):
     class MultiFileRenameConfig(TaskConfig):
         """多文件重命名任务配置（包含批处理参数）"""
 
+        timeout: int = Field(default=360, ge=10, le=600)  # 多文件重命名默认360秒超时
         max_batch_size: int = Field(default=30, gt=0, le=100)  # 最大批处理大小
         batch_processing_retries: int = Field(default=2, ge=0)  # 批处理重试次数
+
+    class SubtitleMatchConfig(TaskConfig):
+        """字幕匹配任务配置（较长超时时间）"""
+
+        timeout: int = Field(default=360, ge=10, le=600)  # 字幕匹配默认360秒超时
 
     class RateLimitConfig(BaseModel):
         """Key Pool 限流/冷却/熔断参数"""
@@ -150,7 +156,7 @@ class OpenAIConfig(BaseModel):
     # 多文件重命名
     multi_file_rename: MultiFileRenameConfig = Field(default_factory=MultiFileRenameConfig)
     # 字幕匹配
-    subtitle_match: TaskConfig = Field(default_factory=TaskConfig)
+    subtitle_match: SubtitleMatchConfig = Field(default_factory=SubtitleMatchConfig)
 
     # Key Pool 限流/熔断配置
     rate_limits: RateLimitConfig = Field(default_factory=RateLimitConfig)

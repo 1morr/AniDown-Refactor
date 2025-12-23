@@ -88,7 +88,7 @@
                                 <textarea class="input-field rss-keywords-input min-h-[100px]" placeholder="例如：简体&#10;1080p">{{ feed.blocked_keywords if feed is not string else '' }}</textarea>
                             </div>
                             <div>
-                                <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">正则表达式 (每行一个)</label>
+                                <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">屏蔽的正则表达式 (每行一个)</label>
                                 <textarea class="input-field rss-regex-input min-h-[100px]" placeholder="例如：.*\[1080p\].*">{{ feed.blocked_regex if feed is not string else '' }}</textarea>
                             </div>
                         </div>
@@ -123,7 +123,7 @@
                                 <textarea class="input-field rss-keywords-input min-h-[100px]" placeholder="例如：简体&#10;1080p"></textarea>
                             </div>
                             <div>
-                                <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">正则表达式 (每行一个)</label>
+                                <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">屏蔽的正则表达式 (每行一个)</label>
                                 <textarea class="input-field rss-regex-input min-h-[100px]" placeholder="例如：.*\[1080p\].*"></textarea>
                             </div>
                         </div>
@@ -342,7 +342,7 @@
                             <div>
                                 <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">API 超时时间 (秒)</label>
                                 <input type="number" id="ai_subtitle_match_timeout" class="input-field" min="10" max="600" value="{{ config.get('openai.subtitle_match.timeout', 180) }}">
-                                <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">推荐: 180 秒</p>
+                                <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">推荐: 360 秒</p>
                             </div>
                         </div>
                     </div>
@@ -500,7 +500,7 @@
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">基础下载路径</label>
+                    <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">提供qBittorrent的下载路径</label>
                     <input type="text" id="qb_path" class="input-field" value="{{ config.qbittorrent.base_download_path }}">
                 </div>
                 <div class="grid grid-cols-2 gap-4">
@@ -568,7 +568,7 @@
             <!-- Path Conversion -->
             <div class="mb-6">
                 <div class="flex items-center justify-between mb-4">
-                    <h4 class="text-sm font-semibold text-slate-700 dark:text-gray-300">路径转换 (Docker/Local)</h4>
+                    <h4 class="text-sm font-semibold text-slate-700 dark:text-gray-300">下载路径转换 (Local/Docker)</h4>
                     <div class="relative inline-block w-10 align-middle select-none">
                         <input type="checkbox" id="path_conv_enabled" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer top-0.5 left-0.5" {{ 'checked' if config.get('path_conversion.enabled', False) else '' }}/>
                         <label for="path_conv_enabled" class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 dark:bg-gray-700 cursor-pointer"></label>
@@ -816,7 +816,7 @@
                         <textarea class="input-field rss-keywords-input min-h-[100px]" placeholder="例如：简体&#10;1080p">${keywords}</textarea>
                     </div>
                     <div>
-                        <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">正则表达式 (每行一个)</label>
+                        <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">屏蔽的正则表达式 (每行一个)</label>
                         <textarea class="input-field rss-regex-input min-h-[100px]" placeholder="例如：.*\\[1080p\\].*">${regex}</textarea>
                     </div>
                 </div>
