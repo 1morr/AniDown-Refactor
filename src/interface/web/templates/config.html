@@ -25,14 +25,14 @@
         <div class="lg:sticky lg:top-24 glass-card rounded-xl p-4">
             <h3 class="text-xs font-bold text-slate-500 dark:text-gray-500 uppercase tracking-wider mb-4 ml-2">设置导航</h3>
             <nav class="space-y-1 flex flex-row lg:flex-col overflow-x-auto lg:overflow-visible pb-2 lg:pb-0 gap-2 lg:gap-0">
-                <a href="#section-basic" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-slate-700 dark:text-white bg-slate-200 dark:bg-white/10 whitespace-nowrap">
-                    <i class="fa-solid fa-sliders w-4 text-center"></i> 基础设置
-                </a>
-                <a href="#section-downloader" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/5 whitespace-nowrap">
-                    <i class="fa-solid fa-download w-4 text-center"></i> 下载器 (QB)
+                <a href="#section-rss" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-slate-700 dark:text-white bg-slate-200 dark:bg-white/10 whitespace-nowrap">
+                    <i class="fa-solid fa-rss w-4 text-center"></i> RSS 订阅
                 </a>
                 <a href="#section-ai" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/5 whitespace-nowrap">
                     <i class="fa-solid fa-robot w-4 text-center"></i> AI 与 LLM
+                </a>
+                <a href="#section-downloader" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/5 whitespace-nowrap">
+                    <i class="fa-solid fa-download w-4 text-center"></i> 下载器 (QB)
                 </a>
                 <a href="#section-notification" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/5 whitespace-nowrap">
                     <i class="fa-brands fa-discord w-4 text-center"></i> 通知服务
@@ -40,8 +40,8 @@
                 <a href="#section-file" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/5 whitespace-nowrap">
                     <i class="fa-solid fa-folder-tree w-4 text-center"></i> 文件与路径
                 </a>
-                <a href="#section-rss" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/5 whitespace-nowrap">
-                    <i class="fa-solid fa-rss w-4 text-center"></i> RSS 订阅
+                <a href="#section-basic" class="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-slate-500 hover:text-slate-900 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/5 whitespace-nowrap">
+                    <i class="fa-solid fa-sliders w-4 text-center"></i> 端口设置
                 </a>
             </nav>
         </div>
@@ -50,209 +50,104 @@
     <!-- 右侧表单内容 -->
     <div class="flex-1 space-y-8 pb-20">
 
-        <!-- 1. 基础设置 -->
-        <section id="section-basic" class="glass-card rounded-xl p-6 scroll-mt-24">
+        <!-- 1. RSS 订阅 -->
+        <section id="section-rss" class="glass-card rounded-xl p-6 scroll-mt-24">
             <div class="flex items-center gap-3 mb-6 border-b border-slate-200 dark:border-white/5 pb-4">
-                <div class="p-2 bg-blue-100 dark:bg-blue-500/10 rounded-lg text-blue-600 dark:text-neon-blue"><i class="fa-solid fa-sliders"></i></div>
-                <h2 class="text-xl font-bold text-slate-800 dark:text-white">基础服务设置</h2>
+                <div class="p-2 bg-yellow-100 dark:bg-yellow-500/10 rounded-lg text-yellow-600 dark:text-yellow-400"><i class="fa-solid fa-rss"></i></div>
+                <h2 class="text-xl font-bold text-slate-800 dark:text-white">RSS 订阅设置</h2>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- WebUI -->
-                <div class="col-span-full md:col-span-1">
-                    <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">WebUI 端口</label>
-                    <input type="number" id="webui_port" class="input-field" value="{{ config.get('webui.port', 8081) }}">
-                </div>
 
-                <!-- Webhook -->
-                <div class="col-span-full md:col-span-1">
-                    <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">Webhook 端口</label>
-                    <input type="number" id="webhook_port" class="input-field" value="{{ config.webhook.port }}">
-                </div>
-
-            </div>
-        </section>
-
-        <!-- 2. 下载器 -->
-        <section id="section-downloader" class="glass-card rounded-xl p-6 scroll-mt-24">
-            <div class="flex items-center gap-3 mb-6 border-b border-slate-200 dark:border-white/5 pb-4">
-                <div class="p-2 bg-green-100 dark:bg-green-500/10 rounded-lg text-green-600 dark:text-neon-green"><i class="fa-solid fa-download"></i></div>
-                <h2 class="text-xl font-bold text-slate-800 dark:text-white">qBittorrent 设置</h2>
-            </div>
-            <div class="grid grid-cols-1 gap-6">
-                <div>
-                    <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">服务器地址 (URL)</label>
-                    <input type="text" id="qb_url" class="input-field" value="{{ config.qbittorrent.url }}">
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">用户名</label>
-                        <input type="text" id="qb_username" class="input-field" value="{{ config.qbittorrent.username }}">
+            <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">固定 RSS 链接列表</label>
+            <div id="rss_list" class="space-y-4">
+                <!-- JS 将动态插入 RSS 输入框 -->
+                {% for feed in config.rss.get_feeds() %}
+                <div class="rss-feed-item border border-slate-200 dark:border-white/10 rounded-lg p-4">
+                    <div class="flex items-start gap-2">
+                        <div class="flex-1">
+                            <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">RSS URL</label>
+                            <input type="text" class="input-field rss-url-input" placeholder="https://..." value="{{ feed.url if feed is not string else feed }}">
+                        </div>
+                        <div class="w-32">
+                            <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">类型</label>
+                            <select class="input-field rss-media-type-select">
+                                <option value="anime" {{ 'selected' if (feed is not string and feed.media_type == 'anime') or feed is string else '' }}>动漫</option>
+                                <option value="live_action" {{ 'selected' if (feed is not string and feed.media_type == 'live_action') else '' }}>真人</option>
+                            </select>
+                        </div>
+                        <button onclick="toggleRssFilters(this)" class="mt-6 px-3 py-2 text-slate-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors" title="展开过滤设置">
+                            <i class="fa-solid fa-filter"></i>
+                        </button>
+                        <button onclick="removeRssFeed(this)" class="mt-6 px-3 py-2 text-slate-400 hover:text-red-500 transition-colors" title="删除">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
                     </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">密码</label>
-                        <div class="relative">
-                            <input type="password" id="qb_password" class="input-field pr-8" value="{{ config.qbittorrent.password }}">
-                            <button onclick="togglePassword('qb_password')" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-white">
-                                <i class="fa-solid fa-eye"></i>
-                            </button>
+                    <div class="rss-filters mt-4 hidden">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">屏蔽词 (每行一个)</label>
+                                <textarea class="input-field rss-keywords-input min-h-[100px]" placeholder="例如：简体&#10;1080p">{{ feed.blocked_keywords if feed is not string else '' }}</textarea>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">正则表达式 (每行一个)</label>
+                                <textarea class="input-field rss-regex-input min-h-[100px]" placeholder="例如：.*\[1080p\].*">{{ feed.blocked_regex if feed is not string else '' }}</textarea>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">基础下载路径</label>
-                    <input type="text" id="qb_path" class="input-field" value="{{ config.qbittorrent.base_download_path }}">
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">动漫文件夹名称</label>
-                        <input type="text" id="qb_anime_folder" class="input-field" value="{{ config.qbittorrent.anime_folder_name }}">
-                        <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">在基础路径下创建的动漫根文件夹</p>
+                {% endfor %}
+                {% if not config.rss.fixed_urls %}
+                <div class="rss-feed-item border border-slate-200 dark:border-white/10 rounded-lg p-4">
+                    <div class="flex items-start gap-2">
+                        <div class="flex-1">
+                            <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">RSS URL</label>
+                            <input type="text" class="input-field rss-url-input" placeholder="https://..." value="">
+                        </div>
+                        <div class="w-32">
+                            <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">类型</label>
+                            <select class="input-field rss-media-type-select">
+                                <option value="anime" selected>动漫</option>
+                                <option value="live_action">真人</option>
+                            </select>
+                        </div>
+                        <button onclick="toggleRssFilters(this)" class="mt-6 px-3 py-2 text-slate-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors" title="展开过滤设置">
+                            <i class="fa-solid fa-filter"></i>
+                        </button>
+                        <button onclick="removeRssFeed(this)" class="mt-6 px-3 py-2 text-slate-400 hover:text-red-500 transition-colors" title="删除">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
                     </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">真人文件夹名称</label>
-                        <input type="text" id="qb_liveaction_folder" class="input-field" value="{{ config.qbittorrent.live_action_folder_name }}">
-                        <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">在基础路径下创建的真人根文件夹</p>
+                    <div class="rss-filters mt-4 hidden">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">屏蔽词 (每行一个)</label>
+                                <textarea class="input-field rss-keywords-input min-h-[100px]" placeholder="例如：简体&#10;1080p"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">正则表达式 (每行一个)</label>
+                                <textarea class="input-field rss-regex-input min-h-[100px]" placeholder="例如：.*\[1080p\].*"></textarea>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">剧集(TV)文件夹名称</label>
-                        <input type="text" id="qb_tv_folder" class="input-field" value="{{ config.qbittorrent.tv_folder_name }}">
-                        <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">在动漫/真人文件夹下的TV剧集文件夹</p>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">电影(Movie)文件夹名称</label>
-                        <input type="text" id="qb_movie_folder" class="input-field" value="{{ config.qbittorrent.movie_folder_name }}">
-                        <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">在动漫/真人文件夹下的电影文件夹</p>
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">分类 (Category)</label>
-                    <input type="text" id="qb_category" class="input-field" value="{{ config.qbittorrent.category }}">
-                </div>
+                {% endif %}
+            </div>
+            <button onclick="addRssField()" class="mt-4 flex items-center gap-2 text-sm text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors">
+                <i class="fa-solid fa-plus"></i> 添加 RSS 链接
+            </button>
+
+            <div class="mt-6">
+                <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">检查间隔 (秒)</label>
+                <input type="number" id="rss_interval" class="input-field md:w-1/3" value="{{ config.rss.check_interval }}">
             </div>
         </section>
 
-        <!-- 3. AI & LLM -->
+        <!-- 2. AI 与 LLM -->
         <section id="section-ai" class="glass-card rounded-xl p-6 scroll-mt-24">
             <div class="flex items-center gap-3 mb-6 border-b border-slate-200 dark:border-white/5 pb-4">
                 <div class="p-2 bg-cyan-100 dark:bg-cyan-500/10 rounded-lg text-cyan-600 dark:text-neon-cyan"><i class="fa-solid fa-robot"></i></div>
                 <h2 class="text-xl font-bold text-slate-800 dark:text-white">AI / LLM 设置</h2>
             </div>
             <div class="grid grid-cols-1 gap-6">
-                <!-- 语言优先级设置 -->
-                <div class="border border-slate-200 dark:border-white/10 rounded-lg p-4">
-                    <div class="flex items-center justify-between mb-2">
-                        <h4 class="text-sm font-semibold text-slate-700 dark:text-gray-300">标题语言优先级</h4>
-                        <button type="button" onclick="showAddLanguageForm()" class="px-3 py-1.5 text-xs rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-gray-200">
-                            <i class="fa-solid fa-plus mr-1"></i> 添加语言
-                        </button>
-                    </div>
-                    <p class="text-xs text-slate-400 dark:text-gray-500 mb-4">拖动调整语言优先级顺序，AI 将优先使用排在前面的语言作为动漫标题。如果第一优先级不存在，则依次尝试下一优先级。</p>
-
-                    <!-- 添加语言表单（默认隐藏） -->
-                    <div id="add_language_form" class="hidden mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-500/30">
-                        <div class="mb-3">
-                            <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">语言名称</label>
-                            <input type="text" id="new_lang_name" class="input-field text-sm" placeholder="如: 中文, English, 日本語, Romaji">
-                        </div>
-                        <div class="flex justify-end gap-2">
-                            <button type="button" onclick="hideAddLanguageForm()" class="px-3 py-1.5 text-xs rounded-lg bg-slate-200 hover:bg-slate-300 dark:bg-white/10 dark:hover:bg-white/20 text-slate-700 dark:text-gray-200">
-                                取消
-                            </button>
-                            <button type="button" onclick="addLanguage()" class="px-3 py-1.5 text-xs rounded-lg bg-blue-500 hover:bg-blue-600 text-white">
-                                添加
-                            </button>
-                        </div>
-                    </div>
-
-                    <div id="language_priority_list" class="space-y-2">
-                        {% for lang in config.openai.language_priorities %}
-                        <div class="language-priority-item flex items-center gap-3 p-3 bg-slate-50 dark:bg-white/5 rounded-lg cursor-move border border-transparent hover:border-blue-300 dark:hover:border-blue-500 transition-all"
-                             draggable="true"
-                             data-name="{{ lang.name }}">
-                            <div class="drag-handle text-slate-400 dark:text-gray-500">
-                                <i class="fa-solid fa-grip-vertical"></i>
-                            </div>
-                            <div class="flex-1">
-                                <span class="language-name text-sm text-slate-700 dark:text-gray-300">{{ lang.name }}</span>
-                            </div>
-                            <button type="button" onclick="removeLanguage(this)" class="text-slate-400 hover:text-red-500 transition-colors" title="删除">
-                                <i class="fa-solid fa-trash text-xs"></i>
-                            </button>
-                        </div>
-                        {% endfor %}
-                    </div>
-                    <p class="text-xs text-slate-400 dark:text-gray-500 mt-3">
-                        <i class="fa-solid fa-info-circle mr-1"></i>
-                        当前优先级：<span id="current_priority_display" class="font-medium text-slate-600 dark:text-gray-300"></span>
-                    </p>
-                </div>
-
-                <!-- 独立 Key Pools -->
-                <div class="border border-slate-200 dark:border-white/10 rounded-lg p-4">
-                    <div class="flex items-center justify-between mb-2">
-                        <h4 class="text-sm font-semibold text-slate-700 dark:text-gray-300">API Key Pools</h4>
-                        <button type="button" onclick="addKeyPool()" class="px-3 py-1.5 text-xs rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-gray-200">
-                            <i class="fa-solid fa-plus mr-1"></i> 添加 Pool
-                        </button>
-                    </div>
-                    <p class="text-xs text-slate-400 dark:text-gray-500 mb-4">创建独立的 Key Pool，可被多个任务共享使用。每个 Pool 包含 base_url、model 和多个 API Key。</p>
-
-                    <div id="key_pools_container" class="space-y-4">
-                        {% for pool in config.openai.key_pools %}
-                        <div class="key-pool-card border border-slate-300 dark:border-white/20 rounded-lg p-4 bg-slate-50 dark:bg-white/5">
-                            <div class="flex items-center justify-between mb-4">
-                                <div class="flex items-center gap-3">
-                                    <i class="fa-solid fa-layer-group text-blue-500"></i>
-                                    <input type="text" class="pool-name-input input-field w-48" value="{{ pool.name }}" placeholder="Pool 名称">
-                                </div>
-                                <button type="button" onclick="removeKeyPool(this)" class="text-slate-400 hover:text-red-500" title="删除 Pool">
-                                    <i class="fa-solid fa-trash"></i>
-                                </button>
-                            </div>
-
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                <div>
-                                    <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">Base URL</label>
-                                    <input type="text" class="pool-base-url input-field" value="{{ pool.base_url }}">
-                                </div>
-                                <div>
-                                    <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">Model</label>
-                                    <input type="text" class="pool-model input-field" value="{{ pool.model }}">
-                                </div>
-                            </div>
-
-                            <!-- Pool 内的 API Keys -->
-                            <div class="border-t border-slate-200 dark:border-white/10 pt-3">
-                                <div class="flex items-center justify-between mb-2">
-                                    <span class="text-xs font-medium text-slate-600 dark:text-gray-300">API Keys</span>
-                                    <button type="button" onclick="addKeyToPool(this)" class="text-xs text-blue-500 hover:text-blue-600">
-                                        <i class="fa-solid fa-plus mr-1"></i> 添加 Key
-                                    </button>
-                                </div>
-                                <div class="pool-keys-list space-y-2">
-                                    {% for key in pool.api_keys %}
-                                    <div class="pool-key-item grid grid-cols-12 gap-2 items-center">
-                                        <input type="text" class="pool-key-name input-field col-span-3 text-sm" value="{{ key.name }}" placeholder="名称">
-                                        <input type="password" class="pool-key-value input-field col-span-4 text-sm" value="{{ key.api_key }}" placeholder="API Key">
-                                        <input type="number" class="pool-key-rpm input-field col-span-2 text-sm" value="{{ key.rpm }}" placeholder="RPM">
-                                        <input type="number" class="pool-key-rpd input-field col-span-2 text-sm" value="{{ key.rpd }}" placeholder="RPD">
-                                        <div class="col-span-1 flex items-center gap-1">
-                                            <input type="checkbox" class="pool-key-enabled" {{ 'checked' if key.enabled else '' }}>
-                                            <button type="button" onclick="removeKeyFromPool(this)" class="text-slate-400 hover:text-red-500">
-                                                <i class="fa-solid fa-times text-xs"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-
                 <!-- 标题解析 -->
                 <div class="border border-slate-200 dark:border-white/10 rounded-lg p-4">
                     <h4 class="text-sm font-semibold text-slate-700 dark:text-gray-300 mb-4">标题解析</h4>
@@ -430,6 +325,180 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- 独立 Key Pools -->
+                <div class="border border-slate-200 dark:border-white/10 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="text-sm font-semibold text-slate-700 dark:text-gray-300">API Key Pools</h4>
+                        <button type="button" onclick="addKeyPool()" class="px-3 py-1.5 text-xs rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-gray-200">
+                            <i class="fa-solid fa-plus mr-1"></i> 添加 Pool
+                        </button>
+                    </div>
+                    <p class="text-xs text-slate-400 dark:text-gray-500 mb-4">创建独立的 Key Pool，可被多个任务共享使用。每个 Pool 包含 base_url、model 和多个 API Key。</p>
+
+                    <div id="key_pools_container" class="space-y-4">
+                        {% for pool in config.openai.key_pools %}
+                        <div class="key-pool-card border border-slate-300 dark:border-white/20 rounded-lg p-4 bg-slate-50 dark:bg-white/5">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="flex items-center gap-3">
+                                    <i class="fa-solid fa-layer-group text-blue-500"></i>
+                                    <input type="text" class="pool-name-input input-field w-48" value="{{ pool.name }}" placeholder="Pool 名称">
+                                </div>
+                                <button type="button" onclick="removeKeyPool(this)" class="text-slate-400 hover:text-red-500" title="删除 Pool">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">Base URL</label>
+                                    <input type="text" class="pool-base-url input-field" value="{{ pool.base_url }}">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">Model</label>
+                                    <input type="text" class="pool-model input-field" value="{{ pool.model }}">
+                                </div>
+                            </div>
+
+                            <!-- Pool 内的 API Keys -->
+                            <div class="border-t border-slate-200 dark:border-white/10 pt-3">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-xs font-medium text-slate-600 dark:text-gray-300">API Keys</span>
+                                    <button type="button" onclick="addKeyToPool(this)" class="text-xs text-blue-500 hover:text-blue-600">
+                                        <i class="fa-solid fa-plus mr-1"></i> 添加 Key
+                                    </button>
+                                </div>
+                                <div class="pool-keys-list space-y-2">
+                                    {% for key in pool.api_keys %}
+                                    <div class="pool-key-item grid grid-cols-12 gap-2 items-center">
+                                        <input type="text" class="pool-key-name input-field col-span-3 text-sm" value="{{ key.name }}" placeholder="名称">
+                                        <input type="password" class="pool-key-value input-field col-span-4 text-sm" value="{{ key.api_key }}" placeholder="API Key">
+                                        <input type="number" class="pool-key-rpm input-field col-span-2 text-sm" value="{{ key.rpm }}" placeholder="RPM">
+                                        <input type="number" class="pool-key-rpd input-field col-span-2 text-sm" value="{{ key.rpd }}" placeholder="RPD">
+                                        <div class="col-span-1 flex items-center gap-1">
+                                            <input type="checkbox" class="pool-key-enabled" {{ 'checked' if key.enabled else '' }}>
+                                            <button type="button" onclick="removeKeyFromPool(this)" class="text-slate-400 hover:text-red-500">
+                                                <i class="fa-solid fa-times text-xs"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- 语言优先级设置 -->
+                <div class="border border-slate-200 dark:border-white/10 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="text-sm font-semibold text-slate-700 dark:text-gray-300">标题语言优先级</h4>
+                        <button type="button" onclick="showAddLanguageForm()" class="px-3 py-1.5 text-xs rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-gray-200">
+                            <i class="fa-solid fa-plus mr-1"></i> 添加语言
+                        </button>
+                    </div>
+                    <p class="text-xs text-slate-400 dark:text-gray-500 mb-4">拖动调整语言优先级顺序，AI 将优先使用排在前面的语言作为动漫标题。如果第一优先级不存在，则依次尝试下一优先级。</p>
+
+                    <!-- 添加语言表单（默认隐藏） -->
+                    <div id="add_language_form" class="hidden mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-500/30">
+                        <div class="mb-3">
+                            <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">语言名称</label>
+                            <input type="text" id="new_lang_name" class="input-field text-sm" placeholder="如: 中文, English, 日本語, Romaji">
+                        </div>
+                        <div class="flex justify-end gap-2">
+                            <button type="button" onclick="hideAddLanguageForm()" class="px-3 py-1.5 text-xs rounded-lg bg-slate-200 hover:bg-slate-300 dark:bg-white/10 dark:hover:bg-white/20 text-slate-700 dark:text-gray-200">
+                                取消
+                            </button>
+                            <button type="button" onclick="addLanguage()" class="px-3 py-1.5 text-xs rounded-lg bg-blue-500 hover:bg-blue-600 text-white">
+                                添加
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="language_priority_list" class="space-y-2">
+                        {% for lang in config.openai.language_priorities %}
+                        <div class="language-priority-item flex items-center gap-3 p-3 bg-slate-50 dark:bg-white/5 rounded-lg cursor-move border border-transparent hover:border-blue-300 dark:hover:border-blue-500 transition-all"
+                             draggable="true"
+                             data-name="{{ lang.name }}">
+                            <div class="drag-handle text-slate-400 dark:text-gray-500">
+                                <i class="fa-solid fa-grip-vertical"></i>
+                            </div>
+                            <div class="flex-1">
+                                <span class="language-name text-sm text-slate-700 dark:text-gray-300">{{ lang.name }}</span>
+                            </div>
+                            <button type="button" onclick="removeLanguage(this)" class="text-slate-400 hover:text-red-500 transition-colors" title="删除">
+                                <i class="fa-solid fa-trash text-xs"></i>
+                            </button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <p class="text-xs text-slate-400 dark:text-gray-500 mt-3">
+                        <i class="fa-solid fa-info-circle mr-1"></i>
+                        当前优先级：<span id="current_priority_display" class="font-medium text-slate-600 dark:text-gray-300"></span>
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. 下载器 -->
+        <section id="section-downloader" class="glass-card rounded-xl p-6 scroll-mt-24">
+            <div class="flex items-center gap-3 mb-6 border-b border-slate-200 dark:border-white/5 pb-4">
+                <div class="p-2 bg-green-100 dark:bg-green-500/10 rounded-lg text-green-600 dark:text-neon-green"><i class="fa-solid fa-download"></i></div>
+                <h2 class="text-xl font-bold text-slate-800 dark:text-white">qBittorrent 设置</h2>
+            </div>
+            <div class="grid grid-cols-1 gap-6">
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">服务器地址 (URL)</label>
+                    <input type="text" id="qb_url" class="input-field" value="{{ config.qbittorrent.url }}">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">用户名</label>
+                        <input type="text" id="qb_username" class="input-field" value="{{ config.qbittorrent.username }}">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">密码</label>
+                        <div class="relative">
+                            <input type="password" id="qb_password" class="input-field pr-8" value="{{ config.qbittorrent.password }}">
+                            <button onclick="togglePassword('qb_password')" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-white">
+                                <i class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">基础下载路径</label>
+                    <input type="text" id="qb_path" class="input-field" value="{{ config.qbittorrent.base_download_path }}">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">动漫文件夹名称</label>
+                        <input type="text" id="qb_anime_folder" class="input-field" value="{{ config.qbittorrent.anime_folder_name }}">
+                        <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">在基础路径下创建的动漫根文件夹</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">真人文件夹名称</label>
+                        <input type="text" id="qb_liveaction_folder" class="input-field" value="{{ config.qbittorrent.live_action_folder_name }}">
+                        <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">在基础路径下创建的真人根文件夹</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">剧集(TV)文件夹名称</label>
+                        <input type="text" id="qb_tv_folder" class="input-field" value="{{ config.qbittorrent.tv_folder_name }}">
+                        <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">在动漫/真人文件夹下的TV剧集文件夹</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">电影(Movie)文件夹名称</label>
+                        <input type="text" id="qb_movie_folder" class="input-field" value="{{ config.qbittorrent.movie_folder_name }}">
+                        <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">在动漫/真人文件夹下的电影文件夹</p>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">分类 (Category)</label>
+                    <input type="text" id="qb_category" class="input-field" value="{{ config.qbittorrent.category }}">
+                </div>
             </div>
         </section>
 
@@ -537,94 +606,25 @@
             </div>
         </section>
 
-        <!-- 6. RSS 订阅 -->
-        <section id="section-rss" class="glass-card rounded-xl p-6 scroll-mt-24">
+        <!-- 6. 端口设置 -->
+        <section id="section-basic" class="glass-card rounded-xl p-6 scroll-mt-24">
             <div class="flex items-center gap-3 mb-6 border-b border-slate-200 dark:border-white/5 pb-4">
-                <div class="p-2 bg-yellow-100 dark:bg-yellow-500/10 rounded-lg text-yellow-600 dark:text-yellow-400"><i class="fa-solid fa-rss"></i></div>
-                <h2 class="text-xl font-bold text-slate-800 dark:text-white">RSS 订阅设置</h2>
+                <div class="p-2 bg-blue-100 dark:bg-blue-500/10 rounded-lg text-blue-600 dark:text-neon-blue"><i class="fa-solid fa-sliders"></i></div>
+                <h2 class="text-xl font-bold text-slate-800 dark:text-white">端口设置</h2>
             </div>
-            <div class="mb-6">
-                <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">检查间隔 (秒)</label>
-                <input type="number" id="rss_interval" class="input-field md:w-1/3" value="{{ config.rss.check_interval }}">
-            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- WebUI -->
+                <div class="col-span-full md:col-span-1">
+                    <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">WebUI 端口</label>
+                    <input type="number" id="webui_port" class="input-field" value="{{ config.get('webui.port', 8081) }}">
+                </div>
 
-            <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">固定 RSS 链接列表</label>
-            <div id="rss_list" class="space-y-4">
-                <!-- JS 将动态插入 RSS 输入框 -->
-                {% for feed in config.rss.get_feeds() %}
-                <div class="rss-feed-item border border-slate-200 dark:border-white/10 rounded-lg p-4">
-                    <div class="flex items-start gap-2">
-                        <div class="flex-1">
-                            <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">RSS URL</label>
-                            <input type="text" class="input-field rss-url-input" placeholder="https://..." value="{{ feed.url if feed is not string else feed }}">
-                        </div>
-                        <div class="w-32">
-                            <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">类型</label>
-                            <select class="input-field rss-media-type-select">
-                                <option value="anime" {{ 'selected' if (feed is not string and feed.media_type == 'anime') or feed is string else '' }}>动漫</option>
-                                <option value="live_action" {{ 'selected' if (feed is not string and feed.media_type == 'live_action') else '' }}>真人</option>
-                            </select>
-                        </div>
-                        <button onclick="toggleRssFilters(this)" class="mt-6 px-3 py-2 text-slate-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors" title="展开过滤设置">
-                            <i class="fa-solid fa-filter"></i>
-                        </button>
-                        <button onclick="removeRssFeed(this)" class="mt-6 px-3 py-2 text-slate-400 hover:text-red-500 transition-colors" title="删除">
-                            <i class="fa-solid fa-trash"></i>
-                        </button>
-                    </div>
-                    <div class="rss-filters mt-4 hidden">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">屏蔽词 (每行一个)</label>
-                                <textarea class="input-field rss-keywords-input min-h-[100px]" placeholder="例如：简体&#10;1080p">{{ feed.blocked_keywords if feed is not string else '' }}</textarea>
-                            </div>
-                            <div>
-                                <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">正则表达式 (每行一个)</label>
-                                <textarea class="input-field rss-regex-input min-h-[100px]" placeholder="例如：.*\[1080p\].*">{{ feed.blocked_regex if feed is not string else '' }}</textarea>
-                            </div>
-                        </div>
-                    </div>
+                <!-- Webhook -->
+                <div class="col-span-full md:col-span-1">
+                    <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">Webhook 端口</label>
+                    <input type="number" id="webhook_port" class="input-field" value="{{ config.webhook.port }}">
                 </div>
-                {% endfor %}
-                {% if not config.rss.fixed_urls %}
-                <div class="rss-feed-item border border-slate-200 dark:border-white/10 rounded-lg p-4">
-                    <div class="flex items-start gap-2">
-                        <div class="flex-1">
-                            <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">RSS URL</label>
-                            <input type="text" class="input-field rss-url-input" placeholder="https://..." value="">
-                        </div>
-                        <div class="w-32">
-                            <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">类型</label>
-                            <select class="input-field rss-media-type-select">
-                                <option value="anime" selected>动漫</option>
-                                <option value="live_action">真人</option>
-                            </select>
-                        </div>
-                        <button onclick="toggleRssFilters(this)" class="mt-6 px-3 py-2 text-slate-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors" title="展开过滤设置">
-                            <i class="fa-solid fa-filter"></i>
-                        </button>
-                        <button onclick="removeRssFeed(this)" class="mt-6 px-3 py-2 text-slate-400 hover:text-red-500 transition-colors" title="删除">
-                            <i class="fa-solid fa-trash"></i>
-                        </button>
-                    </div>
-                    <div class="rss-filters mt-4 hidden">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">屏蔽词 (每行一个)</label>
-                                <textarea class="input-field rss-keywords-input min-h-[100px]" placeholder="例如：简体&#10;1080p"></textarea>
-                            </div>
-                            <div>
-                                <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">正则表达式 (每行一个)</label>
-                                <textarea class="input-field rss-regex-input min-h-[100px]" placeholder="例如：.*\[1080p\].*"></textarea>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                {% endif %}
             </div>
-            <button onclick="addRssField()" class="mt-4 flex items-center gap-2 text-sm text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors">
-                <i class="fa-solid fa-plus"></i> 添加 RSS 链接
-            </button>
         </section>
 
     </div>
@@ -985,6 +985,18 @@
         });
 
         document.querySelectorAll('section[id]').forEach(sec => observer.observe(sec));
+
+        // 滚动到页面底部时，激活最后一个导航项
+        window.addEventListener('scroll', () => {
+            const scrollTop = window.scrollY || document.documentElement.scrollTop;
+            const scrollHeight = document.documentElement.scrollHeight;
+            const clientHeight = document.documentElement.clientHeight;
+
+            // 检查是否滚动到底部（允许 5px 的误差）
+            if (scrollTop + clientHeight >= scrollHeight - 5) {
+                setActive('section-basic');
+            }
+        });
     });
 
     // 4. 保存逻辑
