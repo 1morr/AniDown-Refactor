@@ -10,7 +10,6 @@ import os
 
 from flask import Blueprint, render_template, request
 from dependency_injector.wiring import inject, Provide
-import threading
 
 from src.core.config import config
 from src.container import Container
@@ -186,17 +185,18 @@ def submit_manual_upload(
         f"hash:{hash_id[:8]}..."
     )
 
-    # 在后台线程中处理上传
-    def process_background():
-        try:
-            logger.processing_start(f"手动上传处理: {anime_title}")
-            download_manager.process_manual_upload(data)
+    # 同步处理上传，等待结果
+    try:
+        logger.processing_start(f"手动上传处理: {anime_title}")
+        success, error_message = download_manager.process_manual_upload(data)
+
+        if success:
             logger.processing_success("手动上传处理完成")
-        except Exception as e:
-            logger.processing_error("手动上传处理", e)
-
-    thread = threading.Thread(target=process_background, daemon=True)
-    thread.start()
-
-    logger.api_success('/api/submit_upload', '手动上传处理已启动')
-    return APIResponse.success(message='手動上傳處理已啟動')
+            logger.api_success('/api/submit_upload', '手动上传处理成功')
+            return APIResponse.success(message='手動上傳處理成功')
+        else:
+            logger.processing_error("手动上传处理", Exception(error_message))
+            return APIResponse.error(f'手動上傳失敗: {error_message}', status_code=500)
+    except Exception as e:
+        logger.processing_error("手动上传处理", e)
+        return APIResponse.error(f'手動上傳失敗: {str(e)}', status_code=500)

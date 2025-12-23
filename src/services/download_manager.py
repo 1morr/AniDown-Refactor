@@ -811,7 +811,7 @@ class DownloadManager:
 
     # ==================== Manual Upload Processing ====================
 
-    def process_manual_upload(self, data: Dict[str, Any]) -> bool:
+    def process_manual_upload(self, data: Dict[str, Any]) -> Tuple[bool, str]:
         """
         Process manual upload (torrent file or magnet link).
 
@@ -830,7 +830,9 @@ class DownloadManager:
                 - magnet_link: Magnet link (if upload_type='magnet')
 
         Returns:
-            True if successful.
+            Tuple of (success: bool, error_message: str).
+            On success, error_message is empty string.
+            On failure, error_message contains the error description.
         """
         try:
             upload_type = data.get('upload_type', 'torrent')
@@ -890,7 +892,7 @@ class DownloadManager:
                 requires_tvdb=requires_tvdb
             )
 
-            # Record history
+            # Record history (only on success)
             self._history_repo.insert_manual_upload_history(
                 upload_type=upload_type,
                 anime_title=anime_title,
@@ -911,10 +913,11 @@ class DownloadManager:
                 season=season
             )
 
-            return True
+            return (True, '')
 
         except Exception as e:
-            logger.error(f'手动上传失败: {e}')
+            error_message = str(e)
+            logger.error(f'手动上传失败: {error_message}')
             # Record failure history
             self._history_repo.insert_manual_upload_history(
                 upload_type=data.get('upload_type', 'unknown'),
@@ -924,10 +927,10 @@ class DownloadManager:
                 category=data.get('category', 'tv'),
                 torrent_hash=None,
                 upload_status='failed',
-                error_message=str(e)
+                error_message=error_message
             )
-            self._notify_error(f'手动上传失败: {e}')
-            return False
+            self._notify_error(f'手动上传失败: {error_message}')
+            return (False, error_message)
 
     def _process_torrent_upload(
         self,
@@ -952,7 +955,9 @@ class DownloadManager:
             if not hash_id:
                 raise ValueError('无法从torrent文件提取hash')
 
-            self._download_client.add_torrent_file(temp_file_path, save_path)
+            result = self._download_client.add_torrent_file(temp_file_path, save_path)
+            if not result:
+                raise ValueError('添加种子到qBittorrent失败（可能无法连接/登录qBittorrent）')
             return hash_id
         finally:
             if os.path.exists(temp_file_path):
@@ -974,7 +979,9 @@ class DownloadManager:
         if not hash_id:
             raise ValueError('无法从磁力链接提取hash')
 
-        self._download_client.add_magnet(magnet_link, save_path)
+        result = self._download_client.add_magnet(magnet_link, save_path)
+        if not result:
+            raise ValueError('添加磁力链接到qBittorrent失败（可能无法连接/登录qBittorrent）')
         return hash_id
 
     # ==================== Torrent Completion Handling ====================
