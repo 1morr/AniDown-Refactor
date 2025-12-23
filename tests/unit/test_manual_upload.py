@@ -135,9 +135,9 @@ class TestTorrentFileUpload(TestManualUploadService):
             'src.infrastructure.downloader.qbit_adapter.get_torrent_hash_from_file',
             return_value=unique_hash
         ):
-            result = download_manager.process_manual_upload(upload_data)
+            result, error_msg = download_manager.process_manual_upload(upload_data)
 
-        assert result is True
+        assert result is True, f'Upload failed: {error_msg}'
         mock_qbit_client.add_torrent_file.assert_called_once()
 
     def test_torrent_file_upload_missing_file(self, download_manager):
@@ -151,7 +151,7 @@ class TestTorrentFileUpload(TestManualUploadService):
             'category': TORRENT_FILE_CONFIG['category'],
         }
 
-        result = download_manager.process_manual_upload(upload_data)
+        result, _ = download_manager.process_manual_upload(upload_data)
 
         assert result is False
 
@@ -183,9 +183,9 @@ class TestTorrentFileUpload(TestManualUploadService):
             'src.infrastructure.downloader.qbit_adapter.get_torrent_hash_from_file',
             return_value=test_hash
         ):
-            result = download_manager.process_manual_upload(upload_data)
+            result, error_msg = download_manager.process_manual_upload(upload_data)
 
-        assert result is True
+        assert result is True, f'Upload failed: {error_msg}'
 
         # Verify database records
         download_record = download_repo.get_by_hash(test_hash)
@@ -216,9 +216,9 @@ class TestMagnetLinkUpload(TestManualUploadService):
             'src.infrastructure.downloader.qbit_adapter.get_torrent_hash_from_magnet',
             return_value=unique_hash
         ):
-            result = download_manager.process_manual_upload(upload_data)
+            result, error_msg = download_manager.process_manual_upload(upload_data)
 
-        assert result is True
+        assert result is True, f'Upload failed: {error_msg}'
         mock_qbit_client.add_magnet.assert_called_once()
 
     def test_magnet_link_upload_missing_link(self, download_manager):
@@ -232,7 +232,7 @@ class TestMagnetLinkUpload(TestManualUploadService):
             'category': MAGNET_CONFIG['category'],
         }
 
-        result = download_manager.process_manual_upload(upload_data)
+        result, _ = download_manager.process_manual_upload(upload_data)
 
         assert result is False
 
@@ -255,9 +255,9 @@ class TestMagnetLinkUpload(TestManualUploadService):
             'src.infrastructure.downloader.qbit_adapter.get_torrent_hash_from_magnet',
             return_value=unique_hash
         ):
-            result = download_manager.process_manual_upload(upload_data)
+            result, error_msg = download_manager.process_manual_upload(upload_data)
 
-        assert result is True
+        assert result is True, f'Upload failed: {error_msg}'
 
     def test_magnet_link_upload_saves_to_database(
         self,
@@ -283,9 +283,9 @@ class TestMagnetLinkUpload(TestManualUploadService):
             'src.infrastructure.downloader.qbit_adapter.get_torrent_hash_from_magnet',
             return_value=unique_hash
         ):
-            result = download_manager.process_manual_upload(upload_data)
+            result, error_msg = download_manager.process_manual_upload(upload_data)
 
-        assert result is True
+        assert result is True, f'Upload failed: {error_msg}'
 
         # Verify database record
         download_record = download_repo.get_by_hash(unique_hash)
@@ -355,9 +355,9 @@ class TestManualUploadIntegration:
             'media_type': 'anime'
         }
 
-        result = real_download_manager.process_manual_upload(upload_data)
+        result, error_msg = real_download_manager.process_manual_upload(upload_data)
 
-        assert result is True
+        assert result is True, f'Upload failed: {error_msg}'
         print(f'\n✅ Successfully uploaded torrent: {TORRENT_FILE_CONFIG["filename"]}')
 
     def test_real_magnet_link_upload(self, real_download_manager):
@@ -381,9 +381,9 @@ class TestManualUploadIntegration:
             'media_type': 'anime'
         }
 
-        result = real_download_manager.process_manual_upload(upload_data)
+        result, error_msg = real_download_manager.process_manual_upload(upload_data)
 
-        assert result is True
+        assert result is True, f'Upload failed: {error_msg}'
         print(f'\n✅ Successfully added magnet: {MAGNET_CONFIG["anime_title"]}')
 
 

@@ -32,7 +32,7 @@ class TestTVDBAdapter:
         """Test that disabled TVDB returns None."""
         from src.core.config import config
 
-        if not config.tvdb.enabled:
+        if not config.tvdb.api_key:
             result = tvdb_adapter.search_series('Test')
             assert result is None or result == []
 
@@ -56,7 +56,7 @@ class TestTVDBAdapter:
         # This test depends on implementation
         # Skip if TVDB is not enabled
         from src.core.config import config
-        if not config.tvdb.enabled or not config.tvdb.api_key:
+        if not config.tvdb.api_key:
             pytest.skip('TVDB not configured')
 
     @patch('requests.Session.get')
@@ -86,7 +86,7 @@ class TestTVDBAdapter:
 
         # Skip if TVDB is not configured
         from src.core.config import config
-        if not config.tvdb.enabled:
+        if not config.tvdb.api_key:
             pytest.skip('TVDB not configured')
 
 

@@ -152,7 +152,6 @@ def test_config_path(tmp_path_factory) -> Path:
             'target_base_path': '/path/to/target/'
         },
         'tvdb': {
-            'enabled': False,
             'api_key': '',
             'max_data_length': 10000
         },

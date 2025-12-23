@@ -202,13 +202,14 @@ Test Anime/
         ]
 
         # First batch returns Season 1/... filenames
+        # Note: API response uses indexed keys ('1', '2') not original filenames
         mock_api_client.call.side_effect = [
             MagicMock(
                 success=True,
                 content=json.dumps({
                     'main_files': {
-                        'Episode 01.mp4': 'Season 1/Test - S01E01.mp4',
-                        'Episode 02.mp4': 'Season 1/Test - S01E02.mp4',
+                        '1': 'Season 1/Test - S01E01.mp4',
+                        '2': 'Season 1/Test - S01E02.mp4',
                     },
                     'skipped_files': [],
                     'seasons_info': {},
@@ -222,8 +223,8 @@ Test Anime/
                 success=True,
                 content=json.dumps({
                     'main_files': {
-                        'Episode 03.mp4': 'Season 1/Test - S01E03.mp4',
-                        'Episode 04.mp4': 'Season 1/Test - S01E04.mp4',
+                        '1': 'Season 1/Test - S01E03.mp4',
+                        '2': 'Season 1/Test - S01E04.mp4',
                     },
                     'skipped_files': [],
                     'seasons_info': {},
@@ -528,7 +529,7 @@ class TestPreviousHardlinksConflictDetection:
         )
 
         # Build user message with previous hardlinks
-        message = renamer._build_user_message(
+        message, _ = renamer._build_user_message(
             files=['Episode 03.mp4'],
             category='tv',
             anime_title='Test',
