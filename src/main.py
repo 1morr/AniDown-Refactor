@@ -410,6 +410,7 @@ def init_queue_workers(download_manager):
         try:
             from src.core.config import RSSFeed
             from src.container import container
+            from src.core.exceptions import AniDownError
             from src.core.interfaces.notifications import RSSNotification
 
             # 从 extra_data 获取完整的 feed 配置
@@ -610,8 +611,13 @@ def init_queue_workers(download_manager):
                     except Exception as e:
                         logger.warning(f'⚠️ 发送批处理完成通知失败: {e}')
 
+        except AniDownError as e:
+            # 预期的业务错误，只记录消息
+            logger.error(f'❌ 处理 RSS Feed 事件失败: {e}')
+            raise
         except Exception as e:
-            logger.error(f'❌ 处理 RSS Feed 事件失败: {e}', exc_info=True)
+            # 意外错误，记录完整堆栈用于调试
+            logger.error(f'❌ 处理 RSS Feed 事件失败 (意外错误): {e}', exc_info=True)
             # 重新抛出异常，让 QueueWorker 正确统计失败数
             raise
 
@@ -619,6 +625,7 @@ def init_queue_workers(download_manager):
         """处理单个 RSS 项目"""
         try:
             from src.container import container
+            from src.core.exceptions import AniDownError
 
             logger.info(f'🔄 处理项目: {payload.item_title[:50]}...')
 
@@ -678,8 +685,26 @@ def init_queue_workers(download_manager):
             else:
                 logger.warning(f'⚠️ 项目处理失败: {payload.item_title[:50]}...')
 
+        except AniDownError as e:
+            # 预期的业务错误，只记录消息不记录堆栈
+            logger.error(f'❌ 处理单个项目失败: {e}')
+            # 记录失败
+            try:
+                if history_id:
+                    from src.container import container
+                    history_repo = container.history_repo()
+                    history_repo.insert_rss_detail(
+                        history_id, payload.item_title, 'failed', str(e)
+                    )
+                    # 检查是否是最后一个项目
+                    _check_and_send_rss_completion(history_repo, history_id)
+            except Exception:
+                pass
+            # 重新抛出异常，让 QueueWorker 正确统计失败数
+            raise
         except Exception as e:
-            logger.error(f'❌ 处理单个项目失败: {e}', exc_info=True)
+            # 意外错误，记录完整堆栈用于调试
+            logger.error(f'❌ 处理单个项目失败 (意外错误): {e}', exc_info=True)
             # 记录失败
             try:
                 if history_id:

@@ -27,6 +27,7 @@ from src.core.domain.value_objects import (
     TorrentHash,
 )
 from src.core.exceptions import (
+    AniDownError,
     AnimeInfoExtractionError,
     TorrentAddError,
 )
@@ -362,9 +363,13 @@ class DownloadManager:
 
             return success
 
+        except AniDownError as e:
+            # 预期的业务错误，只记录消息
+            logger.error(f'❌ [队列] 处理项目失败: {title[:50]}... - {e}')
+            raise
         except Exception as e:
-            logger.error(f'❌ [队列] 处理项目失败: {title[:50]}... - {e}', exc_info=True)
-            # 重新抛出异常，让调用者可以获取详细错误信息
+            # 意外错误，记录完整堆栈用于调试
+            logger.error(f'❌ [队列] 处理项目失败 (意外错误): {title[:50]}... - {e}', exc_info=True)
             raise
 
     def process_manual_anime_rss(
