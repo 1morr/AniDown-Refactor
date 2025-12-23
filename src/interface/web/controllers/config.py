@@ -402,15 +402,15 @@ def update_config():
     if restart_required:
         restart_msg = f'以下配置需要重启程序才能生效: {", ".join(restart_items)}'
         if success_count == total_count:
-            message = f'配置已保存并热重载成功 ({success_count}/{total_count})。{restart_msg}'
+            message = f'配置已保存并重新加载成功。{restart_msg}'
         else:
-            message = f'配置已保存，部分组件热重载失败 ({success_count}/{total_count})。{restart_msg}'
+            message = f'配置已保存，部分组件重新加载失败 ({success_count}/{total_count})。{restart_msg}'
     else:
         if success_count == total_count:
             message = f'配置已保存并实时生效 ({success_count}/{total_count} 组件已更新)'
         else:
             failed_components = [k for k, v in reload_results.items() if not v]
-            message = f'配置已保存，部分组件热重载失败: {", ".join(failed_components)}'
+            message = f'配置已保存，部分组件重新加载失败: {", ".join(failed_components)}'
 
     logger.api_success('/config/update', message)
 
