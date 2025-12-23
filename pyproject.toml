@@ -19,7 +19,6 @@ dependencies = [
     "dependency-injector>=4.41.0",
     "openai>=1.3.7",
     "bencodepy>=0.9.5",
-    "python-dotenv>=1.0.0",
     "psutil>=5.9.6",
     "beautifulsoup4>=4.12.0",
 ]

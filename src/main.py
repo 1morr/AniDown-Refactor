@@ -1012,8 +1012,9 @@ def main():
 
     args = parser.parse_args()
 
-    # 启用debug模式
-    if args.debug:
+    # 启用debug模式（命令行参数或环境变量）
+    debug_enabled = args.debug or os.getenv('DEBUG', '').lower() in ('true', '1', 'yes')
+    if debug_enabled:
         ai_debug_service.enable()
         logger.info('🐛 DEBUG模式已启用')
         logging.getLogger().setLevel(logging.DEBUG)
