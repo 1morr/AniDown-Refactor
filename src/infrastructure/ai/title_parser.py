@@ -40,6 +40,9 @@ class AITitleParser(ITitleParser):
         ...     print(result.clean_title)
     """
 
+    # 任务用途标识（用于日志记录，独立于 Pool 名称）
+    TASK_PURPOSE = 'title_parse'
+
     def __init__(
         self,
         key_pool: KeyPool,
@@ -150,7 +153,7 @@ class AITitleParser(ITitleParser):
 
                 # 记录到数据库
                 ai_key_repository.log_usage(
-                    purpose=self._key_pool.purpose,
+                    purpose=self.TASK_PURPOSE,
                     key_id=reservation.key_id,
                     key_name=key_info.get('name', ''),
                     model=reservation.model,
@@ -216,7 +219,7 @@ class AITitleParser(ITitleParser):
 
                 # 记录到数据库
                 ai_key_repository.log_usage(
-                    purpose=self._key_pool.purpose,
+                    purpose=self.TASK_PURPOSE,
                     key_id=reservation.key_id,
                     key_name=key_info.get('name', ''),
                     model=reservation.model,

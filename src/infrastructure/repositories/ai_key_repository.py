@@ -22,6 +22,50 @@ def _utc_date_str() -> str:
     return datetime.now(timezone.utc).date().isoformat()
 
 
+def _expand_purpose_to_all_related(purpose: str) -> List[str]:
+    """
+    将 purpose 扩展为所有相关的用途标识列表。
+
+    当查询共享 Pool 的历史记录时，需要同时查询：
+    1. Pool 名称本身 (e.g., 'MiMo')
+    2. Pool 前缀格式 (e.g., 'pool:MiMo')
+    3. 所有使用该 Pool 的任务 (e.g., 'title_parse', 'multi_file_rename')
+
+    Args:
+        purpose: 用途标识或 Pool 名称
+
+    Returns:
+        所有相关的用途标识列表
+    """
+    from src.infrastructure.ai.key_pool import (
+        _purpose_to_pool, _named_pools, _pools_lock
+    )
+
+    purposes = [purpose]  # 始终包含原始 purpose
+
+    with _pools_lock:
+        # 如果 purpose 是一个命名 Pool 名称
+        if purpose in _named_pools:
+            # 添加 pool:XXX 格式
+            purposes.append(f'pool:{purpose}')
+
+            # 添加所有绑定到此 Pool 的任务
+            for task_purpose, pool_name in _purpose_to_pool.items():
+                if pool_name == purpose and task_purpose not in purposes:
+                    purposes.append(task_purpose)
+
+        # 如果 purpose 是 pool:XXX 格式
+        elif purpose.startswith('pool:'):
+            pool_name = purpose[5:]  # 去掉 'pool:' 前缀
+            if pool_name in _named_pools:
+                purposes.append(pool_name)
+                for task_purpose, bound_pool in _purpose_to_pool.items():
+                    if bound_pool == pool_name and task_purpose not in purposes:
+                        purposes.append(task_purpose)
+
+    return purposes
+
+
 class AIKeyRepository:
     """AI Key 使用记录 Repository"""
 
@@ -31,7 +75,6 @@ class AIKeyRepository:
         key_id: str,
         key_name: str = '',
         model: str = '',
-        hash_id: str = '',
         anime_title: str = '',
         context_summary: str = '',
         success: bool = True,
@@ -49,7 +92,6 @@ class AIKeyRepository:
             key_id: Key 的哈希 ID
             key_name: Key 名称
             model: 使用的 AI 模型名称
-            hash_id: 相关 torrent 的 hash
             anime_title: 关联的动漫标题
             context_summary: 简短上下文描述
             success: 是否成功
@@ -72,7 +114,6 @@ class AIKeyRepository:
                     key_id=key_id,
                     key_name=key_name or '',
                     model=model or '',
-                    hash_id=hash_id or '',
                     anime_title=(anime_title or '')[:500],
                     context_summary=(context_summary or '')[:500],
                     success=1 if success else 0,
@@ -122,15 +163,20 @@ class AIKeyRepository:
         """
         获取指定 Key 的使用历史
 
+        支持按 Pool 名称查询，会自动扩展到所有相关的任务用途。
+
         Returns:
             使用记录列表
         """
         try:
+            # 扩展 purpose 到所有相关用途（支持共享 Pool 查询）
+            purposes = _expand_purpose_to_all_related(purpose)
+
             with db_manager.session() as session:
                 query = (
                     session.query(AIKeyUsageLog)
                     .filter(
-                        AIKeyUsageLog.purpose == purpose,
+                        AIKeyUsageLog.purpose.in_(purposes),
                         AIKeyUsageLog.key_id == key_id,
                     )
                     .order_by(desc(AIKeyUsageLog.created_at))
@@ -145,7 +191,6 @@ class AIKeyRepository:
                         'key_id': r.key_id,
                         'key_name': r.key_name,
                         'model': r.model,
-                        'hash_id': r.hash_id,
                         'anime_title': r.anime_title,
                         'context_summary': r.context_summary,
                         'success': bool(r.success),
@@ -170,14 +215,19 @@ class AIKeyRepository:
         """
         获取指定 Key 的使用统计信息
 
+        支持按 Pool 名称查询，会自动扩展到所有相关的任务用途。
+
         Args:
-            purpose: 用途
+            purpose: 用途或 Pool 名称
             key_id: Key ID
 
         Returns:
             包含统计信息的字典
         """
         try:
+            # 扩展 purpose 到所有相关用途（支持共享 Pool 查询）
+            purposes = _expand_purpose_to_all_related(purpose)
+
             with db_manager.session() as session:
                 from sqlalchemy import func as sql_func, distinct
 
@@ -185,7 +235,7 @@ class AIKeyRepository:
                 total_calls = (
                     session.query(sql_func.count(AIKeyUsageLog.id))
                     .filter(
-                        AIKeyUsageLog.purpose == purpose,
+                        AIKeyUsageLog.purpose.in_(purposes),
                         AIKeyUsageLog.key_id == key_id,
                     )
                     .scalar() or 0
@@ -194,7 +244,7 @@ class AIKeyRepository:
                 success_calls = (
                     session.query(sql_func.count(AIKeyUsageLog.id))
                     .filter(
-                        AIKeyUsageLog.purpose == purpose,
+                        AIKeyUsageLog.purpose.in_(purposes),
                         AIKeyUsageLog.key_id == key_id,
                         AIKeyUsageLog.success == 1,
                     )
@@ -207,7 +257,7 @@ class AIKeyRepository:
                 avg_response_time = (
                     session.query(sql_func.avg(AIKeyUsageLog.response_time_ms))
                     .filter(
-                        AIKeyUsageLog.purpose == purpose,
+                        AIKeyUsageLog.purpose.in_(purposes),
                         AIKeyUsageLog.key_id == key_id,
                         AIKeyUsageLog.success == 1,
                     )
@@ -218,7 +268,7 @@ class AIKeyRepository:
                 anime_count = (
                     session.query(sql_func.count(distinct(AIKeyUsageLog.anime_title)))
                     .filter(
-                        AIKeyUsageLog.purpose == purpose,
+                        AIKeyUsageLog.purpose.in_(purposes),
                         AIKeyUsageLog.key_id == key_id,
                         AIKeyUsageLog.anime_title.isnot(None),
                         AIKeyUsageLog.anime_title != '',
@@ -233,7 +283,7 @@ class AIKeyRepository:
                         sql_func.max(AIKeyUsageLog.created_at).label('last_used')
                     )
                     .filter(
-                        AIKeyUsageLog.purpose == purpose,
+                        AIKeyUsageLog.purpose.in_(purposes),
                         AIKeyUsageLog.key_id == key_id,
                         AIKeyUsageLog.anime_title.isnot(None),
                         AIKeyUsageLog.anime_title != '',
@@ -249,7 +299,7 @@ class AIKeyRepository:
                 today_calls = (
                     session.query(sql_func.count(AIKeyUsageLog.id))
                     .filter(
-                        AIKeyUsageLog.purpose == purpose,
+                        AIKeyUsageLog.purpose.in_(purposes),
                         AIKeyUsageLog.key_id == key_id,
                         sql_func.date(AIKeyUsageLog.created_at) == today,
                     )

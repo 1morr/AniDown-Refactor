@@ -1122,18 +1122,21 @@ def bind_purpose_to_pool(purpose: str, pool_name: str) -> None:
 
 def get_pool_for_purpose(purpose: str) -> Optional[KeyPool]:
     """
-    获取任务用途对应的 Key Pool。
+    获取任务用途或 Pool 名称对应的 Key Pool。
 
-    优先查找绑定的命名 Pool，如果没有则回退到用途 Pool。
+    查找顺序：
+    1. 如果 purpose 是任务用途，查找其绑定的命名 Pool
+    2. 如果 purpose 直接是 Pool 名称，从命名 Pool 中查找
+    3. 回退到用途 Pool 注册表
 
     Args:
-        purpose: 任务用途标识
+        purpose: 任务用途标识或 Pool 名称
 
     Returns:
         KeyPool 实例或 None
     """
     with _pools_lock:
-        # 优先查找绑定的命名 Pool
+        # 1. 优先查找绑定的命名 Pool（通过任务用途）
         pool_name = _purpose_to_pool.get(purpose)
         if pool_name:
             pool = _named_pools.get(pool_name)
@@ -1144,7 +1147,11 @@ def get_pool_for_purpose(purpose: str) -> Optional[KeyPool]:
                     f'⚠️ 任务 {purpose} 绑定的 Pool "{pool_name}" 不存在，回退到独立配置'
                 )
 
-        # 回退到用途 Pool
+        # 2. 检查 purpose 是否直接是 Pool 名称
+        if purpose in _named_pools:
+            return _named_pools[purpose]
+
+        # 3. 回退到用途 Pool
         return _pools.get(purpose)
 
 

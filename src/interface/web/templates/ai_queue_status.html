@@ -206,6 +206,7 @@
               <thead class="sticky top-0 bg-white dark:bg-slate-800">
                 <tr class="text-left text-slate-500 dark:text-gray-400 border-b border-slate-200 dark:border-white/10">
                   <th class="py-1.5 pr-2">时间</th>
+                  <th class="py-1.5 pr-2">功能</th>
                   <th class="py-1.5 pr-2">项目</th>
                   <th class="py-1.5 pr-2">状态</th>
                   <th class="py-1.5 pr-2">响应时间</th>
@@ -213,7 +214,7 @@
                 </tr>
               </thead>
               <tbody id="modal-history-table" class="text-slate-700 dark:text-gray-200">
-                <tr><td colspan="5" class="py-4 text-center text-slate-400">加载中...</td></tr>
+                <tr><td colspan="6" class="py-4 text-center text-slate-400">加载中...</td></tr>
               </tbody>
             </table>
           </div>
@@ -943,9 +944,25 @@ async function showKeyDetail(purpose, keyId, keyName) {
             : 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400';
           const statusText = h.success ? '成功' : `失败 (${h.error_code || 'ERR'})`;
           const animeTitle = h.anime_title || h.context_summary || '-';
+
+          // 功能名称映射
+          const purposeMap = {
+            'title_parse': '标题解析',
+            'multi_file_rename': '多文件重命名',
+            'subtitle_match': '字幕匹配',
+            'pool:MiMo': '共享 Pool'
+          };
+          const purposeDisplay = purposeMap[h.purpose] || h.purpose;
+          const purposeClass = {
+            'title_parse': 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-400',
+            'multi_file_rename': 'bg-purple-100 text-purple-800 dark:bg-purple-500/20 dark:text-purple-400',
+            'subtitle_match': 'bg-orange-100 text-orange-800 dark:bg-orange-500/20 dark:text-orange-400'
+          }[h.purpose] || 'bg-slate-100 text-slate-800 dark:bg-slate-500/20 dark:text-slate-400';
+
           return `
             <tr class="border-b border-slate-100 dark:border-white/5">
               <td class="py-1.5 pr-2 font-mono text-slate-500 dark:text-gray-400">${formatDateTime(h.created_at_utc)}</td>
+              <td class="py-1.5 pr-2"><span class="px-1.5 py-0.5 text-xs ${purposeClass} rounded">${purposeDisplay}</span></td>
               <td class="py-1.5 pr-2 truncate max-w-32" title="${escapeHtml(animeTitle)}">${escapeHtml(animeTitle.substring(0, 30))}</td>
               <td class="py-1.5 pr-2"><span class="px-1.5 py-0.5 text-xs ${statusClass} rounded">${statusText}</span></td>
               <td class="py-1.5 pr-2 font-mono">${h.response_time_ms || 0}ms</td>
@@ -954,12 +971,12 @@ async function showKeyDetail(purpose, keyId, keyName) {
           `;
         }).join('');
       } else {
-        document.getElementById('modal-history-table').innerHTML = '<tr><td colspan="5" class="py-4 text-center text-slate-400 dark:text-gray-500">暂无历史记录</td></tr>';
+        document.getElementById('modal-history-table').innerHTML = '<tr><td colspan="6" class="py-4 text-center text-slate-400 dark:text-gray-500">暂无历史记录</td></tr>';
       }
     }
   } catch (e) {
     console.error('加载 Key 详情失败:', e);
-    document.getElementById('modal-history-table').innerHTML = '<tr><td colspan="5" class="py-4 text-center text-red-500">加载失败</td></tr>';
+    document.getElementById('modal-history-table').innerHTML = '<tr><td colspan="6" class="py-4 text-center text-red-500">加载失败</td></tr>';
   }
 }
 

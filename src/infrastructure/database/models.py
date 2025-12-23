@@ -327,7 +327,6 @@ class AIKeyUsageLog(Base):
     key_id = Column(Text, nullable=False)   # key 的哈希 ID（不存储原始 key）
     key_name = Column(Text)                 # key 名称（用户自定义）
     model = Column(Text)                    # 使用的 AI 模型名称
-    hash_id = Column(Text)                  # 相关 torrent 的 hash（可选）
     anime_title = Column(Text)              # 关联的动漫标题（用于统计哪些项目使用了此 Key）
     context_summary = Column(Text)          # 简短上下文描述（如文件名）
     success = Column(Integer, default=1)    # 0: 失败, 1: 成功
@@ -341,7 +340,6 @@ class AIKeyUsageLog(Base):
     __table_args__ = (
         Index('idx_ai_usage_purpose_key', 'purpose', 'key_id'),
         Index('idx_ai_usage_created', 'created_at'),
-        Index('idx_ai_usage_hash', 'hash_id'),
         Index('idx_ai_usage_anime_title', 'anime_title'),
     )
 

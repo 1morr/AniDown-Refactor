@@ -429,13 +429,15 @@ def get_all_named_breakers() -> Dict[str, CircuitBreaker]:
 
 def get_breaker_for_purpose(purpose: str) -> Optional[CircuitBreaker]:
     """
-    获取任务用途对应的熔断器。
+    获取任务用途或 Pool 名称对应的熔断器。
 
-    优先查找绑定的命名熔断器（通过 key_pool 的 purpose-to-pool 映射），
-    如果没有则回退到用途熔断器。
+    查找顺序：
+    1. 如果 purpose 是任务用途，查找其绑定的命名熔断器
+    2. 如果 purpose 直接是 Pool 名称，从命名熔断器中查找
+    3. 回退到用途熔断器注册表
 
     Args:
-        purpose: 任务用途标识
+        purpose: 任务用途标识或 Pool 名称
 
     Returns:
         CircuitBreaker 实例或 None
@@ -444,7 +446,7 @@ def get_breaker_for_purpose(purpose: str) -> Optional[CircuitBreaker]:
     from src.infrastructure.ai.key_pool import _purpose_to_pool, _pools_lock
 
     with _breakers_lock:
-        # 优先查找绑定的命名熔断器
+        # 1. 优先查找绑定的命名熔断器（通过任务用途）
         with _pools_lock:
             pool_name = _purpose_to_pool.get(purpose)
 
@@ -457,7 +459,11 @@ def get_breaker_for_purpose(purpose: str) -> Optional[CircuitBreaker]:
                     f'⚠️ 任务 {purpose} 绑定的熔断器 "{pool_name}" 不存在，回退到独立配置'
                 )
 
-        # 回退到用途熔断器
+        # 2. 检查 purpose 是否直接是 Pool 名称
+        if purpose in _named_breakers:
+            return _named_breakers[purpose]
+
+        # 3. 回退到用途熔断器
         return _breakers.get(purpose)
 
 
