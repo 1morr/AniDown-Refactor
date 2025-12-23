@@ -577,7 +577,8 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 {{ 'opacity-50 pointer-events-none' if not config.get('path_conversion.enabled', False) else '' }} transition-all duration-300" id="path_conv_fields">
                     <div>
                         <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">源基础路径</label>
-                        <input type="text" id="path_conv_src" class="input-field" value="{{ config.get('path_conversion.source_base_path', '/downloads/AniDown/') }}">
+                        <input type="text" id="path_conv_src" class="input-field opacity-50 pointer-events-none" value="{{ config.qbittorrent.base_download_path }}" readonly>
+                        <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">此字段自动与 qBittorrent 下载路径保持一致</p>
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">目标基础路径</label>
@@ -1430,7 +1431,8 @@
         if (document.getElementById('path_conv_enabled').checked) {
             formData.append('path_conversion_enabled', 'on');
         }
-        formData.append('path_conversion_source_base', document.getElementById('path_conv_src').value);
+        // 源基础路径始终使用 qBittorrent 下载路径
+        formData.append('path_conversion_source_base', document.getElementById('qb_path').value);
         formData.append('path_conversion_target_base', document.getElementById('path_conv_target').value);
 
         // Webhook 配置
@@ -1488,6 +1490,15 @@
 
         // 初始化 Pool 下拉框选项
         updatePoolDropdowns();
+
+        // 绑定 qBittorrent 下载路径变化事件，自动同步到路径转换的源基础路径
+        const qbPathInput = document.getElementById('qb_path');
+        const pathConvSrcInput = document.getElementById('path_conv_src');
+        if (qbPathInput && pathConvSrcInput) {
+            qbPathInput.addEventListener('input', () => {
+                pathConvSrcInput.value = qbPathInput.value;
+            });
+        }
     });
 
     // 语言优先级拖放功能
