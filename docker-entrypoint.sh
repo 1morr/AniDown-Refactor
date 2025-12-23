@@ -49,9 +49,14 @@ create_directories() {
         "/data/config"
         "/data/logs"
         "/data/ai_logs"
-        "/storage/downloads/AniDown"
-        "/storage/library/TV Shows"
-        "/storage/library/Movies"
+        "/storage/Downloads/AniDown/Anime/TV"
+        "/storage/Downloads/AniDown/Anime/Movies"
+        "/storage/Downloads/AniDown/LiveAction/TV"
+        "/storage/Downloads/AniDown/LiveAction/Movies"
+        "/storage/Library/Anime/TV"
+        "/storage/Library/Anime/Movies"
+        "/storage/Library/LiveAction/TV"
+        "/storage/Library/LiveAction/Movies"
     )
 
     for dir in "${directories[@]}"; do

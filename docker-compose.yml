@@ -33,10 +33,7 @@ services:
       # Webhook 配置
       - ANIDOWN_WEBHOOK__HOST=0.0.0.0
       - ANIDOWN_WEBHOOK__PORT=5678
-
-      # 路徑配置 (容器內路徑，其他配置請在 Web UI 中設置)
-      - ANIDOWN_LINK_TARGET_PATH=/storage/library/TV Shows
-      - ANIDOWN_MOVIE_LINK_TARGET_PATH=/storage/library/Movies
+      
 
     # 資源限制建議
     deploy:

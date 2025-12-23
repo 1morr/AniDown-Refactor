@@ -67,6 +67,8 @@ cp config.json.example data/config/config.json
 
 ### 4. 啟動服務
 
+#### 使用 Docker Compose（推薦）
+
 ```bash
 # 構建並啟動
 docker-compose up -d
@@ -76,6 +78,89 @@ docker-compose logs -f
 
 # 停止服務
 docker-compose down
+```
+
+#### 使用 Docker Run（無需 Docker Compose）
+
+如果你不想使用 Docker Compose，可以使用以下 `docker run` 命令：
+
+**第一步：構建鏡像（可選）**
+
+如果你想使用本地構建的鏡像，而非 Docker Hub 上的預構建鏡像：
+
+```bash
+docker build -t 1mor/anidown:latest .
+```
+
+**第二步：運行容器**
+
+Linux/macOS:
+```bash
+docker run -d \
+  --name anidown \
+  --restart unless-stopped \
+  -p 8081:8081 \
+  -p 5678:5678 \
+  -v ./data/db:/data/db \
+  -v ./data/config:/data/config \
+  -v ./data/logs:/data/logs \
+  -v ./data/ai_logs:/data/ai_logs \
+  -v ./storage:/storage \
+  -e TZ=Asia/Taipei \
+  -e DEBUG=false \
+  -e CONFIG_PATH=/data/config/config.json \
+  -e DB_PATH=/data/db/anime_downloader.db \
+  -e LOG_PATH=/data/logs \
+  -e AI_LOG_PATH=/data/ai_logs \
+  -e ANIDOWN_WEBUI__HOST=0.0.0.0 \
+  -e ANIDOWN_WEBUI__PORT=8081 \
+  -e ANIDOWN_WEBHOOK__HOST=0.0.0.0 \
+  -e ANIDOWN_WEBHOOK__PORT=5678 \
+  1mor/anidown:latest
+```
+
+Windows PowerShell:
+```powershell
+docker run -d `
+  --name anidown `
+  --restart unless-stopped `
+  -p 8081:8081 `
+  -p 5678:5678 `
+  -v ${PWD}/data/db:/data/db `
+  -v ${PWD}/data/config:/data/config `
+  -v ${PWD}/data/logs:/data/logs `
+  -v ${PWD}/data/ai_logs:/data/ai_logs `
+  -v ${PWD}/storage:/storage `
+  -e TZ=Asia/Taipei `
+  -e DEBUG=false `
+  -e CONFIG_PATH=/data/config/config.json `
+  -e DB_PATH=/data/db/anime_downloader.db `
+  -e LOG_PATH=/data/logs `
+  -e AI_LOG_PATH=/data/ai_logs `
+  -e ANIDOWN_WEBUI__HOST=0.0.0.0 `
+  -e ANIDOWN_WEBUI__PORT=8081 `
+  -e ANIDOWN_WEBHOOK__HOST=0.0.0.0 `
+  -e ANIDOWN_WEBHOOK__PORT=5678 `
+  1mor/anidown:latest
+```
+
+**常用管理命令**
+
+```bash
+# 查看日誌
+docker logs -f anidown
+
+# 停止容器
+docker stop anidown
+
+# 啟動容器
+docker start anidown
+
+# 刪除容器
+docker rm anidown
+
+# 進入容器 shell
+docker exec -it anidown /bin/sh
 ```
 
 ### 5. 訪問 Web UI
@@ -92,13 +177,23 @@ docker-compose down
 │   ├── logs/            # 應用日誌
 │   └── ai_logs/         # AI 調試日誌
 └── storage/
-    ├── downloads/       # qBittorrent 下載目錄
-    └── library/         # Plex/Jellyfin 媒體庫
-        ├── TV Shows/
-        └── Movies/
+    ├── Downloads/AniDown/    # qBittorrent 下載目錄
+    │   ├── Anime/
+    │   │   ├── TV/
+    │   │   └── Movies/
+    │   └── LiveAction/
+    │       ├── TV/
+    │       └── Movies/
+    └── Library/              # Plex/Jellyfin 媒體庫
+        ├── Anime/
+        │   ├── TV/
+        │   └── Movies/
+        └── LiveAction/
+            ├── TV/
+            └── Movies/
 ```
 
-> **重要**: `downloads` 和 `library` 必須在同一文件系統（同一掛載點）以支持硬鏈接。
+> **重要**: `Downloads` 和 `Library` 必須在同一文件系統（同一掛載點）以支持硬鏈接。
 
 ---
 

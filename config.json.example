@@ -12,7 +12,7 @@
     "url": "http://qbittorrent:8080",
     "username": "admin",
     "password": "adminadmin",
-    "base_download_path": "/storage/downloads/AniDown/",
+    "base_download_path": "/storage/Downloads/AniDown/",
     "category": "AniDown",
     "anime_folder_name": "Anime",
     "live_action_folder_name": "LiveAction",
@@ -89,16 +89,16 @@
   "path_conversion": {
     "enabled": false,
     "source_base_path": "/downloads/AniDown/",
-    "target_base_path": "/storage/downloads/AniDown/"
+    "target_base_path": "/storage/Downloads/AniDown/"
   },
   "tvdb": {
     "api_key": "",
     "max_data_length": 10000
   },
-  "link_target_path": "/storage/library/TV Shows",
-  "movie_link_target_path": "/storage/library/Movies",
-  "live_action_tv_target_path": "/storage/library/LiveAction/TV Shows",
-  "live_action_movie_target_path": "/storage/library/LiveAction/Movies",
+  "link_target_path": "/storage/Library/Anime/TV",
+  "movie_link_target_path": "/storage/Library/Anime/Movies",
+  "live_action_tv_target_path": "/storage/Library/LiveAction/TV",
+  "live_action_movie_target_path": "/storage/Library/LiveAction/Movies",
   "use_consistent_naming_tv": false,
   "use_consistent_naming_movie": false
 }
