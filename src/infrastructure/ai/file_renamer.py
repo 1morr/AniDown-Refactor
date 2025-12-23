@@ -337,7 +337,7 @@ class AIFileRenamer(IFileRenamer):
             RenameResult 或 None
         """
         # 构建用户消息
-        user_message = self._build_user_message(
+        user_message, indexed_files = self._build_user_message(
             files=files,
             category=category,
             anime_title=anime_title,
@@ -407,7 +407,7 @@ class AIFileRenamer(IFileRenamer):
                 )
 
                 # 解析响应
-                result = self._parse_response(response.content)
+                result = self._parse_response(response.content, indexed_files)
 
                 # 记录到数据库
                 ai_key_repository.log_usage(
@@ -530,7 +530,7 @@ class AIFileRenamer(IFileRenamer):
         folder_structure: Optional[str],
         tvdb_data: Optional[Dict[str, Any]],
         previous_hardlinks: List[str]
-    ) -> str:
+    ) -> Tuple[str, Dict[str, str]]:
         """
         构建发送给 AI 的用户消息。
 
@@ -543,7 +543,7 @@ class AIFileRenamer(IFileRenamer):
             previous_hardlinks: 已创建的硬链接
 
         Returns:
-            格式化的用户消息
+            Tuple[str, Dict[str, str]]: (格式化的用户消息, key到文件路径的映射)
         """
         message_parts = []
 
@@ -553,8 +553,9 @@ class AIFileRenamer(IFileRenamer):
         if anime_title:
             message_parts.append(f'**Anime Title**: {anime_title}')
 
-        # 文件列表
-        files_json = json.dumps({'files': files}, ensure_ascii=False, indent=2)
+        # 构建带 key 的文件映射
+        indexed_files = {str(i + 1): f for i, f in enumerate(files)}
+        files_json = json.dumps({'files': indexed_files}, ensure_ascii=False, indent=2)
         message_parts.append(f'**Files**:\n```json\n{files_json}\n```')
 
         # 文件夹结构
@@ -577,14 +578,19 @@ class AIFileRenamer(IFileRenamer):
                 f'**Previous Hardlinks**:\n```json\n{hardlinks_json}\n```'
             )
 
-        return '\n\n'.join(message_parts)
+        return '\n\n'.join(message_parts), indexed_files
 
-    def _parse_response(self, content: Optional[str]) -> Optional[RenameResult]:
+    def _parse_response(
+        self,
+        content: Optional[str],
+        indexed_files: Dict[str, str]
+    ) -> Optional[RenameResult]:
         """
         解析 AI 响应内容。
 
         Args:
             content: AI 响应内容
+            indexed_files: key 到原始文件路径的映射
 
         Returns:
             RenameResult 或 None
@@ -605,9 +611,26 @@ class AIFileRenamer(IFileRenamer):
 
             data = json.loads(cleaned)
 
-            # 构建 RenameResult
-            main_files = data.get('main_files', {})
-            skipped_files = data.get('skipped_files', [])
+            # 将 key 转换回原始文件路径
+            main_files_raw = data.get('main_files', {})
+            main_files = {}
+            for key, new_name in main_files_raw.items():
+                original_path = indexed_files.get(key)
+                if original_path:
+                    main_files[original_path] = new_name
+                else:
+                    logger.warning(f'⚠️ 未知的文件 key: {key}')
+
+            # 将 skipped_files 的 key 转换回原始文件路径
+            skipped_keys = data.get('skipped_files', [])
+            skipped_files = []
+            for key in skipped_keys:
+                original_path = indexed_files.get(key)
+                if original_path:
+                    skipped_files.append(original_path)
+                else:
+                    logger.warning(f'⚠️ 未知的跳过文件 key: {key}')
+
             seasons_info = data.get('seasons_info', {})
 
             # 构建 patterns 信息

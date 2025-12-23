@@ -106,15 +106,15 @@ MULTI_FILE_RENAME_RESPONSE_FORMAT: ResponseFormat = {
             'properties': {
                 'main_files': {
                     'type': 'object',
-                    'description': 'Mappings of original paths to new file names',
+                    'description': 'Mappings of file keys (e.g. "1", "2") to new file names',
                     'additionalProperties': _string_field(
                         'Target file path with season prefix when required'
                     )
                 },
                 'skipped_files': {
                     'type': 'array',
-                    'description': 'Non-main content the AI skipped',
-                    'items': _string_field('Original file path that should be skipped')
+                    'description': 'Keys of non-main content files to skip (e.g. ["3", "5"])',
+                    'items': _string_field('File key that should be skipped')
                 },
                 'seasons_info': {
                     'type': 'object',
@@ -185,14 +185,14 @@ SUBTITLE_MATCH_RESPONSE_FORMAT: ResponseFormat = {
             'properties': {
                 'matches': {
                     'type': 'array',
-                    'description': 'List of matched video-subtitle pairs',
+                    'description': 'List of matched video-subtitle pairs using keys',
                     'items': {
                         'type': 'object',
                         'additionalProperties': False,
-                        'required': ['video_file', 'subtitle_file', 'language_tag', 'new_name'],
+                        'required': ['video_key', 'subtitle_key', 'language_tag', 'new_name'],
                         'properties': {
-                            'video_file': _string_field('Video file path'),
-                            'subtitle_file': _string_field('Original subtitle file name'),
+                            'video_key': _string_field('Video file key (e.g. "v1", "v2")'),
+                            'subtitle_key': _string_field('Subtitle file key (e.g. "s1", "s2")'),
                             'language_tag': _string_field(
                                 'Standardized language tag: chs, cht, eng, jpn, kor, etc.'
                             ),
@@ -204,13 +204,13 @@ SUBTITLE_MATCH_RESPONSE_FORMAT: ResponseFormat = {
                 },
                 'unmatched_subtitles': {
                     'type': 'array',
-                    'items': _string_field('Subtitle files that could not be matched'),
-                    'description': 'Subtitle files without matching video'
+                    'items': _string_field('Subtitle file keys that could not be matched'),
+                    'description': 'Subtitle file keys without matching video (e.g. ["s3", "s5"])'
                 },
                 'videos_without_subtitle': {
                     'type': 'array',
-                    'items': _string_field('Video files without matching subtitle'),
-                    'description': 'Video files that have no subtitle match'
+                    'items': _string_field('Video file keys without matching subtitle'),
+                    'description': 'Video file keys with no subtitle match (e.g. ["v2"])'
                 }
             }
         }

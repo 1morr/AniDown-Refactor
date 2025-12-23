@@ -7,7 +7,7 @@ AI 字幕匹配器模块。
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from src.core.config import config
 from src.core.exceptions import (
@@ -189,7 +189,7 @@ class AISubtitleMatcher:
         import time
 
         # 构建用户消息
-        user_message = self._build_user_message(
+        user_message, indexed_videos, indexed_subtitles = self._build_user_message(
             video_files=video_files,
             subtitle_files=subtitle_files,
             anime_title=anime_title
@@ -258,7 +258,11 @@ class AISubtitleMatcher:
                     )
 
                     # 解析响应
-                    result = self._parse_response(response.content)
+                    result = self._parse_response(
+                        response.content,
+                        indexed_videos,
+                        indexed_subtitles
+                    )
 
                     # 记录到数据库
                     ai_key_repository.log_usage(
@@ -456,23 +460,101 @@ class AISubtitleMatcher:
         video_files: List[str],
         subtitle_files: List[str],
         anime_title: Optional[str] = None
-    ) -> str:
-        """构建发送给 AI 的用户消息"""
+    ) -> Tuple[str, Dict[str, str], Dict[str, str]]:
+        """
+        构建发送给 AI 的用户消息。
+
+        Args:
+            video_files: 视频文件列表
+            subtitle_files: 字幕文件列表
+            anime_title: 动漫标题
+
+        Returns:
+            Tuple[str, Dict[str, str], Dict[str, str]]:
+                (格式化的消息, video_key映射, subtitle_key映射)
+        """
+        # 构建带 key 的文件映射
+        indexed_videos = {f'v{i + 1}': f for i, f in enumerate(video_files)}
+        indexed_subtitles = {f's{i + 1}': f for i, f in enumerate(subtitle_files)}
+
         data = {
-            'video_files': video_files,
-            'subtitle_files': subtitle_files
+            'video_files': indexed_videos,
+            'subtitle_files': indexed_subtitles
         }
 
         if anime_title:
             data['anime_title'] = anime_title
 
-        return json.dumps(data, ensure_ascii=False, indent=2)
+        return json.dumps(data, ensure_ascii=False, indent=2), indexed_videos, indexed_subtitles
 
-    def _parse_response(self, response: str) -> MatchResult:
-        """解析 AI 响应"""
+    def _parse_response(
+        self,
+        response: str,
+        indexed_videos: Dict[str, str],
+        indexed_subtitles: Dict[str, str]
+    ) -> MatchResult:
+        """
+        解析 AI 响应。
+
+        Args:
+            response: AI 响应内容
+            indexed_videos: video_key 到原始视频路径的映射
+            indexed_subtitles: subtitle_key 到原始字幕文件名的映射
+
+        Returns:
+            MatchResult 匹配结果
+        """
         try:
             data = json.loads(response)
-            return MatchResult.from_dict(data)
+
+            # 解析 matches，将 key 转换回原始文件名
+            matches = []
+            for m in data.get('matches', []):
+                video_key = m.get('video_key', '')
+                subtitle_key = m.get('subtitle_key', '')
+
+                video_file = indexed_videos.get(video_key, '')
+                subtitle_file = indexed_subtitles.get(subtitle_key, '')
+
+                if not video_file:
+                    logger.warning(f'⚠️ 未知的视频 key: {video_key}')
+                    continue
+                if not subtitle_file:
+                    logger.warning(f'⚠️ 未知的字幕 key: {subtitle_key}')
+                    continue
+
+                matches.append(SubtitleMatch(
+                    video_file=video_file,
+                    subtitle_file=subtitle_file,
+                    language_tag=m.get('language_tag', 'und'),
+                    new_name=m.get('new_name', '')
+                ))
+
+            # 解析 unmatched_subtitles，将 key 转换回原始文件名
+            unmatched_keys = data.get('unmatched_subtitles', [])
+            unmatched_subtitles = []
+            for key in unmatched_keys:
+                subtitle_file = indexed_subtitles.get(key)
+                if subtitle_file:
+                    unmatched_subtitles.append(subtitle_file)
+                else:
+                    logger.warning(f'⚠️ 未知的未匹配字幕 key: {key}')
+
+            # 解析 videos_without_subtitle，将 key 转换回原始文件名
+            without_sub_keys = data.get('videos_without_subtitle', [])
+            videos_without_subtitle = []
+            for key in without_sub_keys:
+                video_file = indexed_videos.get(key)
+                if video_file:
+                    videos_without_subtitle.append(video_file)
+                else:
+                    logger.warning(f'⚠️ 未知的无字幕视频 key: {key}')
+
+            return MatchResult(
+                matches=matches,
+                unmatched_subtitles=unmatched_subtitles,
+                videos_without_subtitle=videos_without_subtitle
+            )
         except json.JSONDecodeError as e:
             logger.error(f'❌ 解析 AI 响应失败: {e}')
             logger.debug(f'原始响应: {response[:500]}...')

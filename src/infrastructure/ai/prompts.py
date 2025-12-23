@@ -267,10 +267,19 @@ MULTI_FILE_RENAME_WITH_TVDB_PROMPT = r"""你是一位顶尖的动漫档案分析
 
 ## 字段说明
 
-- **`main_files`**: 正片重命名映射。**key**是原路径，**value**是新文件名。
+- **`main_files`**: 正片重命名映射。**key**是输入文件的数字编号（如 "1", "2", "3"），**value**是新文件名。
+- **`skipped_files`**: 跳过的非正片文件的数字编号列表（如 ["3", "5"]）。
 - **`previous_hardlinks`**: 注意检查此列表，防止重命名冲突。
 - **`seasons_info`**: 季度元数据。
-- **`special_tag_regex`**: **必须提供**。即便当前返回 "无"，也必须生成基于“数量守恒法”的正则。
+- **`special_tag_regex`**: **必须提供**。即便当前返回 "无"，也必须生成基于"数量守恒法"的正则。
+
+## 重要：Key 映射机制
+
+输入文件会带有数字 key（如 "1", "2", "3"），你必须在输出中使用相同的 key 进行映射：
+- 输入: `{"files": {"1": "path/to/file1.mkv", "2": "path/to/file2.mkv"}}`
+- 输出: `{"main_files": {"1": "new_name1.mkv", "2": "new_name2.mkv"}, "skipped_files": []}`
+
+**不要在输出中使用原始文件名作为 key，只使用数字 key！**
 
 ## 结构化输出
 
@@ -285,12 +294,12 @@ MULTI_FILE_RENAME_WITH_TVDB_PROMPT = r"""你是一位顶尖的动漫档案分析
 对于输入（劇場版）：
 ```json
 {
-  "files": [
-    "[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/SPs/[VCB-Studio] OVERLORD Sei Oukoku Hen [Audio Guide Menu][Ma10p_1080p][x265_flac].mkv",
-	"[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p][x265_flac].mka",
-	"[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p][x265_flac].mkv",
-	"[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/SPs/[VCB-Studio] OVERLORD Sei Oukoku Hen [CM04][Ma10p_1080p][x265_flac].mkv"
-  ]
+  "files": {
+    "1": "[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/SPs/[VCB-Studio] OVERLORD Sei Oukoku Hen [Audio Guide Menu][Ma10p_1080p][x265_flac].mkv",
+    "2": "[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p][x265_flac].mka",
+    "3": "[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p][x265_flac].mkv",
+    "4": "[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/SPs/[VCB-Studio] OVERLORD Sei Oukoku Hen [CM04][Ma10p_1080p][x265_flac].mkv"
+  }
 }
 ```
 
@@ -298,13 +307,9 @@ MULTI_FILE_RENAME_WITH_TVDB_PROMPT = r"""你是一位顶尖的动漫档案分析
 ```json
 {
   "main_files": {
-    "[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p][x265_flac].mkv": "OVERLORD Sei Oukoku Hen - VCB-Studio.mkv"
+    "3": "OVERLORD Sei Oukoku Hen - VCB-Studio.mkv"
   },
-  "skipped_files": [
-    "[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/SPs/[VCB-Studio] OVERLORD Sei Oukoku Hen [Audio Guide Menu][Ma10p_1080p][x265_flac].mkv",
-	"[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p][x265_flac].mka",
-	"[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/SPs/[VCB-Studio] OVERLORD Sei Oukoku Hen [CM04][Ma10p_1080p][x265_flac].mkv"
-  ],
+  "skipped_files": ["1", "2", "4"],
   "seasons_info": {
     "1": {"type": "movie", "count": 1, "description": "劇場版"}
   },
@@ -330,10 +335,10 @@ MULTI_FILE_RENAME_WITH_TVDB_PROMPT = r"""你是一位顶尖的动漫档案分析
 对于输入（多季+特别篇+TVDB纠错）：
 ```json
 {
-  "files": [
-    "Season 1/[ANi] 动漫标题 - 13 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4",
-    "Season 1/[ANi] 动漫标题 - 14 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4"
-  ]
+  "files": {
+    "1": "Season 1/[ANi] 动漫标题 - 13 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4",
+    "2": "Season 1/[ANi] 动漫标题 - 14 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4"
+  }
 }
 ```
 
@@ -341,8 +346,8 @@ MULTI_FILE_RENAME_WITH_TVDB_PROMPT = r"""你是一位顶尖的动漫档案分析
 ```json
 {
   "main_files": {
-    "Season 1/[ANi] 动漫标题 - 13 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4": "Season 0/动漫标题 - S00E01 - ANi [CHT].mp4",
-    "Season 1/[ANi] 动漫标题 - 14 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4": "Season 0/动漫标题 - S00E02 - ANi [CHT].mp4"
+    "1": "Season 0/动漫标题 - S00E01 - ANi [CHT].mp4",
+    "2": "Season 0/动漫标题 - S00E02 - ANi [CHT].mp4"
   },
   "skipped_files": [],
   "seasons_info": {
@@ -370,10 +375,10 @@ MULTI_FILE_RENAME_WITH_TVDB_PROMPT = r"""你是一位顶尖的动漫档案分析
 对于输入（CRC排除测试）：
 ```json
 {
-  "files": [
-    "[Erai-raws] Black Clover (TV) - 001 [1080p][Multiple Subtitle][284B3626].mkv",
-    "[Erai-raws] Black Clover (TV) - 002 [1080p][Multiple Subtitle][FC678D67].mkv"
-  ]
+  "files": {
+    "1": "[Erai-raws] Black Clover (TV) - 001 [1080p][Multiple Subtitle][284B3626].mkv",
+    "2": "[Erai-raws] Black Clover (TV) - 002 [1080p][Multiple Subtitle][FC678D67].mkv"
+  }
 }
 ```
 
@@ -381,8 +386,8 @@ MULTI_FILE_RENAME_WITH_TVDB_PROMPT = r"""你是一位顶尖的动漫档案分析
 ```json
 {
   "main_files": {
-    "[Erai-raws] Black Clover (TV) - 001 [1080p][Multiple Subtitle][284B3626].mkv": "Season 1/Black Clover (TV) - S01E01 - Erai-raws [Multiple Subtitle].mkv",
-    "[Erai-raws] Black Clover (TV) - 002 [1080p][Multiple Subtitle][FC678D67].mkv": "Season 1/Black Clover (TV) - S01E02 - Erai-raws [Multiple Subtitle].mkv"
+    "1": "Season 1/Black Clover (TV) - S01E01 - Erai-raws [Multiple Subtitle].mkv",
+    "2": "Season 1/Black Clover (TV) - S01E02 - Erai-raws [Multiple Subtitle].mkv"
   },
   "skipped_files": [],
   "seasons_info": {
@@ -501,10 +506,19 @@ MULTI_FILE_RENAME_STANDARD_PROMPT = r"""你是一位顶尖的动漫档案分析�
 
 ## 字段说明
 
-- **`main_files`**: 正片重命名映射。**key**是原路径，**value**是新文件名。
+- **`main_files`**: 正片重命名映射。**key**是输入文件的数字编号（如 "1", "2", "3"），**value**是新文件名。
+- **`skipped_files`**: 跳过的非正片文件的数字编号列表（如 ["3", "5"]）。
 - **`previous_hardlinks`**: 注意检查此列表，防止重命名冲突。
 - **`seasons_info`**: 季度元数据。
-- **`special_tag_regex`**: **必须提供**。即便当前返回 "无"，也必须生成基于“数量守恒法”的正则。
+- **`special_tag_regex`**: **必须提供**。即便当前返回 "无"，也必须生成基于"数量守恒法"的正则。
+
+## 重要：Key 映射机制
+
+输入文件会带有数字 key（如 "1", "2", "3"），你必须在输出中使用相同的 key 进行映射：
+- 输入: `{"files": {"1": "path/to/file1.mkv", "2": "path/to/file2.mkv"}}`
+- 输出: `{"main_files": {"1": "new_name1.mkv", "2": "new_name2.mkv"}, "skipped_files": []}`
+
+**不要在输出中使用原始文件名作为 key，只使用数字 key！**
 
 ## 结构化输出
 
@@ -518,12 +532,12 @@ MULTI_FILE_RENAME_STANDARD_PROMPT = r"""你是一位顶尖的动漫档案分析�
 对于输入（劇場版）：
 ```json
 {
-  "files": [
-    "[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/SPs/[VCB-Studio] OVERLORD Sei Oukoku Hen [Audio Guide Menu][Ma10p_1080p][x265_flac].mkv",
-	"[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p][x265_flac].mka",
-	"[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p][x265_flac].mkv",
-	"[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/SPs/[VCB-Studio] OVERLORD Sei Oukoku Hen [CM04][Ma10p_1080p][x265_flac].mkv"
-  ]
+  "files": {
+    "1": "[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/SPs/[VCB-Studio] OVERLORD Sei Oukoku Hen [Audio Guide Menu][Ma10p_1080p][x265_flac].mkv",
+    "2": "[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p][x265_flac].mka",
+    "3": "[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p][x265_flac].mkv",
+    "4": "[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/SPs/[VCB-Studio] OVERLORD Sei Oukoku Hen [CM04][Ma10p_1080p][x265_flac].mkv"
+  }
 }
 ```
 
@@ -531,13 +545,9 @@ MULTI_FILE_RENAME_STANDARD_PROMPT = r"""你是一位顶尖的动漫档案分析�
 ```json
 {
   "main_files": {
-    "[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p][x265_flac].mkv": "OVERLORD Sei Oukoku Hen - VCB-Studio.mkv"
+    "3": "OVERLORD Sei Oukoku Hen - VCB-Studio.mkv"
   },
-  "skipped_files": [
-    "[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/SPs/[VCB-Studio] OVERLORD Sei Oukoku Hen [Audio Guide Menu][Ma10p_1080p][x265_flac].mkv",
-	"[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p][x265_flac].mka",
-	"[VCB-Studio] OVERLORD Sei Oukoku Hen [Ma10p_1080p]/SPs/[VCB-Studio] OVERLORD Sei Oukoku Hen [CM04][Ma10p_1080p][x265_flac].mkv"
-  ],
+  "skipped_files": ["1", "2", "4"],
   "seasons_info": {
     "1": {"type": "movie", "count": 1, "description": "劇場版"}
   },
@@ -563,11 +573,11 @@ MULTI_FILE_RENAME_STANDARD_PROMPT = r"""你是一位顶尖的动漫档案分析�
 对于输入（劇集1）：
 ```json
 {
-  "files": [
-    "[ANi] 地縛少年花子君 2 - 15 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4",
-	"[ANi] 地縛少年花子君 2 - 13 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4",
-	"[ANi] 地縛少年花子君 2 - 14 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4"
-  ]
+  "files": {
+    "1": "[ANi] 地縛少年花子君 2 - 15 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4",
+    "2": "[ANi] 地縛少年花子君 2 - 13 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4",
+    "3": "[ANi] 地縛少年花子君 2 - 14 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4"
+  }
 }
 ```
 
@@ -575,9 +585,9 @@ MULTI_FILE_RENAME_STANDARD_PROMPT = r"""你是一位顶尖的动漫档案分析�
 ```json
 {
   "main_files": {
-    "[ANi] 地縛少年花子君 2 - 15 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4": "Season 2/地縛少年花子君 - S02E15 - ANi [CHT].mp4",
-	"[ANi] 地縛少年花子君 2 - 13 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4": "Season 2/地縛少年花子君 - S02E13 - ANi [CHT].mp4",
-	"[ANi] 地縛少年花子君 2 - 14 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4": "Season 2/地縛少年花子君 - S02E14 - ANi [CHT].mp4"
+    "1": "Season 2/地縛少年花子君 - S02E15 - ANi [CHT].mp4",
+    "2": "Season 2/地縛少年花子君 - S02E13 - ANi [CHT].mp4",
+    "3": "Season 2/地縛少年花子君 - S02E14 - ANi [CHT].mp4"
   },
   "skipped_files": [],
   "seasons_info": {
@@ -606,10 +616,10 @@ MULTI_FILE_RENAME_STANDARD_PROMPT = r"""你是一位顶尖的动漫档案分析�
 对于输入（劇集2）：
 ```json
 {
-  "files": [
-    "[SweetSub&LoliHouse] CITY THE ANIMATION - 13 [WebRip 1080p HEVC-10bit AAC ASSx2].mkv",
-	"[SweetSub&LoliHouse] CITY THE ANIMATION - 12 [WebRip 1080p HEVC-10bit AAC ASSx2].mkv"
-  ]
+  "files": {
+    "1": "[SweetSub&LoliHouse] CITY THE ANIMATION - 13 [WebRip 1080p HEVC-10bit AAC ASSx2].mkv",
+    "2": "[SweetSub&LoliHouse] CITY THE ANIMATION - 12 [WebRip 1080p HEVC-10bit AAC ASSx2].mkv"
+  }
 }
 ```
 
@@ -617,8 +627,8 @@ MULTI_FILE_RENAME_STANDARD_PROMPT = r"""你是一位顶尖的动漫档案分析�
 ```json
 {
   "main_files": {
-    "[SweetSub&LoliHouse] CITY THE ANIMATION - 13 [WebRip 1080p HEVC-10bit AAC ASSx2].mkv": "Season 1/CITY THE ANIMATION - S01E13 - SweetSub&LoliHouse.mkv",
-	"[SweetSub&LoliHouse] CITY THE ANIMATION - 12 [WebRip 1080p HEVC-10bit AAC ASSx2].mkv": "Season 1/CITY THE ANIMATION - S01E12 - SweetSub&LoliHouse.mkv"
+    "1": "Season 1/CITY THE ANIMATION - S01E13 - SweetSub&LoliHouse.mkv",
+    "2": "Season 1/CITY THE ANIMATION - S01E12 - SweetSub&LoliHouse.mkv"
   },
   "skipped_files": [],
   "seasons_info": {
@@ -646,14 +656,14 @@ MULTI_FILE_RENAME_STANDARD_PROMPT = r"""你是一位顶尖的动漫档案分析�
 对于输入（多季+特别篇）：
 ```json
 {
-  "files": [
-    "Season 1/[ANi] 动漫标题 - 01 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4",
-    "Season 1/[ANi] 动漫标题 - 02 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4",
-    "Season 2/[ANi] 动漫标题 2 - 01 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4",
-    "Season 2/[ANi] 动漫标题 2 - 02 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4",
-    "SP/[ANi] 动漫标题 SP - 01 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4",
-    "SP/[ANi] 动漫标题 OVA [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4"
-  ]
+  "files": {
+    "1": "Season 1/[ANi] 动漫标题 - 01 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4",
+    "2": "Season 1/[ANi] 动漫标题 - 02 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4",
+    "3": "Season 2/[ANi] 动漫标题 2 - 01 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4",
+    "4": "Season 2/[ANi] 动漫标题 2 - 02 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4",
+    "5": "SP/[ANi] 动漫标题 SP - 01 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4",
+    "6": "SP/[ANi] 动漫标题 OVA [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4"
+  }
 }
 ```
 
@@ -661,12 +671,12 @@ MULTI_FILE_RENAME_STANDARD_PROMPT = r"""你是一位顶尖的动漫档案分析�
 ```json
 {
   "main_files": {
-    "Season 1/[ANi] 动漫标题 - 01 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4": "Season 1/动漫标题 - S01E01 - ANi [CHT].mp4",
-    "Season 1/[ANi] 动漫标题 - 02 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4": "Season 1/动漫标题 - S01E02 - ANi [CHT].mp4",
-    "Season 2/[ANi] 动漫标题 2 - 01 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4": "Season 2/动漫标题 - S02E01 - ANi [CHT].mp4",
-    "Season 2/[ANi] 动漫标题 2 - 02 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4": "Season 2/动漫标题 - S02E02 - ANi [CHT].mp4",
-    "SP/[ANi] 动漫标题 SP - 01 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4": "Season 0/动漫标题 - S00E01 - ANi [CHT].mp4",
-    "SP/[ANi] 动漫标题 OVA [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4": "Season 0/动漫标题 - S00E02 - ANi [CHT].mp4"
+    "1": "Season 1/动漫标题 - S01E01 - ANi [CHT].mp4",
+    "2": "Season 1/动漫标题 - S01E02 - ANi [CHT].mp4",
+    "3": "Season 2/动漫标题 - S02E01 - ANi [CHT].mp4",
+    "4": "Season 2/动漫标题 - S02E02 - ANi [CHT].mp4",
+    "5": "Season 0/动漫标题 - S00E01 - ANi [CHT].mp4",
+    "6": "Season 0/动漫标题 - S00E02 - ANi [CHT].mp4"
   },
   "skipped_files": [],
   "seasons_info": {
@@ -696,10 +706,10 @@ MULTI_FILE_RENAME_STANDARD_PROMPT = r"""你是一位顶尖的动漫档案分析�
 对于输入（CRC排除测试）：
 ```json
 {
-  "files": [
-    "[Erai-raws] Black Clover (TV) - 001 [1080p][Multiple Subtitle][284B3626].mkv",
-    "[Erai-raws] Black Clover (TV) - 002 [1080p][Multiple Subtitle][FC678D67].mkv"
-  ]
+  "files": {
+    "1": "[Erai-raws] Black Clover (TV) - 001 [1080p][Multiple Subtitle][284B3626].mkv",
+    "2": "[Erai-raws] Black Clover (TV) - 002 [1080p][Multiple Subtitle][FC678D67].mkv"
+  }
 }
 ```
 
@@ -707,8 +717,8 @@ MULTI_FILE_RENAME_STANDARD_PROMPT = r"""你是一位顶尖的动漫档案分析�
 ```json
 {
   "main_files": {
-    "[Erai-raws] Black Clover (TV) - 001 [1080p][Multiple Subtitle][284B3626].mkv": "Season 1/Black Clover (TV) - S01E01 - Erai-raws [Multiple Subtitle].mkv",
-    "[Erai-raws] Black Clover (TV) - 002 [1080p][Multiple Subtitle][FC678D67].mkv": "Season 1/Black Clover (TV) - S01E02 - Erai-raws [Multiple Subtitle].mkv"
+    "1": "Season 1/Black Clover (TV) - S01E01 - Erai-raws [Multiple Subtitle].mkv",
+    "2": "Season 1/Black Clover (TV) - S01E02 - Erai-raws [Multiple Subtitle].mkv"
   },
   "skipped_files": [],
   "seasons_info": {
@@ -748,11 +758,20 @@ SUBTITLE_MATCH_PROMPT = r"""你是一位专业的字幕文件匹配专家。你�
 
 ## 任务说明
 
-你将获得两个列表：
-1. **影片文件列表**：硬链接文件夹中的视频文件（包含完整路径）
-2. **字幕文件列表**：从压缩档解压出的字幕文件（已过滤，只包含字幕文件）
+你将获得两个带有 key 的列表：
+1. **影片文件列表**：硬链接文件夹中的视频文件，格式为 `{"v1": "path/to/video1.mkv", "v2": "path/to/video2.mkv", ...}`
+2. **字幕文件列表**：从压缩档解压出的字幕文件，格式为 `{"s1": "subtitle1.ass", "s2": "subtitle2.ass", ...}`
 
 请分析文件名，智能匹配每个字幕文件应该对应哪个影片文件。
+
+## 重要：Key 映射机制
+
+输入文件带有 key（视频文件使用 "v1", "v2"..., 字幕文件使用 "s1", "s2"...），你必须在输出中使用这些 key 进行映射：
+- 输出的 `matches` 中使用 `video_key` 和 `subtitle_key` 而不是文件名
+- 输出的 `unmatched_subtitles` 是字幕文件 key 列表（如 ["s3", "s5"]）
+- 输出的 `videos_without_subtitle` 是视频文件 key 列表（如 ["v2"]）
+
+**不要在输出中使用原始文件名，只使用 key！**
 
 ## 匹配规则
 
@@ -806,16 +825,16 @@ SUBTITLE_MATCH_PROMPT = r"""你是一位专业的字幕文件匹配专家。你�
 **输入：**
 ```json
 {
-  "video_files": [
-    "Season 1/葬送的芙莉莲 - S01E01 - ANi [CHT].mkv",
-    "Season 1/葬送的芙莉莲 - S01E02 - ANi [CHT].mkv"
-  ],
-  "subtitle_files": [
-    "01.chs.ass",
-    "01.cht.ass",
-    "02.chs.ass",
-    "03.chs.ass"
-  ]
+  "video_files": {
+    "v1": "Season 1/葬送的芙莉莲 - S01E01 - ANi [CHT].mkv",
+    "v2": "Season 1/葬送的芙莉莲 - S01E02 - ANi [CHT].mkv"
+  },
+  "subtitle_files": {
+    "s1": "01.chs.ass",
+    "s2": "01.cht.ass",
+    "s3": "02.chs.ass",
+    "s4": "03.chs.ass"
+  }
 }
 ```
 
@@ -824,25 +843,25 @@ SUBTITLE_MATCH_PROMPT = r"""你是一位专业的字幕文件匹配专家。你�
 {
   "matches": [
     {
-      "video_file": "Season 1/葬送的芙莉莲 - S01E01 - ANi [CHT].mkv",
-      "subtitle_file": "01.chs.ass",
+      "video_key": "v1",
+      "subtitle_key": "s1",
       "language_tag": "chs",
       "new_name": "葬送的芙莉莲 - S01E01 - ANi [CHT].chs.ass"
     },
     {
-      "video_file": "Season 1/葬送的芙莉莲 - S01E01 - ANi [CHT].mkv",
-      "subtitle_file": "01.cht.ass",
+      "video_key": "v1",
+      "subtitle_key": "s2",
       "language_tag": "cht",
       "new_name": "葬送的芙莉莲 - S01E01 - ANi [CHT].cht.ass"
     },
     {
-      "video_file": "Season 1/葬送的芙莉莲 - S01E02 - ANi [CHT].mkv",
-      "subtitle_file": "02.chs.ass",
+      "video_key": "v2",
+      "subtitle_key": "s3",
       "language_tag": "chs",
       "new_name": "葬送的芙莉莲 - S01E02 - ANi [CHT].chs.ass"
     }
   ],
-  "unmatched_subtitles": ["03.chs.ass"],
+  "unmatched_subtitles": ["s4"],
   "videos_without_subtitle": []
 }
 ```
@@ -851,14 +870,14 @@ SUBTITLE_MATCH_PROMPT = r"""你是一位专业的字幕文件匹配专家。你�
 **输入：**
 ```json
 {
-  "video_files": [
-    "铃芽之旅 - ANi.mkv"
-  ],
-  "subtitle_files": [
-    "铃芽之旅.chs.ass",
-    "铃芽之旅.cht.ass",
-    "铃芽之旅.eng.srt"
-  ]
+  "video_files": {
+    "v1": "铃芽之旅 - ANi.mkv"
+  },
+  "subtitle_files": {
+    "s1": "铃芽之旅.chs.ass",
+    "s2": "铃芽之旅.cht.ass",
+    "s3": "铃芽之旅.eng.srt"
+  }
 }
 ```
 
@@ -867,20 +886,20 @@ SUBTITLE_MATCH_PROMPT = r"""你是一位专业的字幕文件匹配专家。你�
 {
   "matches": [
     {
-      "video_file": "铃芽之旅 - ANi.mkv",
-      "subtitle_file": "铃芽之旅.chs.ass",
+      "video_key": "v1",
+      "subtitle_key": "s1",
       "language_tag": "chs",
       "new_name": "铃芽之旅 - ANi.chs.ass"
     },
     {
-      "video_file": "铃芽之旅 - ANi.mkv",
-      "subtitle_file": "铃芽之旅.cht.ass",
+      "video_key": "v1",
+      "subtitle_key": "s2",
       "language_tag": "cht",
       "new_name": "铃芽之旅 - ANi.cht.ass"
     },
     {
-      "video_file": "铃芽之旅 - ANi.mkv",
-      "subtitle_file": "铃芽之旅.eng.srt",
+      "video_key": "v1",
+      "subtitle_key": "s3",
       "language_tag": "eng",
       "new_name": "铃芽之旅 - ANi.eng.srt"
     }
@@ -895,5 +914,5 @@ SUBTITLE_MATCH_PROMPT = r"""你是一位专业的字幕文件匹配专家。你�
 系统已启用严格的结构化输出 Schema `subtitle_match_response`：
 - 仅输出 schema 中定义的字段
 - 不要输出 Markdown、解释文字或额外字段
-- `matches` 数组中的每个元素必须包含所有必需字段
+- `matches` 数组中的每个元素必须包含 `video_key`, `subtitle_key`, `language_tag`, `new_name` 字段
 """
