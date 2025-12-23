@@ -291,6 +291,8 @@ def init_webhook_queue(
                     )
             except Exception as e:
                 logger.error(f'❌ Error processing torrent completion: {e}')
+                # 重新抛出异常，让 QueueWorker 正确统计失败数
+                raise
 
         completion_handler = default_completion_handler
 

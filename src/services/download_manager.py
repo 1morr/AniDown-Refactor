@@ -1052,7 +1052,10 @@ class DownloadManager:
 
         except Exception as e:
             logger.error(f'处理种子完成事件失败: {e}')
-            return {'success': False, 'error': str(e)}
+            # 发送错误通知到 Discord
+            self._notify_error(f'处理种子完成事件失败: {e}')
+            # 重新抛出异常，让调用者可以获取详细错误信息
+            raise
 
     def _create_hardlinks_for_completed_torrent(
         self,
@@ -1482,7 +1485,10 @@ class DownloadManager:
             return {'success': True, 'message': 'Torrent added processed'}
         except Exception as e:
             logger.error(f'处理种子添加事件失败: {e}')
-            return {'success': False, 'error': str(e)}
+            # 发送错误通知到 Discord
+            self._notify_error(f'处理种子添加事件失败: {e}')
+            # 重新抛出异常，让调用者可以获取详细错误信息
+            raise
 
     def handle_torrent_error(
         self,
@@ -1515,7 +1521,10 @@ class DownloadManager:
             return {'success': True, 'message': 'Torrent error processed'}
         except Exception as e:
             logger.error(f'处理种子错误事件失败: {e}')
-            return {'success': False, 'error': str(e)}
+            # 发送错误通知到 Discord
+            self._notify_error(f'处理种子错误事件失败: {e}')
+            # 重新抛出异常，让调用者可以获取详细错误信息
+            raise
 
     def handle_torrent_paused(
         self,
@@ -1529,7 +1538,10 @@ class DownloadManager:
             return {'success': True, 'message': 'Torrent paused processed'}
         except Exception as e:
             logger.error(f'处理种子暂停事件失败: {e}')
-            return {'success': False, 'error': str(e)}
+            # 发送错误通知到 Discord
+            self._notify_error(f'处理种子暂停事件失败: {e}')
+            # 重新抛出异常，让调用者可以获取详细错误信息
+            raise
 
     # ==================== Helper Methods ====================
 

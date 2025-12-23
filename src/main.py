@@ -339,6 +339,8 @@ def init_queue_workers(download_manager):
             download_manager.handle_torrent_completed(payload.hash_id, webhook_data)
         except Exception as e:
             logger.error(f'❌ 处理种子完成事件失败: {e}', exc_info=True)
+            # 重新抛出异常，让 QueueWorker 正确统计失败数
+            raise
 
     def handle_torrent_added(payload):
         """处理种子添加事件"""
@@ -347,6 +349,8 @@ def init_queue_workers(download_manager):
             download_manager.handle_torrent_added(payload.hash_id)
         except Exception as e:
             logger.error(f'❌ 处理种子添加事件失败: {e}', exc_info=True)
+            # 重新抛出异常，让 QueueWorker 正确统计失败数
+            raise
 
     def handle_torrent_error(payload):
         """处理种子错误事件"""
@@ -358,6 +362,8 @@ def init_queue_workers(download_manager):
             )
         except Exception as e:
             logger.error(f'❌ 处理种子错误事件失败: {e}', exc_info=True)
+            # 重新抛出异常，让 QueueWorker 正确统计失败数
+            raise
 
     def handle_torrent_paused(payload):
         """处理种子暂停事件"""
@@ -366,6 +372,8 @@ def init_queue_workers(download_manager):
             download_manager.handle_torrent_paused(payload.hash_id)
         except Exception as e:
             logger.error(f'❌ 处理种子暂停事件失败: {e}', exc_info=True)
+            # 重新抛出异常，让 QueueWorker 正确统计失败数
+            raise
 
     # 注册 Webhook 处理器
     webhook_queue.register_handler(
@@ -604,6 +612,8 @@ def init_queue_workers(download_manager):
 
         except Exception as e:
             logger.error(f'❌ 处理 RSS Feed 事件失败: {e}', exc_info=True)
+            # 重新抛出异常，让 QueueWorker 正确统计失败数
+            raise
 
     def handle_single_item(payload):
         """处理单个 RSS 项目"""
