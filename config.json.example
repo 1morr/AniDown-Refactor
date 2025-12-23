@@ -41,7 +41,8 @@
       "base_url": "https://api.openai.com/v1",
       "model": "gpt-4",
       "extra_body": "",
-      "timeout": 180
+      "timeout": 180,
+      "retries": 3
     },
     "multi_file_rename": {
       "pool_name": "",
@@ -49,7 +50,10 @@
       "base_url": "https://api.openai.com/v1",
       "model": "gpt-4",
       "extra_body": "",
-      "timeout": 360
+      "timeout": 360,
+      "retries": 3,
+      "max_batch_size": 30,
+      "batch_processing_retries": 2
     },
     "subtitle_match": {
       "pool_name": "",
@@ -57,10 +61,9 @@
       "base_url": "https://api.openai.com/v1",
       "model": "gpt-4",
       "extra_body": "",
-      "timeout": 180
+      "timeout": 180,
+      "retries": 3
     },
-    "title_parse_retries": 3,
-    "subtitle_match_retries": 3,
     "rate_limits": {
       "max_consecutive_errors": 5,
       "key_cooldown_seconds": 30,
@@ -73,10 +76,6 @@
       { "name": "日本語" },
       { "name": "Romaji" }
     ]
-  },
-  "ai_processing": {
-    "max_batch_size": 30,
-    "batch_processing_retries": 2
   },
   "webhook": {
     "host": "0.0.0.0",

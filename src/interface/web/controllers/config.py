@@ -302,7 +302,7 @@ def update_config():
             retries = int(data['openai_subtitle_match_retries'])
             if retries < 0:
                 return _handle_config_error(is_ajax, '字幕匹配重试次数不能为负数')
-            config.set('openai.subtitle_match_retries', retries)
+            config.set('openai.subtitle_match.retries', retries)
         except ValueError:
             return _handle_config_error(is_ajax, '字幕匹配重试次数必须是整数')
 
@@ -311,17 +311,17 @@ def update_config():
             retries = int(data['openai_title_parse_retries'])
             if retries < 0:
                 return _handle_config_error(is_ajax, 'OpenAI重试次数不能为负数')
-            config.set('openai.title_parse_retries', retries)
+            config.set('openai.title_parse.retries', retries)
         except ValueError:
             return _handle_config_error(is_ajax, 'OpenAI重试次数必须是整数')
 
-    # AI 处理配置
+    # 多文件重命名批处理配置
     if 'ai_max_batch_size' in data:
         try:
             batch_size = int(data['ai_max_batch_size'])
             if batch_size < 1:
                 return _handle_config_error(is_ajax, 'AI批处理大小必须大于0')
-            config.set('ai_processing.max_batch_size', batch_size)
+            config.set('openai.multi_file_rename.max_batch_size', batch_size)
         except ValueError:
             return _handle_config_error(is_ajax, 'AI批处理大小必须是整数')
 
@@ -330,7 +330,7 @@ def update_config():
             retries = int(data['ai_batch_processing_retries'])
             if retries < 0:
                 return _handle_config_error(is_ajax, 'AI批处理重试次数不能为负数')
-            config.set('ai_processing.batch_processing_retries', retries)
+            config.set('openai.multi_file_rename.batch_processing_retries', retries)
         except ValueError:
             return _handle_config_error(is_ajax, 'AI批处理重试次数必须是整数')
 

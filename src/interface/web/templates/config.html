@@ -196,7 +196,7 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">标题解析重试次数</label>
-                                <input type="number" id="ai_title_parse_retries" class="input-field" value="{{ config.get('openai.title_parse_retries', 3) }}">
+                                <input type="number" id="ai_title_parse_retries" class="input-field" value="{{ config.get('openai.title_parse.retries', 3) }}">
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">API 超时时间 (秒)</label>
@@ -267,11 +267,11 @@
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                                 <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">最大批次大小</label>
-                                <input type="number" id="ai_batch_size" class="input-field" value="{{ config.get('ai_processing.max_batch_size', 30) }}">
+                                <input type="number" id="ai_batch_size" class="input-field" value="{{ config.get('openai.multi_file_rename.max_batch_size', 30) }}">
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">批次重试次数</label>
-                                <input type="number" id="ai_batch_retries" class="input-field" value="{{ config.get('ai_processing.batch_processing_retries', 2) }}">
+                                <input type="number" id="ai_batch_retries" class="input-field" value="{{ config.get('openai.multi_file_rename.batch_processing_retries', 2) }}">
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">API 超时时间 (秒)</label>
@@ -337,7 +337,7 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">字幕匹配重试次数</label>
-                                <input type="number" id="ai_subtitle_match_retries" class="input-field" value="{{ config.get('openai.subtitle_match_retries', 3) }}">
+                                <input type="number" id="ai_subtitle_match_retries" class="input-field" value="{{ config.get('openai.subtitle_match.retries', 3) }}">
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">API 超时时间 (秒)</label>

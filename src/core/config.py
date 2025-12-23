@@ -122,6 +122,13 @@ class OpenAIConfig(BaseModel):
         # 任务特定设置（始终使用，不受 pool 影响）
         extra_body: str = ''  # JSON格式的额外参数
         timeout: int = Field(default=180, ge=10, le=600)  # API 超时时间（秒）
+        retries: int = Field(default=3, ge=0, le=10)  # 重试次数
+
+    class MultiFileRenameConfig(TaskConfig):
+        """多文件重命名任务配置（包含批处理参数）"""
+
+        max_batch_size: int = Field(default=30, gt=0, le=100)  # 最大批处理大小
+        batch_processing_retries: int = Field(default=2, ge=0)  # 批处理重试次数
 
     class RateLimitConfig(BaseModel):
         """Key Pool 限流/冷却/熔断参数"""
@@ -141,14 +148,9 @@ class OpenAIConfig(BaseModel):
     # 标题解析
     title_parse: TaskConfig = Field(default_factory=TaskConfig)
     # 多文件重命名
-    multi_file_rename: TaskConfig = Field(default_factory=TaskConfig)
+    multi_file_rename: MultiFileRenameConfig = Field(default_factory=MultiFileRenameConfig)
     # 字幕匹配
     subtitle_match: TaskConfig = Field(default_factory=TaskConfig)
-
-    # 标题解析重试次数
-    title_parse_retries: int = Field(default=3, ge=0, le=10)
-    # 字幕匹配重试次数
-    subtitle_match_retries: int = Field(default=3, ge=0, le=10)
 
     # Key Pool 限流/熔断配置
     rate_limits: RateLimitConfig = Field(default_factory=RateLimitConfig)
@@ -162,13 +164,6 @@ class OpenAIConfig(BaseModel):
             LanguagePriorityConfig(name='Romaji'),
         ]
     )
-
-
-class AIProcessingConfig(BaseModel):
-    """AI 处理配置"""
-
-    max_batch_size: int = Field(default=30, gt=0, le=100)
-    batch_processing_retries: int = Field(default=2, ge=0)
 
 
 class WebhookConfig(BaseModel):
@@ -207,7 +202,6 @@ class AppConfig(BaseSettings):
     discord: DiscordConfig = Field(default_factory=DiscordConfig)
     qbittorrent: QBitTorrentConfig = Field(default_factory=QBitTorrentConfig)
     openai: OpenAIConfig = Field(default_factory=OpenAIConfig)
-    ai_processing: AIProcessingConfig = Field(default_factory=AIProcessingConfig)
     webhook: WebhookConfig = Field(default_factory=WebhookConfig)
     webui: WebUIConfig = Field(default_factory=WebUIConfig)
     path_conversion: PathConversionConfig = Field(default_factory=PathConversionConfig)

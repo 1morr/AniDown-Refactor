@@ -106,7 +106,8 @@ def test_config_path(tmp_path_factory) -> Path:
                 'base_url': 'https://api.openai.com/v1',
                 'model': 'gpt-4',
                 'extra_body': '',
-                'timeout': 180
+                'timeout': 180,
+                'retries': 3
             },
             'multi_file_rename': {
                 'pool_name': '',
@@ -114,7 +115,10 @@ def test_config_path(tmp_path_factory) -> Path:
                 'base_url': 'https://api.openai.com/v1',
                 'model': 'gpt-4',
                 'extra_body': '',
-                'timeout': 360
+                'timeout': 360,
+                'retries': 3,
+                'max_batch_size': 30,
+                'batch_processing_retries': 2
             },
             'subtitle_match': {
                 'pool_name': '',
@@ -122,20 +126,15 @@ def test_config_path(tmp_path_factory) -> Path:
                 'base_url': 'https://api.openai.com/v1',
                 'model': 'gpt-4',
                 'extra_body': '',
-                'timeout': 180
+                'timeout': 180,
+                'retries': 3
             },
-            'title_parse_retries': 3,
-            'subtitle_match_retries': 3,
             'rate_limits': {
                 'max_consecutive_errors': 5,
                 'key_cooldown_seconds': 30,
                 'circuit_breaker_cooldown_seconds': 900,
                 'max_backoff_seconds': 300
             }
-        },
-        'ai_processing': {
-            'max_batch_size': 30,
-            'batch_processing_retries': 2
         },
         'webhook': {
             'host': '0.0.0.0',
