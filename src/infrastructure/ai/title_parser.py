@@ -114,6 +114,9 @@ class AITitleParser(ITitleParser):
             # 解析 extra_body（从任务配置读取，不是从 pool）
             extra_params = self._parse_extra_body(config.openai.title_parse.extra_body)
 
+            # 获取任务配置的 model（不是从 pool 读取）
+            model = config.openai.title_parse.model
+
             # 获取语言优先级配置并生成提示词
             language_priorities = self._get_language_priorities()
             system_prompt = get_title_parse_system_prompt(language_priorities)
@@ -122,7 +125,7 @@ class AITitleParser(ITitleParser):
             response = self._api_client.call(
                 base_url=reservation.base_url,
                 api_key=reservation.api_key,
-                model=reservation.model,
+                model=model,
                 messages=[
                     {'role': 'system', 'content': system_prompt},
                     {'role': 'user', 'content': title}
@@ -156,7 +159,7 @@ class AITitleParser(ITitleParser):
                     purpose=self.TASK_PURPOSE,
                     key_id=reservation.key_id,
                     key_name=key_info.get('name', ''),
-                    model=reservation.model,
+                    model=model,
                     anime_title=result.clean_title if result else '',
                     context_summary=title[:100],
                     success=True,
@@ -177,7 +180,7 @@ class AITitleParser(ITitleParser):
                             'extra_params': extra_params,
                         },
                         output_data=response.content,
-                        model=reservation.model,
+                        model=model,
                         response_time_ms=response.response_time_ms,
                         key_id=reservation.key_id,
                         success=True
@@ -222,7 +225,7 @@ class AITitleParser(ITitleParser):
                     purpose=self.TASK_PURPOSE,
                     key_id=reservation.key_id,
                     key_name=key_info.get('name', ''),
-                    model=reservation.model,
+                    model=model,
                     context_summary=title[:100],
                     success=False,
                     error_code=response.error_code,
@@ -244,7 +247,7 @@ class AITitleParser(ITitleParser):
                             'extra_params': extra_params,
                         },
                         output_data=None,
-                        model=reservation.model,
+                        model=model,
                         response_time_ms=response.response_time_ms,
                         key_id=reservation.key_id,
                         success=False,

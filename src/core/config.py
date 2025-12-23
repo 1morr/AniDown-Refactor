@@ -108,7 +108,6 @@ class OpenAIConfig(BaseModel):
 
         name: str  # Pool 唯一名称
         base_url: str = 'https://api.openai.com/v1'
-        model: str = 'gpt-4'
         api_keys: List['OpenAIConfig.KeyPoolEntry'] = Field(default_factory=list)
 
     class TaskConfig(BaseModel):

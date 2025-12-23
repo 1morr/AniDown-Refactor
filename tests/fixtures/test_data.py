@@ -187,7 +187,6 @@ KEY_POOL_TEST_KEYS = [
         'name': 'Test Key 1',
         'api_key': 'sk-test-key-1-xxx',
         'base_url': 'https://api.openai.com/v1',
-        'model': 'gpt-4',
         'rpm_limit': 60,
         'rpd_limit': 1000,
         'enabled': True
@@ -197,7 +196,6 @@ KEY_POOL_TEST_KEYS = [
         'name': 'Test Key 2',
         'api_key': 'sk-test-key-2-xxx',
         'base_url': 'https://api.openai.com/v1',
-        'model': 'gpt-4',
         'rpm_limit': 30,
         'rpd_limit': 500,
         'enabled': True
@@ -207,7 +205,6 @@ KEY_POOL_TEST_KEYS = [
         'name': 'Test Key 3 (Disabled)',
         'api_key': 'sk-test-key-3-xxx',
         'base_url': 'https://api.openai.com/v1',
-        'model': 'gpt-4',
         'rpm_limit': 10,
         'rpd_limit': 100,
         'enabled': False

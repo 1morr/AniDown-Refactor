@@ -220,6 +220,9 @@ class AISubtitleMatcher:
                 # 解析 extra_body（从任务配置读取，不是从 pool）
                 extra_params = self._parse_extra_body(config.openai.subtitle_match.extra_body)
 
+                # 获取任务配置的 model（不是从 pool 读取）
+                model = config.openai.subtitle_match.model
+
                 # 构建消息
                 messages = [
                     {'role': 'system', 'content': SUBTITLE_MATCH_PROMPT},
@@ -230,7 +233,7 @@ class AISubtitleMatcher:
                 response = self._api_client.call(
                     base_url=reservation.base_url,
                     api_key=reservation.api_key,
-                    model=reservation.model,
+                    model=model,
                     messages=messages,
                     response_format=SUBTITLE_MATCH_RESPONSE_FORMAT,
                     extra_params=extra_params
@@ -262,7 +265,7 @@ class AISubtitleMatcher:
                         purpose=self.TASK_PURPOSE,
                         key_id=reservation.key_id,
                         key_name=key_info.get('name', ''),
-                        model=reservation.model,
+                        model=model,
                         anime_title=anime_title,
                         context_summary=f'匹配 {len(subtitle_files)} 个字幕',
                         success=True,
@@ -283,7 +286,7 @@ class AISubtitleMatcher:
                                 'extra_params': extra_params,
                             },
                             output_data=response.content,
-                            model=reservation.model,
+                            model=model,
                             response_time_ms=response.response_time_ms,
                             key_id=reservation.key_id,
                             success=True
@@ -326,7 +329,7 @@ class AISubtitleMatcher:
                         purpose=self.TASK_PURPOSE,
                         key_id=reservation.key_id,
                         key_name=key_info.get('name', ''),
-                        model=reservation.model,
+                        model=model,
                         anime_title=anime_title,
                         context_summary=f'匹配 {len(subtitle_files)} 个字幕',
                         success=False,
@@ -349,7 +352,7 @@ class AISubtitleMatcher:
                                 'extra_params': extra_params,
                             },
                             output_data=None,
-                            model=reservation.model,
+                            model=model,
                             response_time_ms=response.response_time_ms,
                             key_id=reservation.key_id,
                             success=False,
@@ -405,7 +408,7 @@ class AISubtitleMatcher:
                         purpose=self.TASK_PURPOSE,
                         key_id=reservation.key_id,
                         key_name=key_info.get('name', ''),
-                        model=reservation.model,
+                        model=model,
                         anime_title=anime_title,
                         context_summary=f'匹配 {len(subtitle_files)} 个字幕',
                         success=False,

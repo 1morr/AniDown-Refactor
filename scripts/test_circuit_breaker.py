@@ -55,7 +55,6 @@ def create_test_pool_and_breaker():
                 name='测试 Key 1',
                 api_key='sk-test-key-1',
                 base_url='https://api.example.com/v1',
-                model='gpt-4',
                 rpm_limit=10,
                 rpd_limit=100,
                 enabled=True
@@ -65,7 +64,6 @@ def create_test_pool_and_breaker():
                 name='测试 Key 2',
                 api_key='sk-test-key-2',
                 base_url='https://api.example.com/v1',
-                model='gpt-4',
                 rpm_limit=10,
                 rpd_limit=100,
                 enabled=True
@@ -341,7 +339,6 @@ def test_rpm_wait():
             name='RPM 测试 Key 1',
             api_key='sk-rpm-test-1',
             base_url='https://api.example.com/v1',
-            model='gpt-4',
             rpm_limit=3,  # 每分钟只允许 3 次
             rpd_limit=0,  # 无每日限制
             enabled=True
@@ -351,7 +348,6 @@ def test_rpm_wait():
             name='RPM 测试 Key 2',
             api_key='sk-rpm-test-2',
             base_url='https://api.example.com/v1',
-            model='gpt-4',
             rpm_limit=3,
             rpd_limit=0,
             enabled=True
@@ -424,7 +420,6 @@ def test_rpd_limit():
             name='RPD 测试 Key 1',
             api_key='sk-rpd-test-1',
             base_url='https://api.example.com/v1',
-            model='gpt-4',
             rpm_limit=0,    # 无 RPM 限制
             rpd_limit=5,    # 每天只允许 5 次
             enabled=True

@@ -29,7 +29,6 @@ class TestKeyPool:
                 name=key['name'],
                 api_key=key['api_key'],
                 base_url=key['base_url'],
-                model=key['model'],
                 rpm_limit=key['rpm_limit'],
                 rpd_limit=key['rpd_limit'],
                 enabled=key['enabled']
@@ -66,7 +65,6 @@ class TestKeyPool:
         assert reservation.key_id in ['test_key_1', 'test_key_2']
         assert reservation.api_key.startswith('sk-test')
         assert reservation.base_url == 'https://api.openai.com/v1'
-        assert reservation.model == 'gpt-4'
 
     def test_key_pool_round_robin(self, key_pool):
         """Test round-robin key selection."""
@@ -209,7 +207,6 @@ class TestKeyPool:
                 name='Disabled',
                 api_key='sk-test',
                 base_url='https://api.openai.com/v1',
-                model='gpt-4',
                 enabled=False
             )
         ])
@@ -355,7 +352,6 @@ class TestAITitleParser:
                 name='Test Key',
                 api_key='sk-test',
                 base_url='https://api.openai.com/v1',
-                model='gpt-4',
                 rpm_limit=60,
                 rpd_limit=1000,
                 enabled=True
@@ -403,7 +399,6 @@ class TestAITitleParser:
                 name='Test Key',
                 api_key='sk-test',
                 base_url='https://api.openai.com/v1',
-                model='gpt-4',
                 enabled=True
             )
         ])
@@ -452,7 +447,6 @@ class TestKeyPoolIntegration:
                 name=key.get('name', f'Key {i}'),
                 api_key=key.get('api_key', ''),
                 base_url=pool_def.get('base_url', 'https://api.openai.com/v1'),
-                model=pool_def.get('model', 'gpt-4'),
                 rpm_limit=key.get('rpm', 0),
                 rpd_limit=key.get('rpd', 0),
                 enabled=key.get('enabled', True)

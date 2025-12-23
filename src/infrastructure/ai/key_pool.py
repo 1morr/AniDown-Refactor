@@ -150,7 +150,6 @@ class KeySpec:
         name: Key 显示名称
         api_key: API Key 值
         base_url: API 基础 URL
-        model: 默认模型名称
         rpm_limit: 每分钟请求限制（0 表示无限制）
         rpd_limit: 每日请求限制（0 表示无限制）
         enabled: 是否启用
@@ -160,7 +159,6 @@ class KeySpec:
     name: str
     api_key: str
     base_url: str
-    model: str
     rpm_limit: int = 0
     rpd_limit: int = 0
     enabled: bool = True
@@ -178,13 +176,11 @@ class KeyReservation:
         key_id: Key 唯一标识
         api_key: API Key 值
         base_url: API 基础 URL
-        model: 模型名称
         extra_body: 额外的请求参数（JSON 字符串）
     """
     key_id: str
     api_key: str
     base_url: str
-    model: str
     extra_body: str = ''
 
 
@@ -218,7 +214,6 @@ class KeyPool:
         ...         name='Primary Key',
         ...         api_key='sk-xxx',
         ...         base_url='https://api.openai.com/v1',
-        ...         model='gpt-4',
         ...         rpm_limit=60,
         ...         rpd_limit=1000
         ...     )
@@ -440,7 +435,6 @@ class KeyPool:
                 key_id=selected_key_id,
                 api_key=spec.api_key,
                 base_url=spec.base_url,
-                model=spec.model,
                 extra_body=spec.extra_body
             )
 
@@ -629,7 +623,7 @@ class KeyPool:
                 usage.error_history.popleft()
 
             key_name = self._keys.get(key_id, KeySpec(
-                key_id=key_id, name=key_id, api_key='', base_url='', model=''
+                key_id=key_id, name=key_id, api_key='', base_url=''
             )).name
 
             # 根据错误类型处理
@@ -705,7 +699,7 @@ class KeyPool:
         usage.disabled_at = time.time()
 
         key_name = self._keys.get(key_id, KeySpec(
-            key_id=key_id, name=key_id, api_key='', base_url='', model=''
+            key_id=key_id, name=key_id, api_key='', base_url=''
         )).name
 
         logger.error(
@@ -745,7 +739,7 @@ class KeyPool:
             usage.error_history.clear()
 
             key_name = self._keys.get(key_id, KeySpec(
-                key_id=key_id, name=key_id, api_key='', base_url='', model=''
+                key_id=key_id, name=key_id, api_key='', base_url=''
             )).name
 
             logger.info(f'✅ [{self._purpose}] Key {key_name} 已重新启用')
@@ -769,7 +763,7 @@ class KeyPool:
                 self._usage[key_id].error_count = 0
                 self._usage[key_id].error_history.clear()
                 key_name = self._keys.get(key_id, KeySpec(
-                    key_id=key_id, name=key_id, api_key='', base_url='', model=''
+                    key_id=key_id, name=key_id, api_key='', base_url=''
                 )).name
                 logger.info(f'🔄 [{self._purpose}] Key {key_name} 冷却已重置')
                 # 唤醒等待中的线程
@@ -792,7 +786,7 @@ class KeyPool:
                 self._usage[key_id].rpm_count = 0
                 self._usage[key_id].rpm_window_start = 0
                 key_name = self._keys.get(key_id, KeySpec(
-                    key_id=key_id, name=key_id, api_key='', base_url='', model=''
+                    key_id=key_id, name=key_id, api_key='', base_url=''
                 )).name
                 logger.info(f'🔄 [{self._purpose}] Key {key_name} RPM 计数已重置')
                 # 唤醒等待中的线程
@@ -815,7 +809,7 @@ class KeyPool:
                 self._usage[key_id].rpd_count = 0
                 self._usage[key_id].rpd_date = ''
                 key_name = self._keys.get(key_id, KeySpec(
-                    key_id=key_id, name=key_id, api_key='', base_url='', model=''
+                    key_id=key_id, name=key_id, api_key='', base_url=''
                 )).name
                 logger.info(f'🔄 [{self._purpose}] Key {key_name} RPD 计数已重置')
                 # 唤醒等待中的线程
@@ -844,7 +838,7 @@ class KeyPool:
                 usage.rpd_count = 0
                 usage.rpd_date = ''
                 key_name = self._keys.get(key_id, KeySpec(
-                    key_id=key_id, name=key_id, api_key='', base_url='', model=''
+                    key_id=key_id, name=key_id, api_key='', base_url=''
                 )).name
                 logger.info(f'🔄 [{self._purpose}] Key {key_name} 所有限制已重置')
                 # 唤醒等待中的线程

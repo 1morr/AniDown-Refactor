@@ -167,10 +167,6 @@
                                 </button>
                             </div>
                         </div>
-                        <div>
-                            <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">模型 (Model)</label>
-                            <input type="text" id="ai_title_parse_model" class="input-field" value="{{ config.get('openai.title_parse.model', 'gpt-4') }}">
-                        </div>
                     </div>
 
                     <!-- Pool 选择 -->
@@ -182,11 +178,16 @@
                             <option value="{{ pool.name }}" {{ 'selected' if config.openai.title_parse.pool_name == pool.name else '' }}>{{ pool.name }}</option>
                             {% endfor %}
                         </select>
-                        <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">选择 Key Pool 后将使用该 Pool 的 Base URL、Model 和 API Keys</p>
+                        <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">选择 Key Pool 后将使用该 Pool 的 Base URL 和 API Keys</p>
                     </div>
 
                     <!-- 任务特定配置（始终可用） -->
                     <div class="grid grid-cols-1 gap-4 mt-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">模型 (Model)</label>
+                            <input type="text" id="ai_title_parse_model" class="input-field" value="{{ config.get('openai.title_parse.model', 'gpt-4') }}">
+                            <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">每个任务独立配置模型</p>
+                        </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">标题解析重试次数</label>
@@ -225,10 +226,6 @@
                                 </button>
                             </div>
                         </div>
-                        <div>
-                            <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">模型 (Model)</label>
-                            <input type="text" id="ai_multi_rename_model" class="input-field" value="{{ config.get('openai.multi_file_rename.model', 'gpt-4') }}">
-                        </div>
                     </div>
 
                     <!-- Pool 选择 -->
@@ -240,11 +237,16 @@
                             <option value="{{ pool.name }}" {{ 'selected' if config.openai.multi_file_rename.pool_name == pool.name else '' }}>{{ pool.name }}</option>
                             {% endfor %}
                         </select>
-                        <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">选择 Key Pool 后将使用该 Pool 的 Base URL、Model 和 API Keys</p>
+                        <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">选择 Key Pool 后将使用该 Pool 的 Base URL 和 API Keys</p>
                     </div>
 
                     <!-- 任务特定配置（始终可用） -->
                     <div class="grid grid-cols-1 gap-4 mt-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">模型 (Model)</label>
+                            <input type="text" id="ai_multi_rename_model" class="input-field" value="{{ config.get('openai.multi_file_rename.model', 'gpt-4') }}">
+                            <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">每个任务独立配置模型</p>
+                        </div>
                         <div>
                             <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">Extra Body (JSON格式)</label>
                             <textarea id="ai_multi_rename_extra_body" class="input-field min-h-[80px] font-mono text-xs" placeholder='例如启用思考模式: {"thinking": {"type": "enabled"}}'>{{ config.get('openai.multi_file_rename.extra_body', '') }}</textarea>
@@ -287,10 +289,6 @@
                                 </button>
                             </div>
                         </div>
-                        <div>
-                            <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">模型 (Model)</label>
-                            <input type="text" id="ai_subtitle_match_model" class="input-field" value="{{ config.get('openai.subtitle_match.model', 'gpt-4') }}">
-                        </div>
                     </div>
 
                     <!-- Pool 选择 -->
@@ -302,11 +300,16 @@
                             <option value="{{ pool.name }}" {{ 'selected' if config.openai.subtitle_match.pool_name == pool.name else '' }}>{{ pool.name }}</option>
                             {% endfor %}
                         </select>
-                        <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">选择 Key Pool 后将使用该 Pool 的 Base URL、Model 和 API Keys</p>
+                        <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">选择 Key Pool 后将使用该 Pool 的 Base URL 和 API Keys</p>
                     </div>
 
                     <!-- 任务特定配置（始终可用） -->
                     <div class="grid grid-cols-1 gap-4 mt-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">模型 (Model)</label>
+                            <input type="text" id="ai_subtitle_match_model" class="input-field" value="{{ config.get('openai.subtitle_match.model', 'gpt-4') }}">
+                            <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">每个任务独立配置模型</p>
+                        </div>
                         <div>
                             <label class="block text-xs font-medium text-slate-500 dark:text-gray-400 mb-2">Extra Body (JSON格式)</label>
                             <textarea id="ai_subtitle_match_extra_body" class="input-field min-h-[80px] font-mono text-xs" placeholder='例如启用思考模式: {"thinking": {"type": "enabled"}}'>{{ config.get('openai.subtitle_match.extra_body', '') }}</textarea>
@@ -334,7 +337,7 @@
                             <i class="fa-solid fa-plus mr-1"></i> 添加 Pool
                         </button>
                     </div>
-                    <p class="text-xs text-slate-400 dark:text-gray-500 mb-4">创建独立的 Key Pool，可被多个任务共享使用。每个 Pool 包含 base_url、model 和多个 API Key。</p>
+                    <p class="text-xs text-slate-400 dark:text-gray-500 mb-4">创建独立的 Key Pool，可被多个任务共享使用。每个 Pool 包含 base_url 和多个 API Key，Model 在各任务中独立配置。</p>
 
                     <div id="key_pools_container" class="space-y-4">
                         {% for pool in config.openai.key_pools %}
@@ -349,15 +352,9 @@
                                 </button>
                             </div>
 
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                <div>
-                                    <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">Base URL</label>
-                                    <input type="text" class="pool-base-url input-field" value="{{ pool.base_url }}">
-                                </div>
-                                <div>
-                                    <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">Model</label>
-                                    <input type="text" class="pool-model input-field" value="{{ pool.model }}">
-                                </div>
+                            <div class="mb-4">
+                                <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">Base URL</label>
+                                <input type="text" class="pool-base-url input-field" value="{{ pool.base_url }}">
                             </div>
 
                             <!-- Pool 内的 API Keys -->
@@ -792,15 +789,9 @@
                 </button>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                    <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">Base URL</label>
-                    <input type="text" class="pool-base-url input-field" value="https://api.openai.com/v1">
-                </div>
-                <div>
-                    <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">Model</label>
-                    <input type="text" class="pool-model input-field" value="gpt-4">
-                </div>
+            <div class="mb-4">
+                <label class="block text-xs text-slate-500 dark:text-gray-400 mb-1">Base URL</label>
+                <input type="text" class="pool-base-url input-field" value="https://api.openai.com/v1">
             </div>
 
             <div class="border-t border-slate-200 dark:border-white/10 pt-3">
@@ -864,7 +855,6 @@
             if (!name) return; // 跳过没有名称的 Pool
 
             const base_url = (card.querySelector('.pool-base-url')?.value || '').trim();
-            const model = (card.querySelector('.pool-model')?.value || '').trim();
 
             const api_keys = [];
             card.querySelectorAll('.pool-key-item').forEach(keyItem => {
@@ -880,7 +870,7 @@
                 });
             });
 
-            pools.push({ name, base_url, model, api_keys });
+            pools.push({ name, base_url, api_keys });
         });
         return pools;
     }

@@ -373,11 +373,14 @@ class AIFileRenamer(IFileRenamer):
             # 解析 extra_body（从任务配置读取，不是从 pool）
             extra_params = self._parse_extra_body(config.openai.multi_file_rename.extra_body)
 
+            # 获取任务配置的 model（不是从 pool 读取）
+            model = config.openai.multi_file_rename.model
+
             # 调用 API
             response = self._api_client.call(
                 base_url=reservation.base_url,
                 api_key=reservation.api_key,
-                model=reservation.model,
+                model=model,
                 messages=[
                     {'role': 'system', 'content': system_prompt},
                     {'role': 'user', 'content': user_message}
@@ -411,7 +414,7 @@ class AIFileRenamer(IFileRenamer):
                     purpose=self.TASK_PURPOSE,
                     key_id=reservation.key_id,
                     key_name=key_info.get('name', ''),
-                    model=reservation.model,
+                    model=model,
                     anime_title=anime_title or '',
                     context_summary=f'{len(files)} files: {files[0][:50]}...' if files else '',
                     success=True,
@@ -433,7 +436,7 @@ class AIFileRenamer(IFileRenamer):
                             'previous_hardlinks': previous_hardlinks
                         },
                         output_data=response.content,
-                        model=reservation.model,
+                        model=model,
                         response_time_ms=response.response_time_ms,
                         key_id=reservation.key_id,
                         success=True
@@ -461,7 +464,7 @@ class AIFileRenamer(IFileRenamer):
                     purpose=self.TASK_PURPOSE,
                     key_id=reservation.key_id,
                     key_name=key_info.get('name', ''),
-                    model=reservation.model,
+                    model=model,
                     anime_title=anime_title or '',
                     context_summary=f'{len(files)} files: {files[0][:50]}...' if files else '',
                     success=False,
@@ -482,7 +485,7 @@ class AIFileRenamer(IFileRenamer):
                             'anime_title': anime_title
                         },
                         output_data=None,
-                        model=reservation.model,
+                        model=model,
                         response_time_ms=response.response_time_ms,
                         key_id=reservation.key_id,
                         success=False,
