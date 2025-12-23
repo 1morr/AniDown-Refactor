@@ -716,6 +716,10 @@
                 } else {
                     msgDiv.innerHTML = `<i class="fa-solid fa-check-circle mr-2"></i> 执行成功，影响 ${result.row_count} 行`;
                     document.getElementById('sql-results-section').style.display = 'none';
+
+                    // 执行修改操作后刷新数据表格和计数
+                    loadTableData();
+                    loadTableCounts();
                 }
                 
                 saveSqlHistory(query, result);
