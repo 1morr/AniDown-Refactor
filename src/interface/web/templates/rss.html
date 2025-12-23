@@ -500,14 +500,18 @@
 
         const logsBody = document.getElementById('modal-logs-body');
         if (details && details.length > 0) {
-            logsBody.innerHTML = details.map(detail => `
+            logsBody.innerHTML = details.map(detail => {
+                const failureReason = detail[3] || '-';
+                const tooltipAttr = detail[3] ? `title="${escapeHtml(detail[3])}"` : '';
+                return `
                 <tr class="border-b border-slate-50 dark:border-white/5 last:border-0">
                     <td class="px-4 py-3 text-slate-700 dark:text-slate-300 font-mono text-xs break-all">${detail[1]}</td>
                     <td class="px-4 py-3 text-center">
                         ${getStatusBadge(detail[2])}
                     </td>
-                    <td class="px-4 py-3 text-slate-400 text-xs">${detail[3] || '-'}</td>
-                </tr>`).join('');
+                    <td class="px-4 py-3 text-slate-400 text-xs break-all cursor-default" ${tooltipAttr}>${escapeHtml(failureReason)}</td>
+                </tr>`;
+            }).join('');
         } else {
             logsBody.innerHTML = '<tr><td colspan="3" class="px-4 py-3 text-center text-slate-400 dark:text-gray-600">暂无详细信息</td></tr>';
         }
@@ -537,6 +541,13 @@
             default:
                 return `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-500 text-white">${status || '未知'}</span>`;
         }
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     function closeDetailsModal() {

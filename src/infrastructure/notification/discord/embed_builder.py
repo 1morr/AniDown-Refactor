@@ -173,11 +173,18 @@ class EmbedBuilder:
         ]
 
         if failed_items:
-            # 最多显示 5 个失败项
-            failed_text = '\n'.join(
-                f"• {item.get('title', '未知')[:30]}..."
-                for item in failed_items[:5]
-            )
+            # 最多显示 5 个失败项，包含错误原因
+            failed_lines = []
+            for item in failed_items[:5]:
+                title = item.get('title', '未知')[:30]
+                reason = item.get('reason', '')
+                if reason:
+                    # 截断过长的错误原因
+                    reason_text = reason[:60] + '...' if len(reason) > 60 else reason
+                    failed_lines.append(f'• {title}... | {reason_text}')
+                else:
+                    failed_lines.append(f'• {title}...')
+            failed_text = '\n'.join(failed_lines)
             if len(failed_items) > 5:
                 failed_text += f'\n... 还有 {len(failed_items) - 5} 个'
 
@@ -667,11 +674,18 @@ class EmbedBuilder:
         ]
 
         if failed_items:
-            # 最多显示 5 个失败项
-            failed_text = '\n'.join(
-                f"• {item.get('title', '未知')[:30]}..."
-                for item in failed_items[:5]
-            )
+            # 最多显示 5 个失败项，包含错误原因
+            failed_lines = []
+            for item in failed_items[:5]:
+                title = item.get('title', '未知')[:30]
+                reason = item.get('reason', '')
+                if reason:
+                    # 截断过长的错误原因
+                    reason_text = reason[:60] + '...' if len(reason) > 60 else reason
+                    failed_lines.append(f'• {title}... | {reason_text}')
+                else:
+                    failed_lines.append(f'• {title}...')
+            failed_text = '\n'.join(failed_lines)
             if len(failed_items) > 5:
                 failed_text += f'\n... 还有 {len(failed_items) - 5} 个'
 

@@ -959,12 +959,15 @@ async function showKeyDetail(purpose, keyId, keyName) {
             'subtitle_match': 'bg-orange-100 text-orange-800 dark:bg-orange-500/20 dark:text-orange-400'
           }[h.purpose] || 'bg-slate-100 text-slate-800 dark:bg-slate-500/20 dark:text-slate-400';
 
+          // 构建失败状态的 tooltip
+          const errorTooltip = !h.success && h.error_message ? `title="${escapeHtml(h.error_message)}"` : '';
+
           return `
             <tr class="border-b border-slate-100 dark:border-white/5">
               <td class="py-1.5 pr-2 font-mono text-slate-500 dark:text-gray-400">${formatDateTime(h.created_at_utc)}</td>
               <td class="py-1.5 pr-2"><span class="px-1.5 py-0.5 text-xs ${purposeClass} rounded">${purposeDisplay}</span></td>
               <td class="py-1.5 pr-2 truncate max-w-32" title="${escapeHtml(animeTitle)}">${escapeHtml(animeTitle.substring(0, 30))}</td>
-              <td class="py-1.5 pr-2"><span class="px-1.5 py-0.5 text-xs ${statusClass} rounded">${statusText}</span></td>
+              <td class="py-1.5 pr-2"><span class="px-1.5 py-0.5 text-xs ${statusClass} rounded cursor-default" ${errorTooltip}>${statusText}</span></td>
               <td class="py-1.5 pr-2 font-mono">${h.response_time_ms || 0}ms</td>
               <td class="py-1.5 pr-2 font-mono text-slate-500 dark:text-gray-400">${h.rpm_at_call || 0}/${h.rpd_at_call || 0}</td>
             </tr>

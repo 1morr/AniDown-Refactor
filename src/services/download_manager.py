@@ -344,6 +344,9 @@ class DownloadManager:
 
         Returns:
             处理成功返回 True，否则返回 False。
+
+        Raises:
+            Exception: 处理失败时抛出异常，包含错误详情。
         """
         title = item.get('title', '')
         logger.info(f'🔄 [队列] 处理项目: {title[:50]}...')
@@ -361,7 +364,8 @@ class DownloadManager:
 
         except Exception as e:
             logger.error(f'❌ [队列] 处理项目失败: {title[:50]}... - {e}', exc_info=True)
-            return False
+            # 重新抛出异常，让调用者可以获取详细错误信息
+            raise
 
     def process_manual_anime_rss(
         self,

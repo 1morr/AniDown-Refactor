@@ -682,6 +682,8 @@ def init_queue_workers(download_manager):
                     _check_and_send_rss_completion(history_repo, history_id)
             except Exception:
                 pass
+            # 重新抛出异常，让 QueueWorker 正确统计失败数
+            raise
 
     def _check_and_send_rss_completion(history_repo, history_id):
         """检查是否所有项目已处理完成，如果是则发送完成通知"""
