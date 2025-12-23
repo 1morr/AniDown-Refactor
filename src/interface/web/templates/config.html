@@ -662,7 +662,19 @@
     </div>
 </div>
 
-<!-- 底部悬浮保存按钮 -->
+<!-- 左下角工具按钮 -->
+<div class="fixed bottom-6 left-6 z-50 flex items-center gap-2">
+    <!-- 恢复默认配置按钮 -->
+    <button id="reset_config_btn" onclick="resetConfigToDefault()" class="flex items-center justify-center w-10 h-10 bg-slate-600 hover:bg-slate-500 text-white rounded-full shadow-lg hover:shadow-slate-500/30 transition-all disabled:opacity-70 disabled:cursor-not-allowed" title="恢复默认配置（需点击保存才会生效）">
+        <i id="reset_btn_icon" class="fa-solid fa-arrow-rotate-left"></i>
+    </button>
+    <!-- 重新加载配置按钮 -->
+    <button id="reload_config_btn" onclick="reloadConfigFromFile()" class="flex items-center justify-center w-10 h-10 bg-slate-600 hover:bg-slate-500 text-white rounded-full shadow-lg hover:shadow-slate-500/30 transition-all disabled:opacity-70 disabled:cursor-not-allowed" title="从 config.json 重新加载配置">
+        <i id="reload_btn_icon" class="fa-solid fa-rotate"></i>
+    </button>
+</div>
+
+<!-- 右下角保存按钮 -->
 <div class="fixed bottom-6 right-6 z-50">
     <button id="save_config_btn" onclick="saveConfig()" class="group relative flex items-center gap-3 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-full shadow-lg hover:shadow-blue-500/30 transition-all disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:bg-blue-600">
         <i id="save_btn_icon" class="fa-solid fa-floppy-disk"></i>
@@ -1111,6 +1123,210 @@
                 icon.className = 'fa-solid fa-floppy-disk';
                 textSpan.textContent = '保存配置';
                 break;
+        }
+    }
+
+    // 重新加载配置
+    async function reloadConfigFromFile() {
+        const btn = document.getElementById('reload_config_btn');
+        const icon = document.getElementById('reload_btn_icon');
+
+        // 显示加载状态
+        btn.disabled = true;
+        icon.className = 'fa-solid fa-spinner fa-spin';
+
+        try {
+            const response = await fetch('/config/reload', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                icon.className = 'fa-solid fa-check';
+                showFlashMessage('success', data.message || '配置已从文件重新加载');
+                // 刷新页面以显示新配置
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                icon.className = 'fa-solid fa-xmark';
+                showFlashMessage('error', data.message || '重新加载配置失败');
+                setTimeout(() => {
+                    btn.disabled = false;
+                    icon.className = 'fa-solid fa-rotate';
+                }, 2000);
+            }
+        } catch (error) {
+            console.error('重新加载配置时出错:', error);
+            icon.className = 'fa-solid fa-xmark';
+            showFlashMessage('error', '重新加载配置时出错: ' + error.message);
+            setTimeout(() => {
+                btn.disabled = false;
+                icon.className = 'fa-solid fa-rotate';
+            }, 2000);
+        }
+    }
+
+    // 恢复默认配置（从后端获取默认值，只修改前端表单，不保存）
+    async function resetConfigToDefault() {
+        const btn = document.getElementById('reset_config_btn');
+        const icon = document.getElementById('reset_btn_icon');
+
+        // 显示加载状态
+        btn.disabled = true;
+        icon.className = 'fa-solid fa-spinner fa-spin';
+
+        try {
+            // 从后端获取默认配置
+            const response = await fetch('/config/defaults');
+            const result = await response.json();
+
+            if (!result.success) {
+                throw new Error(result.message || '获取默认配置失败');
+            }
+
+            const defaults = result.data;
+
+            // 字段映射：后端 key -> 前端 ID
+            const fieldMappings = {
+                'rss_interval': 'rss_interval',
+                'qb_url': 'qb_url',
+                'qb_username': 'qb_username',
+                'qb_password': 'qb_password',
+                'qb_path': 'qb_path',
+                'qb_category': 'qb_category',
+                'qb_anime_folder': 'qb_anime_folder',
+                'qb_liveaction_folder': 'qb_liveaction_folder',
+                'qb_tv_folder': 'qb_tv_folder',
+                'qb_movie_folder': 'qb_movie_folder',
+                'discord_rss_webhook': 'discord_rss',
+                'discord_hardlink_webhook': 'discord_hardlink',
+                'ai_title_parse_base_url': 'ai_title_parse_base_url',
+                'ai_title_parse_api_key': 'ai_title_parse_api_key',
+                'ai_title_parse_model': 'ai_title_parse_model',
+                'ai_title_parse_timeout': 'ai_title_parse_timeout',
+                'ai_title_parse_retries': 'ai_title_parse_retries',
+                'ai_title_parse_extra_body': 'ai_title_parse_extra_body',
+                'ai_multi_rename_base_url': 'ai_multi_rename_base_url',
+                'ai_multi_rename_api_key': 'ai_multi_rename_api_key',
+                'ai_multi_rename_model': 'ai_multi_rename_model',
+                'ai_multi_rename_timeout': 'ai_multi_rename_timeout',
+                'ai_multi_rename_extra_body': 'ai_multi_rename_extra_body',
+                'ai_max_batch_size': 'ai_max_batch_size',
+                'ai_batch_processing_retries': 'ai_batch_processing_retries',
+                'ai_subtitle_match_base_url': 'ai_subtitle_match_base_url',
+                'ai_subtitle_match_api_key': 'ai_subtitle_match_api_key',
+                'ai_subtitle_match_model': 'ai_subtitle_match_model',
+                'ai_subtitle_match_timeout': 'ai_subtitle_match_timeout',
+                'ai_subtitle_match_retries': 'ai_subtitle_match_retries',
+                'ai_subtitle_match_extra_body': 'ai_subtitle_match_extra_body',
+                'link_target_path': 'link_target_path',
+                'movie_link_target_path': 'movie_link_target_path',
+                'live_action_tv_target_path': 'live_action_tv_target_path',
+                'live_action_movie_target_path': 'live_action_movie_target_path',
+                'path_conversion_source_base': 'path_conversion_source_base',
+                'path_conversion_target_base': 'path_conversion_target_base',
+                'webui_port': 'webui_port',
+                'webhook_port': 'webhook_port',
+                'tvdb_api_key': 'tvdb_api_key'
+            };
+
+            // 设置文本/数字输入框
+            Object.entries(fieldMappings).forEach(([defaultKey, fieldId]) => {
+                const el = document.getElementById(fieldId);
+                if (el && defaults[defaultKey] !== undefined) {
+                    el.value = defaults[defaultKey];
+                }
+            });
+
+            // 设置复选框
+            const checkboxMappings = {
+                'discord_enabled': 'discord_enabled',
+                'use_consistent_naming_tv': 'use_consistent_naming_tv',
+                'use_consistent_naming_movie': 'use_consistent_naming_movie',
+                'path_conversion_enabled': 'path_conversion_enabled'
+            };
+
+            Object.entries(checkboxMappings).forEach(([defaultKey, fieldId]) => {
+                const el = document.getElementById(fieldId);
+                if (el) {
+                    el.checked = defaults[defaultKey] || false;
+                }
+            });
+
+            // 设置下拉框（Pool 选择）
+            const poolSelects = {
+                'title_parse_pool_select': 'title_parse_pool_name',
+                'multi_file_rename_pool_select': 'multi_file_rename_pool_name',
+                'subtitle_match_pool_select': 'subtitle_match_pool_name'
+            };
+
+            Object.entries(poolSelects).forEach(([selectId, defaultKey]) => {
+                const el = document.getElementById(selectId);
+                if (el) {
+                    el.value = defaults[defaultKey] || '';
+                    // 触发 onchange 事件以更新独立配置区域的状态
+                    el.dispatchEvent(new Event('change'));
+                }
+            });
+
+            // 清空 RSS feeds（只保留一个空的）
+            const rssList = document.getElementById('rss_list');
+            if (rssList) {
+                rssList.innerHTML = '';
+                addRssField(); // 添加一个空的 RSS 输入框
+            }
+
+            // 清空 Key Pools
+            const keyPoolsList = document.getElementById('key_pools_list');
+            if (keyPoolsList) {
+                keyPoolsList.innerHTML = '';
+            }
+
+            // 重置语言优先级为默认值
+            const defaultLanguages = defaults.language_priorities || ['中文', 'English', '日本語', 'Romaji'];
+            const languageList = document.getElementById('language_priority_list');
+            if (languageList) {
+                languageList.innerHTML = '';
+                defaultLanguages.forEach(lang => {
+                    const item = document.createElement('div');
+                    item.className = 'language-priority-item flex items-center gap-2 p-2 bg-slate-100 dark:bg-white/5 rounded-lg cursor-move';
+                    item.draggable = true;
+                    item.innerHTML = `
+                        <i class="fa-solid fa-grip-vertical text-slate-400 dark:text-gray-500"></i>
+                        <span class="flex-1 text-sm text-slate-700 dark:text-gray-300">${lang}</span>
+                        <button type="button" onclick="removeLanguagePriority(this)" class="text-slate-400 hover:text-red-500 transition-colors">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    `;
+                    languageList.appendChild(item);
+                });
+                // 重新初始化拖拽
+                if (typeof initLanguagePriorityDrag === 'function') {
+                    initLanguagePriorityDrag();
+                }
+            }
+
+            // 显示成功状态
+            icon.className = 'fa-solid fa-check';
+            showFlashMessage('success', '已恢复默认配置，点击保存按钮后生效');
+
+            setTimeout(() => {
+                btn.disabled = false;
+                icon.className = 'fa-solid fa-arrow-rotate-left';
+            }, 1500);
+
+        } catch (error) {
+            console.error('恢复默认配置时出错:', error);
+            icon.className = 'fa-solid fa-xmark';
+            showFlashMessage('error', '恢复默认配置时出错: ' + error.message);
+
+            setTimeout(() => {
+                btn.disabled = false;
+                icon.className = 'fa-solid fa-arrow-rotate-left';
+            }, 2000);
         }
     }
 

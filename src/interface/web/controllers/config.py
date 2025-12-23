@@ -5,9 +5,10 @@
 """
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 import json
+import os
 
 from src.core.config import (
-    config, RSSFeed, OpenAIConfig, LanguagePriorityConfig
+    config, AppConfig, RSSFeed, OpenAIConfig, LanguagePriorityConfig
 )
 from src.interface.web.utils import (
     APIResponse,
@@ -439,3 +440,144 @@ def _handle_config_error(is_ajax: bool, message: str):
     else:
         flash(f'保存配置失败: {message}', 'error')
         return redirect(url_for('config.config_page'))
+
+
+@config_bp.route('/config/reload', methods=['POST'])
+@handle_api_errors
+def reload_config_from_file():
+    """从 config.json 重新加载配置"""
+    global config
+
+    logger.api_request('从文件重新加载配置')
+
+    config_path = os.getenv('CONFIG_PATH', 'config.json')
+
+    if not os.path.exists(config_path):
+        logger.api_error_msg('/config/reload', f'配置文件不存在: {config_path}')
+        return APIResponse.bad_request(f'配置文件不存在: {config_path}')
+
+    try:
+        # 从文件加载新配置
+        new_config = AppConfig.load(config_path)
+
+        # 更新全局配置对象的所有属性
+        for field_name in new_config.model_fields:
+            setattr(config, field_name, getattr(new_config, field_name))
+
+        # 执行配置热重载
+        reload_results, restart_required, restart_items = reload_config()
+
+        message = '配置已从文件重新加载'
+        if restart_required:
+            message += f'，以下配置需要重启程序才能生效: {", ".join(restart_items)}'
+
+        logger.api_success('/config/reload', message)
+
+        return APIResponse.success(
+            message=message,
+            data={
+                'reload_results': reload_results,
+                'restart_required': restart_required,
+                'restart_items': restart_items
+            }
+        )
+    except Exception as e:
+        logger.api_error_msg('/config/reload', f'加载配置文件失败: {e}')
+        return APIResponse.bad_request(f'加载配置文件失败: {e}')
+
+
+@config_bp.route('/config/defaults', methods=['GET'])
+@handle_api_errors
+def get_default_config():
+    """获取默认配置值"""
+    logger.api_request('获取默认配置')
+
+    try:
+        # 创建一个新的默认配置实例
+        default_config = AppConfig()
+
+        # 构建返回的默认值字典
+        defaults = {
+            # RSS 配置
+            'rss_interval': default_config.rss.check_interval,
+
+            # qBittorrent 配置
+            'qb_url': default_config.qbittorrent.url,
+            'qb_username': default_config.qbittorrent.username,
+            'qb_password': default_config.qbittorrent.password,
+            'qb_path': default_config.qbittorrent.base_download_path,
+            'qb_category': default_config.qbittorrent.category,
+            'qb_anime_folder': default_config.qbittorrent.anime_folder_name,
+            'qb_liveaction_folder': default_config.qbittorrent.live_action_folder_name,
+            'qb_tv_folder': default_config.qbittorrent.tv_folder_name,
+            'qb_movie_folder': default_config.qbittorrent.movie_folder_name,
+
+            # Discord 配置
+            'discord_enabled': default_config.discord.enabled,
+            'discord_rss_webhook': default_config.discord.rss_webhook_url or '',
+            'discord_hardlink_webhook': default_config.discord.hardlink_webhook_url or '',
+
+            # AI 配置 - 标题解析
+            'ai_title_parse_base_url': default_config.openai.title_parse.base_url,
+            'ai_title_parse_api_key': default_config.openai.title_parse.api_key,
+            'ai_title_parse_model': default_config.openai.title_parse.model,
+            'ai_title_parse_timeout': default_config.openai.title_parse.timeout,
+            'ai_title_parse_retries': default_config.openai.title_parse.retries,
+            'ai_title_parse_extra_body': default_config.openai.title_parse.extra_body,
+            'title_parse_pool_name': default_config.openai.title_parse.pool_name,
+
+            # AI 配置 - 多文件重命名
+            'ai_multi_rename_base_url': default_config.openai.multi_file_rename.base_url,
+            'ai_multi_rename_api_key': default_config.openai.multi_file_rename.api_key,
+            'ai_multi_rename_model': default_config.openai.multi_file_rename.model,
+            'ai_multi_rename_timeout': default_config.openai.multi_file_rename.timeout,
+            'ai_multi_rename_extra_body': default_config.openai.multi_file_rename.extra_body,
+            'ai_max_batch_size': default_config.openai.multi_file_rename.max_batch_size,
+            'ai_batch_processing_retries': (
+                default_config.openai.multi_file_rename.batch_processing_retries
+            ),
+            'multi_file_rename_pool_name': default_config.openai.multi_file_rename.pool_name,
+
+            # AI 配置 - 字幕匹配
+            'ai_subtitle_match_base_url': default_config.openai.subtitle_match.base_url,
+            'ai_subtitle_match_api_key': default_config.openai.subtitle_match.api_key,
+            'ai_subtitle_match_model': default_config.openai.subtitle_match.model,
+            'ai_subtitle_match_timeout': default_config.openai.subtitle_match.timeout,
+            'ai_subtitle_match_retries': default_config.openai.subtitle_match.retries,
+            'ai_subtitle_match_extra_body': default_config.openai.subtitle_match.extra_body,
+            'subtitle_match_pool_name': default_config.openai.subtitle_match.pool_name,
+
+            # 语言优先级
+            'language_priorities': [
+                lp.name for lp in default_config.openai.language_priorities
+            ],
+
+            # 路径配置
+            'link_target_path': default_config.link_target_path,
+            'movie_link_target_path': default_config.movie_link_target_path,
+            'live_action_tv_target_path': default_config.live_action_tv_target_path,
+            'live_action_movie_target_path': default_config.live_action_movie_target_path,
+
+            # 命名一致性
+            'use_consistent_naming_tv': default_config.use_consistent_naming_tv,
+            'use_consistent_naming_movie': default_config.use_consistent_naming_movie,
+
+            # 路径转换
+            'path_conversion_enabled': default_config.path_conversion.enabled,
+            'path_conversion_source_base': default_config.path_conversion.source_base_path,
+            'path_conversion_target_base': default_config.path_conversion.target_base_path,
+
+            # 端口配置
+            'webui_port': default_config.webui.port,
+            'webhook_port': default_config.webhook.port,
+
+            # TVDB
+            'tvdb_api_key': default_config.tvdb.api_key,
+        }
+
+        logger.api_success('/config/defaults', '获取默认配置成功')
+        return APIResponse.success(data=defaults)
+
+    except Exception as e:
+        logger.api_error_msg('/config/defaults', f'获取默认配置失败: {e}')
+        return APIResponse.bad_request(f'获取默认配置失败: {e}')
