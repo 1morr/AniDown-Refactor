@@ -629,9 +629,9 @@
 
 <!-- 底部悬浮保存按钮 -->
 <div class="fixed bottom-6 right-6 z-50">
-    <button onclick="saveConfig()" class="group relative flex items-center gap-3 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-full shadow-lg hover:shadow-blue-500/30 transition-all">
-        <i class="fa-solid fa-floppy-disk"></i>
-        <span>保存配置</span>
+    <button id="save_config_btn" onclick="saveConfig()" class="group relative flex items-center gap-3 px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-full shadow-lg hover:shadow-blue-500/30 transition-all disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:bg-blue-600">
+        <i id="save_btn_icon" class="fa-solid fa-floppy-disk"></i>
+        <span id="save_btn_text">保存配置</span>
     </button>
 </div>
 {% endblock %}
@@ -990,7 +990,53 @@
     });
 
     // 4. 保存逻辑
+
+    // 更新保存按钮状态
+    function updateSaveButton(state, text) {
+        const btn = document.getElementById('save_config_btn');
+        const icon = document.getElementById('save_btn_icon');
+        const textSpan = document.getElementById('save_btn_text');
+
+        if (!btn || !icon || !textSpan) return;
+
+        switch (state) {
+            case 'saving':
+                btn.disabled = true;
+                icon.className = 'fa-solid fa-spinner fa-spin';
+                textSpan.textContent = text || '保存配置中...';
+                break;
+            case 'reloading':
+                btn.disabled = true;
+                icon.className = 'fa-solid fa-rotate fa-spin';
+                textSpan.textContent = text || '重载配置中...';
+                break;
+            case 'success':
+                btn.disabled = false;
+                icon.className = 'fa-solid fa-check';
+                textSpan.textContent = text || '保存成功';
+                // 2秒后恢复默认状态
+                setTimeout(() => updateSaveButton('default'), 2000);
+                break;
+            case 'error':
+                btn.disabled = false;
+                icon.className = 'fa-solid fa-xmark';
+                textSpan.textContent = text || '保存失败';
+                // 3秒后恢复默认状态
+                setTimeout(() => updateSaveButton('default'), 3000);
+                break;
+            case 'default':
+            default:
+                btn.disabled = false;
+                icon.className = 'fa-solid fa-floppy-disk';
+                textSpan.textContent = '保存配置';
+                break;
+        }
+    }
+
     async function saveConfig() {
+        // 更新按钮状态为保存中
+        updateSaveButton('saving', '保存配置中...');
+
         const formData = new FormData();
 
         // RSS 配置 - 收集新的结构
@@ -1097,6 +1143,9 @@
         formData.append('tvdb_api_key', document.getElementById('tvdb_key').value);
 
         try {
+            // 更新状态为热重载中（服务器保存后会执行热重载）
+            updateSaveButton('reloading', '重载配置中...');
+
             const response = await fetch('{{ url_for("config.update_config") }}', {
                 method: 'POST',
                 body: formData
@@ -1105,21 +1154,26 @@
             if (response.ok) {
                 const data = await response.json();
                 if (data.success) {
+                    updateSaveButton('success', '保存成功');
                     showFlashMessage('success', data.message || '配置已保存成功');
                 } else {
+                    updateSaveButton('error', '保存失败');
                     showFlashMessage('error', data.message || '保存配置失败');
                 }
             } else {
                 // 嘗試解析錯誤響應
                 try {
                     const errorData = await response.json();
+                    updateSaveButton('error', '保存失败');
                     showFlashMessage('error', errorData.message || '保存配置失败');
                 } catch {
+                    updateSaveButton('error', '保存失败');
                     showFlashMessage('error', '保存配置失败');
                 }
             }
         } catch (error) {
             console.error('保存配置时出错:', error);
+            updateSaveButton('error', '保存失败');
             showFlashMessage('error', '保存配置时出错: ' + error.message);
         }
     }

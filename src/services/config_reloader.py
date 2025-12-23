@@ -192,11 +192,75 @@ class ConfigReloader:
                     pool.restore_counts_from_db()
                     logger.debug(f'🔑 任务 {purpose} 重载独立配置')
 
+            # Phase 3: 更新已存在的 AI 服务实例的内部引用
+            # 由于 Singleton 模式，服务实例已创建并持有旧的 pool/breaker 引用
+            # 需要直接更新这些实例的内部属性
+            self._update_ai_service_references()
+
             logger.info('✅ Key Pools 热重载完成')
             return True
         except Exception as e:
             logger.error(f'❌ Key Pools 热重载失败: {e}', exc_info=True)
             return False
+
+    def _update_ai_service_references(self) -> None:
+        """
+        更新已存在的 AI 服务实例的内部引用。
+
+        由于使用 Singleton 模式，AI 服务在启动时创建并持有
+        key_pool 和 circuit_breaker 的引用。热重载后需要
+        直接更新这些实例的内部属性以指向新的 pool/breaker。
+
+        同时更新依赖这些 AI 服务的上层服务的引用。
+        """
+        from src.container import container
+
+        try:
+            # 获取新的 pool 和 breaker 实例
+            new_title_parse_pool = container.title_parse_pool()
+            new_title_parse_breaker = container.title_parse_breaker()
+            new_rename_pool = container.rename_pool()
+            new_rename_breaker = container.rename_breaker()
+            new_subtitle_match_pool = container.subtitle_match_pool()
+            new_subtitle_match_breaker = container.subtitle_match_breaker()
+
+            # 更新 title_parser 的引用
+            title_parser = container.title_parser()
+            title_parser._key_pool = new_title_parse_pool
+            title_parser._circuit_breaker = new_title_parse_breaker
+            logger.debug('🔄 更新 title_parser 的 pool/breaker 引用')
+
+            # 更新 file_renamer 的引用
+            file_renamer = container.file_renamer()
+            file_renamer._key_pool = new_rename_pool
+            file_renamer._circuit_breaker = new_rename_breaker
+            logger.debug('🔄 更新 file_renamer 的 pool/breaker 引用')
+
+            # 更新 subtitle_matcher 的引用
+            subtitle_matcher = container.subtitle_matcher()
+            subtitle_matcher._key_pool = new_subtitle_match_pool
+            subtitle_matcher._circuit_breaker = new_subtitle_match_breaker
+            logger.debug('🔄 更新 subtitle_matcher 的 pool/breaker 引用')
+
+            # 更新依赖 AI 服务的上层服务的引用
+            # download_manager 持有 title_parser 和 file_renamer 引用
+            download_manager = container.download_manager()
+            download_manager._title_parser = title_parser
+            download_manager._file_renamer = file_renamer
+            logger.debug('🔄 更新 download_manager 的 AI 服务引用')
+
+            # rename_service 持有 file_renamer 引用
+            rename_service = container.rename_service()
+            rename_service._ai_file_renamer = file_renamer
+            logger.debug('🔄 更新 rename_service 的 file_renamer 引用')
+
+            # subtitle_service 持有 subtitle_matcher 引用
+            subtitle_service = container.subtitle_service()
+            subtitle_service._subtitle_matcher = subtitle_matcher
+            logger.debug('🔄 更新 subtitle_service 的 subtitle_matcher 引用')
+
+        except Exception as e:
+            logger.warning(f'⚠️ 更新 AI 服务引用时出错: {e}')
 
     def _reload_discord(self) -> bool:
         """重载 Discord Webhook 配置"""
@@ -318,6 +382,24 @@ class ConfigReloader:
                 )
             )
 
+            # 获取新的 API 客户端实例
+            new_title_parse_client = container.title_parse_api_client()
+            new_rename_client = container.rename_api_client()
+            new_subtitle_match_client = container.subtitle_match_api_client()
+
+            # 更新 AI 服务的 api_client 引用
+            title_parser = container.title_parser()
+            title_parser._api_client = new_title_parse_client
+            logger.debug('🔄 更新 title_parser 的 api_client 引用')
+
+            file_renamer = container.file_renamer()
+            file_renamer._api_client = new_rename_client
+            logger.debug('🔄 更新 file_renamer 的 api_client 引用')
+
+            subtitle_matcher = container.subtitle_matcher()
+            subtitle_matcher._api_client = new_subtitle_match_client
+            logger.debug('🔄 更新 subtitle_matcher 的 api_client 引用')
+
             logger.info('✅ AI 客户端热重载完成')
             return True
         except Exception as e:
@@ -339,6 +421,20 @@ class ConfigReloader:
                     library_root=config.link_target_path
                 )
             )
+
+            # 获取新的 PathBuilder 实例
+            new_path_builder = container.path_builder()
+
+            # 更新已存在服务实例的引用
+            # hardlink_service 持有 path_builder 引用
+            hardlink_service = container.hardlink_service()
+            hardlink_service._path_builder = new_path_builder
+            logger.debug('🔄 更新 hardlink_service 的 path_builder 引用')
+
+            # download_manager 持有 path_builder 引用
+            download_manager = container.download_manager()
+            download_manager._path_builder = new_path_builder
+            logger.debug('🔄 更新 download_manager 的 path_builder 引用')
 
             logger.info('✅ PathBuilder 热重载完成')
             return True
