@@ -41,7 +41,7 @@
 |------|---------|------|
 | **Python** | 3.11+ | 運行環境 |
 | **qBittorrent** | 4.4+ | 下載客戶端，需啟用 WebAPI |
-| **OpenAI API** | - | GPT 模型 API（或兼容 API） |
+| **OpenAI API** | - | OpenAI或其他兼容的API |
 
 ### 可選組件
 
