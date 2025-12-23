@@ -149,8 +149,13 @@
             </div>
             <div class="grid grid-cols-1 gap-6">
                 <!-- 标题解析 -->
-                <div class="border border-slate-200 dark:border-white/10 rounded-lg p-4">
-                    <h4 class="text-sm font-semibold text-slate-700 dark:text-gray-300 mb-4">标题解析</h4>
+                <div class="border border-slate-200 dark:border-white/10 rounded-lg overflow-hidden">
+                    <button type="button" onclick="toggleCollapsible('title_parse_section')" class="w-full flex items-center justify-between p-4 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors">
+                        <h4 class="text-sm font-semibold text-slate-700 dark:text-gray-300">标题解析</h4>
+                        <i id="title_parse_section_icon" class="fa-solid fa-chevron-right text-slate-400 dark:text-gray-500 transition-transform duration-300"></i>
+                    </button>
+                    <div id="title_parse_section" class="collapsible-content border-t border-slate-200 dark:border-white/10" style="max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out;">
+                        <div class="p-4">
 
                     <!-- 独立配置（选择 Pool 后禁用） -->
                     <div id="title_parse_standalone_config" class="grid grid-cols-1 gap-4 {{ 'opacity-50 pointer-events-none' if config.openai.title_parse.pool_name else '' }}">
@@ -205,11 +210,18 @@
                             <p class="text-xs text-slate-400 dark:text-gray-500 mt-1">可选。额外的API参数，此设置独立于 Key Pool，始终使用本任务的配置。</p>
                         </div>
                     </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- 多文件重命名 -->
-                <div class="border border-slate-200 dark:border-white/10 rounded-lg p-4">
-                    <h4 class="text-sm font-semibold text-slate-700 dark:text-gray-300 mb-4">多文件重命名</h4>
+                <div class="border border-slate-200 dark:border-white/10 rounded-lg overflow-hidden">
+                    <button type="button" onclick="toggleCollapsible('multi_file_rename_section')" class="w-full flex items-center justify-between p-4 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors">
+                        <h4 class="text-sm font-semibold text-slate-700 dark:text-gray-300">多文件重命名</h4>
+                        <i id="multi_file_rename_section_icon" class="fa-solid fa-chevron-right text-slate-400 dark:text-gray-500 transition-transform duration-300"></i>
+                    </button>
+                    <div id="multi_file_rename_section" class="collapsible-content border-t border-slate-200 dark:border-white/10" style="max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out;">
+                        <div class="p-4">
 
                     <!-- 独立配置（选择 Pool 后禁用） -->
                     <div id="multi_file_rename_standalone_config" class="grid grid-cols-1 gap-4 {{ 'opacity-50 pointer-events-none' if config.openai.multi_file_rename.pool_name else '' }}">
@@ -268,11 +280,18 @@
                             </div>
                         </div>
                     </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- 字幕匹配 -->
-                <div class="border border-slate-200 dark:border-white/10 rounded-lg p-4">
-                    <h4 class="text-sm font-semibold text-slate-700 dark:text-gray-300 mb-4">字幕匹配</h4>
+                <div class="border border-slate-200 dark:border-white/10 rounded-lg overflow-hidden">
+                    <button type="button" onclick="toggleCollapsible('subtitle_match_section')" class="w-full flex items-center justify-between p-4 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors">
+                        <h4 class="text-sm font-semibold text-slate-700 dark:text-gray-300">字幕匹配</h4>
+                        <i id="subtitle_match_section_icon" class="fa-solid fa-chevron-right text-slate-400 dark:text-gray-500 transition-transform duration-300"></i>
+                    </button>
+                    <div id="subtitle_match_section" class="collapsible-content border-t border-slate-200 dark:border-white/10" style="max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out;">
+                        <div class="p-4">
 
                     <!-- 独立配置（选择 Pool 后禁用） -->
                     <div id="subtitle_match_standalone_config" class="grid grid-cols-1 gap-4 {{ 'opacity-50 pointer-events-none' if config.openai.subtitle_match.pool_name else '' }}">
@@ -327,17 +346,24 @@
                             </div>
                         </div>
                     </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- 独立 Key Pools -->
-                <div class="border border-slate-200 dark:border-white/10 rounded-lg p-4">
-                    <div class="flex items-center justify-between mb-2">
-                        <h4 class="text-sm font-semibold text-slate-700 dark:text-gray-300">API Key Pools</h4>
-                        <button type="button" onclick="addKeyPool()" class="px-3 py-1.5 text-xs rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-gray-200">
+                <div class="border border-slate-200 dark:border-white/10 rounded-lg overflow-hidden">
+                    <button type="button" onclick="toggleCollapsible('key_pools_section')" class="w-full flex items-center justify-between p-4 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors">
+                        <h4 class="text-sm font-semibold text-slate-700 dark:text-gray-300">Key Pools</h4>
+                        <i id="key_pools_section_icon" class="fa-solid fa-chevron-right text-slate-400 dark:text-gray-500 transition-transform duration-300"></i>
+                    </button>
+                    <div id="key_pools_section" class="collapsible-content border-t border-slate-200 dark:border-white/10" style="max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out;">
+                        <div class="p-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <p class="text-xs text-slate-400 dark:text-gray-500 flex-1 mr-4">创建独立的 Key Pool，可被多个任务共享使用。每个 Pool 包含 base_url 和多个 API Key，Model 在各任务中独立配置。</p>
+                        <button type="button" onclick="addKeyPool()" class="px-3 py-1.5 text-xs rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-gray-200 whitespace-nowrap">
                             <i class="fa-solid fa-plus mr-1"></i> 添加 Pool
                         </button>
                     </div>
-                    <p class="text-xs text-slate-400 dark:text-gray-500 mb-4">创建独立的 Key Pool，可被多个任务共享使用。每个 Pool 包含 base_url 和多个 API Key，Model 在各任务中独立配置。</p>
 
                     <div id="key_pools_container" class="space-y-4">
                         {% for pool in config.openai.key_pools %}
@@ -385,17 +411,24 @@
                         </div>
                         {% endfor %}
                     </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- 语言优先级设置 -->
-                <div class="border border-slate-200 dark:border-white/10 rounded-lg p-4">
-                    <div class="flex items-center justify-between mb-2">
+                <div class="border border-slate-200 dark:border-white/10 rounded-lg overflow-hidden">
+                    <button type="button" onclick="toggleCollapsible('language_priority_section')" class="w-full flex items-center justify-between p-4 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors">
                         <h4 class="text-sm font-semibold text-slate-700 dark:text-gray-300">标题语言优先级</h4>
-                        <button type="button" onclick="showAddLanguageForm()" class="px-3 py-1.5 text-xs rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-gray-200">
+                        <i id="language_priority_section_icon" class="fa-solid fa-chevron-right text-slate-400 dark:text-gray-500 transition-transform duration-300"></i>
+                    </button>
+                    <div id="language_priority_section" class="collapsible-content border-t border-slate-200 dark:border-white/10" style="max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out;">
+                        <div class="p-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <p class="text-xs text-slate-400 dark:text-gray-500 flex-1 mr-4">拖动调整语言优先级顺序，AI 将优先使用排在前面的语言作为动漫标题。如果第一优先级不存在，则依次尝试下一优先级。</p>
+                        <button type="button" onclick="showAddLanguageForm()" class="px-3 py-1.5 text-xs rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-700 dark:text-gray-200 whitespace-nowrap">
                             <i class="fa-solid fa-plus mr-1"></i> 添加语言
                         </button>
                     </div>
-                    <p class="text-xs text-slate-400 dark:text-gray-500 mb-4">拖动调整语言优先级顺序，AI 将优先使用排在前面的语言作为动漫标题。如果第一优先级不存在，则依次尝试下一优先级。</p>
 
                     <!-- 添加语言表单（默认隐藏） -->
                     <div id="add_language_form" class="hidden mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-500/30">
@@ -434,6 +467,8 @@
                         <i class="fa-solid fa-info-circle mr-1"></i>
                         当前优先级：<span id="current_priority_display" class="font-medium text-slate-600 dark:text-gray-300"></span>
                     </p>
+                </div>
+                </div>
                 </div>
             </div>
         </section>
@@ -704,6 +739,41 @@
     }
 
     // 2. 辅助功能
+
+    // 折叠/展开功能
+    function toggleCollapsible(sectionId) {
+        const content = document.getElementById(sectionId);
+        const icon = document.getElementById(sectionId + '_icon');
+
+        if (!content || !icon) return;
+
+        const isExpanded = content.style.maxHeight && content.style.maxHeight !== '0px';
+
+        if (isExpanded) {
+            // 收起
+            content.style.maxHeight = '0px';
+            icon.style.transform = 'rotate(0deg)';
+        } else {
+            // 展开 - 设置为内容的实际高度
+            content.style.maxHeight = content.scrollHeight + 'px';
+            icon.style.transform = 'rotate(90deg)';
+        }
+    }
+
+    // 更新已展开的折叠区域高度（用于动态内容变化）
+    function updateCollapsibleHeight(sectionId) {
+        const content = document.getElementById(sectionId);
+        if (!content) return;
+
+        const isExpanded = content.style.maxHeight && content.style.maxHeight !== '0px';
+        if (isExpanded) {
+            // 需要延迟一下让 DOM 更新
+            setTimeout(() => {
+                content.style.maxHeight = content.scrollHeight + 'px';
+            }, 10);
+        }
+    }
+
     function addRssField(url = '', keywords = '', regex = '', media_type = 'anime') {
         const div = document.createElement('div');
         div.className = 'rss-feed-item border border-slate-200 dark:border-white/10 rounded-lg p-4';
@@ -809,6 +879,9 @@
 
         // 绑定 Pool 名称变化事件以更新下拉框
         div.querySelector('.pool-name-input').addEventListener('input', updatePoolDropdowns);
+
+        // 更新折叠区域高度
+        updateCollapsibleHeight('key_pools_section');
     }
 
     // 删除 Key Pool
@@ -817,6 +890,8 @@
         if (card) {
             card.remove();
             updatePoolDropdowns();
+            // 更新折叠区域高度
+            updateCollapsibleHeight('key_pools_section');
         }
     }
 
@@ -839,12 +914,18 @@
             </div>
         `;
         keysList.appendChild(div);
+        // 更新折叠区域高度
+        updateCollapsibleHeight('key_pools_section');
     }
 
     // 从 Pool 删除 Key
     function removeKeyFromPool(button) {
         const item = button.closest('.pool-key-item');
-        if (item) item.remove();
+        if (item) {
+            item.remove();
+            // 更新折叠区域高度
+            updateCollapsibleHeight('key_pools_section');
+        }
     }
 
     // 收集所有 Key Pools 数据
@@ -1284,12 +1365,16 @@
     function showAddLanguageForm() {
         document.getElementById('add_language_form').classList.remove('hidden');
         document.getElementById('new_lang_name').focus();
+        // 更新折叠区域高度
+        updateCollapsibleHeight('language_priority_section');
     }
 
     // 隐藏添加语言表单
     function hideAddLanguageForm() {
         document.getElementById('add_language_form').classList.add('hidden');
         document.getElementById('new_lang_name').value = '';
+        // 更新折叠区域高度
+        updateCollapsibleHeight('language_priority_section');
     }
 
     // 添加新语言
@@ -1335,6 +1420,9 @@
         hideAddLanguageForm();
         updatePriorityDisplay();
         showFlashMessage('success', `已添加语言: ${name}`);
+
+        // 更新折叠区域高度
+        updateCollapsibleHeight('language_priority_section');
     }
 
     // 删除语言
@@ -1346,6 +1434,8 @@
             item.remove();
             updatePriorityDisplay();
             showFlashMessage('success', `已删除语言: ${name}`);
+            // 更新折叠区域高度
+            updateCollapsibleHeight('language_priority_section');
         }
     }
 
