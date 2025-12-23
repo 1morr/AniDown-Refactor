@@ -1112,7 +1112,8 @@
                 return;
             }
 
-            showSuccess(`✅ 已加入处理队列\n\n队列长度: ${data.queue_len}\n\n可在"AI状态"页面查看处理进度`);
+            const queueInfo = data.queue_len === 0 ? '正在处理' : `队列长度: ${data.queue_len}`;
+            showSuccess(`已加入处理队列，${queueInfo}`);
         } catch (error) {
             showError('发送webhook失败: ' + error.message);
         }
