@@ -407,7 +407,7 @@ def update_config():
             message = f'配置已保存，部分组件重新加载失败 ({success_count}/{total_count})。{restart_msg}'
     else:
         if success_count == total_count:
-            message = f'配置已保存并实时生效 ({success_count}/{total_count} 组件已更新)'
+            message = f'配置已保存并实时生效'
         else:
             failed_components = [k for k, v in reload_results.items() if not v]
             message = f'配置已保存，部分组件重新加载失败: {", ".join(failed_components)}'

@@ -100,7 +100,7 @@ init_config() {
 
 # 等待 qBittorrent 服務啟動
 wait_for_qbittorrent() {
-    local qb_url="${ANIDOWN_QBITTORRENT__URL:-http://qbittorrent:8080}"
+    local qb_url="${ANIDOWN_QBITTORRENT__URL:-http://localhost:8080}"
     local max_attempts=30
     local attempt=1
 

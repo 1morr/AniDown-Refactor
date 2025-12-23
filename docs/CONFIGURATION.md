@@ -39,7 +39,7 @@
     "hardlink_webhook_url": ""
   },
   "qbittorrent": {
-    "url": "http://qbittorrent:8080",
+    "url": "http://localhost:8080",
     "username": "admin",
     "password": "adminadmin",
     "base_download_path": "/storage/downloads/AniDown/",
@@ -103,7 +103,7 @@
 ```json
 {
   "qbittorrent": {
-    "url": "http://qbittorrent:8080",
+    "url": "http://localhost:8080",
     "username": "admin",
     "password": "adminadmin",
     "base_download_path": "/storage/downloads/AniDown/",
