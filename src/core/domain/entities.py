@@ -51,9 +51,16 @@ class AnimeInfo:
 
     @property
     def display_name(self) -> str:
-        """Return the display name for this anime."""
+        """Return the display name for this anime (prefers full title)."""
         if self.title:
             return self.title.display_name
+        return ''
+
+    @property
+    def short_title(self) -> str:
+        """Return the short title for file naming and paths."""
+        if self.title:
+            return self.title.short or self.title.original
         return ''
 
     @property

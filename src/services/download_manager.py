@@ -765,7 +765,7 @@ class DownloadManager:
         hash_id = item.get('hash', '')
 
         anime_id = anime_info.id
-        anime_short_title = anime_info.display_name
+        anime_short_title = anime_info.short_title  # Use short_title for file naming
         anime_subtitle_group = anime_info.subtitle_group_name
         anime_season = anime_info.season_number
         anime_category = 'movie' if anime_info.category == Category.MOVIE else 'tv'
