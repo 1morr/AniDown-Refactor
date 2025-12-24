@@ -10,31 +10,17 @@
   },
   "qbittorrent": {
     "url": "http://localhost:8080",
-    "username": "admin",
-    "password": "adminadmin",
+    "username": "",
+    "password": "",
     "base_download_path": "/storage/Downloads/AniDown/",
     "category": "AniDown",
     "anime_folder_name": "Anime",
     "live_action_folder_name": "LiveAction",
-    "tv_folder_name": "TV",
+    "tv_folder_name": "TV Shows",
     "movie_folder_name": "Movies"
   },
   "openai": {
-    "key_pools": [
-      {
-        "name": "Example Pool",
-        "base_url": "https://api.openai.com/v1",
-        "api_keys": [
-          {
-            "name": "Key 1",
-            "api_key": "sk-xxx",
-            "rpm": 60,
-            "rpd": 1000,
-            "enabled": true
-          }
-        ]
-      }
-    ],
+    "key_pools": [],
     "title_parse": {
       "pool_name": "",
       "api_key": "",
@@ -61,7 +47,7 @@
       "base_url": "https://api.openai.com/v1",
       "model": "gpt-4",
       "extra_body": "",
-      "timeout": 180,
+      "timeout": 360,
       "retries": 3
     },
     "rate_limits": {
@@ -87,7 +73,7 @@
   },
   "path_conversion": {
     "enabled": false,
-    "source_base_path": "/downloads/AniDown/",
+    "source_base_path": "/storage/Downloads/AniDown/",
     "target_base_path": "/storage/Downloads/AniDown/"
   },
   "tvdb": {

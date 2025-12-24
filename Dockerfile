@@ -41,9 +41,6 @@ COPY --from=builder /install /usr/local
 # Copy application code
 COPY . .
 
-# Create necessary directories
-RUN mkdir -p /data/db /data/config /data/logs /data/ai_logs /storage/downloads /storage/library
-
 # Set permissions
 RUN chmod +x docker-entrypoint.sh
 

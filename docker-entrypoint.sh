@@ -78,18 +78,10 @@ create_directories() {
 # 初始化配置文件
 init_config() {
     local config_file="/data/config/config.json"
-    local config_example="/app/config.json.example"
 
     if [ ! -f "$config_file" ]; then
-        log_info "創建默認配置文件..."
-
-        if [ -f "$config_example" ]; then
-            cp "$config_example" "$config_file"
-            log_info "從範例文件複製配置: $config_file"
-        else
-            log_error "找不到配置範例文件: $config_example"
-            exit 1
-        fi
+        log_info "配置文件不存在，程序將自動生成默認配置..."
+        log_info "請通過 Web UI 修改配置"
     else
         log_info "配置文件已存在: $config_file"
     fi
@@ -100,50 +92,17 @@ init_config() {
 
 # 等待 qBittorrent 服務啟動
 wait_for_qbittorrent() {
-    local qb_url="${ANIDOWN_QBITTORRENT__URL:-http://localhost:8080}"
-    local max_attempts=30
-    local attempt=1
-
-    # 如果是 localhost，可能不需要等待，或者服務在容器外
-    if [[ "$qb_url" == *"localhost"* ]] || [[ "$qb_url" == *"127.0.0.1"* ]]; then
-         log_debug "qBittorrent 配置為本地地址，跳過連接檢查"
-         return 0
-    fi
-
-    log_info "等待 qBittorrent 服務啟動 (${qb_url})..."
-
-    while [ $attempt -le $max_attempts ]; do
-        if curl -s --connect-timeout 5 "$qb_url" > /dev/null 2>&1; then
-            log_info "qBittorrent 服務已就緒"
-            return 0
-        fi
-
-        if [ $((attempt % 5)) -eq 0 ]; then
-            log_debug "嘗試 $attempt/$max_attempts: qBittorrent 尚未就緒"
-        fi
-
-        sleep 2
-        attempt=$((attempt + 1))
-    done
-
-    log_warn "qBittorrent 服務在 $((max_attempts * 2)) 秒內未就緒，應用程序將繼續啟動，但可能會遇到連接錯誤。"
+    # 從配置文件讀取 qBittorrent URL 較為複雜，跳過此檢查
+    # qBittorrent 連接將在應用程序啟動時處理
+    log_debug "qBittorrent 連接檢查將在應用程序啟動時執行"
 }
 
 # 檢查必要的環境變數
 check_environment() {
     log_info "檢查環境配置..."
 
-    # 檢查 OpenAI API Key（如果需要 AI 功能）
-    if [ -z "${ANIDOWN_OPENAI__API_KEY}" ]; then
-        log_warn "未設置 OPENAI_API_KEY，AI 功能將不可用"
-    fi
-
-    # 檢查 Discord Webhook（如果啟用）
-    if [ "${DISCORD_ENABLED}" = "true" ]; then
-        if [ -z "${DISCORD_RSS_WEBHOOK_URL}" ] && [ -z "${DISCORD_HARDLINK_WEBHOOK_URL}" ]; then
-            log_warn "Discord 已啟用但未設置 Webhook URL"
-        fi
-    fi
+    # 配置將通過 Web UI 設置，這裡只檢查基本環境
+    log_info "所有配置請通過 Web UI 設置"
 
     log_info "環境檢查完成"
 }

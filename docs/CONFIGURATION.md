@@ -6,6 +6,7 @@
 
 ## 目錄
 
+- [配置方式](#配置方式)
 - [完整配置結構](#完整配置結構)
 - [RSS 配置](#rss-配置)
 - [qBittorrent 配置](#qbittorrent-配置)
@@ -20,6 +21,17 @@
 - [路徑轉換配置](#路徑轉換配置)
 - [服務端口配置](#服務端口配置)
 - [AI 批處理配置](#ai-批處理配置)
+
+---
+
+## 配置方式
+
+AniDown 使用 `config.json` 作為主要配置文件：
+
+- **首次運行**: 程序會自動生成默認配置文件
+- **修改配置**: 通過 Web UI 修改配置（推薦），或直接編輯 `config.json`
+- **Docker 環境**: `.env` 文件僅用於 Docker 運行參數（時區、端口、路徑掛載），應用配置請通過 Web UI 設置
+- **本地運行**: 程序不會讀取 `.env` 文件，所有配置都在 `config.json` 中
 
 ---
 
@@ -42,11 +54,11 @@
     "url": "http://localhost:8080",
     "username": "admin",
     "password": "adminadmin",
-    "base_download_path": "/storage/downloads/AniDown/",
+    "base_download_path": "/storage/Downloads/AniDown/",
     "category": "AniDown",
     "anime_folder_name": "Anime",
     "live_action_folder_name": "LiveAction",
-    "tv_folder_name": "TV",
+    "tv_folder_name": "TV Shows",
     "movie_folder_name": "Movies"
   },
   "openai": {
@@ -54,23 +66,17 @@
     "title_parse": {...},
     "multi_file_rename": {...},
     "subtitle_match": {...},
-    "title_parse_retries": 3,
-    "subtitle_match_retries": 3,
     "rate_limits": {...},
     "language_priorities": [...]
-  },
-  "ai_processing": {
-    "max_batch_size": 30,
-    "batch_processing_retries": 2
   },
   "webhook": { "host": "0.0.0.0", "port": 5678 },
   "webui": { "host": "0.0.0.0", "port": 8081 },
   "path_conversion": {...},
   "tvdb": { "api_key": "", "max_data_length": 10000 },
-  "link_target_path": "/storage/library/TV Shows",
-  "movie_link_target_path": "/storage/library/Movies",
-  "live_action_tv_target_path": "/storage/library/LiveAction/TV Shows",
-  "live_action_movie_target_path": "/storage/library/LiveAction/Movies",
+  "link_target_path": "/storage/Library/Anime/TV Shows",
+  "movie_link_target_path": "/storage/Library/Anime/Movies",
+  "live_action_tv_target_path": "/storage/Library/LiveAction/TV Shows",
+  "live_action_movie_target_path": "/storage/Library/LiveAction/Movies",
   "use_consistent_naming_tv": false,
   "use_consistent_naming_movie": false
 }
@@ -106,11 +112,11 @@
     "url": "http://localhost:8080",
     "username": "admin",
     "password": "adminadmin",
-    "base_download_path": "/storage/downloads/AniDown/",
+    "base_download_path": "/storage/Downloads/AniDown/",
     "category": "AniDown",
     "anime_folder_name": "Anime",
     "live_action_folder_name": "LiveAction",
-    "tv_folder_name": "TV",
+    "tv_folder_name": "TV Shows",
     "movie_folder_name": "Movies"
   }
 }
@@ -121,11 +127,11 @@
 | `url` | string | qBittorrent WebAPI 地址 | `http://localhost:8080` |
 | `username` | string | 登錄用戶名 | `admin` |
 | `password` | string | 登錄密碼 | - |
-| `base_download_path` | string | 下載基礎路徑 | - |
+| `base_download_path` | string | 下載基礎路徑 | `/storage/Downloads/AniDown/` |
 | `category` | string | qBittorrent 分類名稱 | `AniDown` |
 | `anime_folder_name` | string | 動漫子目錄名稱 | `Anime` |
 | `live_action_folder_name` | string | 真人劇子目錄名稱 | `LiveAction` |
-| `tv_folder_name` | string | TV 劇集子目錄名稱 | `TV` |
+| `tv_folder_name` | string | TV 劇集子目錄名稱 | `TV Shows` |
 | `movie_folder_name` | string | 電影子目錄名稱 | `Movies` |
 
 ---
@@ -248,8 +254,6 @@
 ```json
 {
   "openai": {
-    "title_parse_retries": 3,
-    "subtitle_match_retries": 3,
     "rate_limits": {
       "max_consecutive_errors": 5,
       "key_cooldown_seconds": 30,
@@ -262,8 +266,6 @@
 
 | 字段 | 類型 | 說明 | 默認值 |
 |------|------|------|--------|
-| `title_parse_retries` | number | 標題解析重試次數 | `3` |
-| `subtitle_match_retries` | number | 字幕匹配重試次數 | `3` |
 | `rate_limits.max_consecutive_errors` | number | 最大連續錯誤次數 | `5` |
 | `rate_limits.key_cooldown_seconds` | number | Key 冷卻時間（秒） | `30` |
 | `rate_limits.circuit_breaker_cooldown_seconds` | number | 熔斷器冷卻時間（秒） | `900` |
@@ -314,10 +316,10 @@
 
 ```json
 {
-  "link_target_path": "/storage/library/TV Shows",
-  "movie_link_target_path": "/storage/library/Movies",
-  "live_action_tv_target_path": "/storage/library/LiveAction/TV Shows",
-  "live_action_movie_target_path": "/storage/library/LiveAction/Movies",
+  "link_target_path": "/storage/Library/Anime/TV Shows",
+  "movie_link_target_path": "/storage/Library/Anime/Movies",
+  "live_action_tv_target_path": "/storage/Library/LiveAction/TV Shows",
+  "live_action_movie_target_path": "/storage/Library/LiveAction/Movies",
   "use_consistent_naming_tv": false,
   "use_consistent_naming_movie": false
 }
@@ -325,10 +327,10 @@
 
 | 字段 | 類型 | 說明 | 默認值 |
 |------|------|------|--------|
-| `link_target_path` | string | 動漫 TV 媒體庫路徑 | - |
-| `movie_link_target_path` | string | 動漫電影媒體庫路徑 | - |
-| `live_action_tv_target_path` | string | 真人劇 TV 媒體庫路徑 | - |
-| `live_action_movie_target_path` | string | 真人電影媒體庫路徑 | - |
+| `link_target_path` | string | 動漫 TV 媒體庫路徑 | `/storage/Library/Anime/TV Shows` |
+| `movie_link_target_path` | string | 動漫電影媒體庫路徑 | `/storage/Library/Anime/Movies` |
+| `live_action_tv_target_path` | string | 真人劇 TV 媒體庫路徑 | `/storage/Library/LiveAction/TV Shows` |
+| `live_action_movie_target_path` | string | 真人電影媒體庫路徑 | `/storage/Library/LiveAction/Movies` |
 | `use_consistent_naming_tv` | boolean | TV 使用統一命名格式 | `false` |
 | `use_consistent_naming_movie` | boolean | 電影使用統一命名格式 | `false` |
 
@@ -360,8 +362,8 @@
 {
   "path_conversion": {
     "enabled": false,
-    "source_base_path": "/downloads/AniDown/",
-    "target_base_path": "/storage/downloads/AniDown/"
+    "source_base_path": "/storage/Downloads/AniDown/",
+    "target_base_path": "/storage/Downloads/AniDown/"
   }
 }
 ```
@@ -369,8 +371,8 @@
 | 字段 | 類型 | 說明 | 默認值 |
 |------|------|------|--------|
 | `enabled` | boolean | 是否啟用路徑轉換 | `false` |
-| `source_base_path` | string | 源路徑前綴（qBittorrent 看到的路徑） | - |
-| `target_base_path` | string | 目標路徑前綴（AniDown 看到的路徑） | - |
+| `source_base_path` | string | 源路徑前綴（qBittorrent 看到的路徑） | `/storage/Downloads/AniDown/` |
+| `target_base_path` | string | 目標路徑前綴（AniDown 看到的路徑） | `/storage/Downloads/AniDown/` |
 
 ---
 
@@ -394,17 +396,21 @@
 | Webhook | `host` | string | 監聽地址 | `0.0.0.0` |
 | | `port` | number | 監聽端口 | `5678` |
 | Web UI | `host` | string | 監聽地址 | `0.0.0.0` |
-| | `port` | number | 監聯端口 | `8081` |
+| | `port` | number | 監聽端口 | `8081` |
 
 ---
 
 ## AI 批處理配置
 
+批處理設置已整合到 `multi_file_rename` 任務配置中：
+
 ```json
 {
-  "ai_processing": {
-    "max_batch_size": 30,
-    "batch_processing_retries": 2
+  "openai": {
+    "multi_file_rename": {
+      "max_batch_size": 30,
+      "batch_processing_retries": 2
+    }
   }
 }
 ```

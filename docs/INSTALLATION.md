@@ -19,11 +19,17 @@ Docker 部署是最簡單的方式，適合 Linux/macOS/Windows 用戶。
 ### 1. 克隆項目
 
 ```bash
-git clone https://github.com/your-repo/anidown.git
-cd anidown
+git clone https://github.com/1morr/AniDown-Refactor.git
+cd AniDown-Refactor
 ```
 
-### 2. 複製並編輯環境配置
+### 2. 啟動服務
+
+#### 使用 Docker Compose（推薦）
+
+### 配置環境變數
+
+複製並編輯環境配置：
 
 ```bash
 # Linux/macOS
@@ -33,7 +39,7 @@ cp .env.example .env
 Copy-Item .env.example .env
 ```
 
-編輯 `.env` 文件，配置時區和路徑：
+編輯 `.env` 文件，配置時區和路徑（所有項目都有默認值，可以不修改）：
 
 ```ini
 # 時區設置
@@ -51,26 +57,10 @@ HOST_AI_LOG_PATH=./data/ai_logs
 HOST_STORAGE_PATH=./storage
 ```
 
-### 3. 創建配置文件
-
-```bash
-# 創建配置目錄
-mkdir -p data/config
-
-# 複製配置範例
-cp config.json.example data/config/config.json
-```
-
-編輯 `data/config/config.json`，填入 OpenAI API Key 和 qBittorrent 連接信息。
-
-> 詳細配置說明請參閱 [配置說明](CONFIGURATION.md)
-
-### 4. 啟動服務
-
-#### 使用 Docker Compose（推薦）
-
 ```bash
 # 構建並啟動
+docker-compose build --no-cache
+
 docker-compose up -d
 
 # 查看日誌
@@ -84,11 +74,17 @@ docker-compose down
 
 如果你不想使用 Docker Compose，可以使用以下 `docker run` 命令：
 
-**第一步：構建鏡像（可選）**
+**第一步：獲取鏡像**
 
-如果你想使用本地構建的鏡像，而非 Docker Hub 上的預構建鏡像：
-
+方法 A - 從 Docker Hub 拉取（推薦）：
 ```bash
+docker pull 1mor/anidown:latest
+```
+
+方法 B - 本地構建：
+```bash
+git clone https://github.com/1morr/AniDown-Refactor.git
+cd AniDown-Refactor
 docker build -t 1mor/anidown:latest .
 ```
 
@@ -112,10 +108,6 @@ docker run -d \
   -e DB_PATH=/data/db/anime_downloader.db \
   -e LOG_PATH=/data/logs \
   -e AI_LOG_PATH=/data/ai_logs \
-  -e ANIDOWN_WEBUI__HOST=0.0.0.0 \
-  -e ANIDOWN_WEBUI__PORT=8081 \
-  -e ANIDOWN_WEBHOOK__HOST=0.0.0.0 \
-  -e ANIDOWN_WEBHOOK__PORT=5678 \
   1mor/anidown:latest
 ```
 
@@ -137,10 +129,6 @@ docker run -d `
   -e DB_PATH=/data/db/anime_downloader.db `
   -e LOG_PATH=/data/logs `
   -e AI_LOG_PATH=/data/ai_logs `
-  -e ANIDOWN_WEBUI__HOST=0.0.0.0 `
-  -e ANIDOWN_WEBUI__PORT=8081 `
-  -e ANIDOWN_WEBHOOK__HOST=0.0.0.0 `
-  -e ANIDOWN_WEBHOOK__PORT=5678 `
   1mor/anidown:latest
 ```
 
@@ -163,33 +151,37 @@ docker rm anidown
 docker exec -it anidown /bin/sh
 ```
 
-### 5. 訪問 Web UI
+### 3. 訪問 Web UI 進行配置
 
-打開瀏覽器訪問 `http://localhost:8081`
+1. 打開瀏覽器訪問 `http://localhost:8081`
+2. 在 Web UI 中配置 OpenAI API Key、qBittorrent 連接信息等
+3. 配置將自動保存在 `config.json` 中
+
+> 詳細配置說明請參閱 [配置說明](CONFIGURATION.md)
 
 ### Docker 目錄結構
 
 ```
 ./
 ├── data/
-│   ├── config/          # 配置文件 (config.json)
+│   ├── config/          # 配置文件 (config.json，自動生成)
 │   ├── db/              # SQLite 數據庫
 │   ├── logs/            # 應用日誌
 │   └── ai_logs/         # AI 調試日誌
 └── storage/
     ├── Downloads/AniDown/    # qBittorrent 下載目錄
     │   ├── Anime/
-    │   │   ├── TV/
+    │   │   ├── TV Shows/
     │   │   └── Movies/
     │   └── LiveAction/
-    │       ├── TV/
+    │       ├── TV Shows/
     │       └── Movies/
     └── Library/              # Plex/Jellyfin 媒體庫
         ├── Anime/
-        │   ├── TV/
+        │   ├── TV Shows/
         │   └── Movies/
         └── LiveAction/
-            ├── TV/
+            ├── TV Shows/
             └── Movies/
 ```
 
@@ -201,6 +193,8 @@ docker exec -it anidown /bin/sh
 
 在 Windows 上運行需要使用 Python 虛擬環境來隔離依賴。
 
+> **注意**: 本地運行時，程序不會讀取 `.env` 文件，所有配置都通過 `config.json` 或 Web UI 進行設置。
+
 ### 前置需求
 
 - **Python 3.11+**: [下載 Python](https://www.python.org/downloads/)
@@ -211,8 +205,8 @@ docker exec -it anidown /bin/sh
 
 ```powershell
 # 使用 Git
-git clone https://github.com/your-repo/anidown.git
-cd anidown
+git clone https://github.com/1morr/AniDown-Refactor.git
+cd AniDown-Refactor
 
 # 或下載 ZIP 解壓後進入目錄
 ```
@@ -242,57 +236,9 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 4. 配置文件
+### 4. 運行應用
 
-```powershell
-# 複製配置範例
-Copy-Item config.json.example config.json
-```
-
-編輯 `config.json`，配置以下關鍵項：
-
-```json
-{
-  "qbittorrent": {
-    "url": "http://localhost:8080",
-    "username": "admin",
-    "password": "your-password",
-    "base_download_path": "D:/Downloads/AniDown/"
-  },
-  "openai": {
-    "key_pools": [
-      {
-        "name": "MyPool",
-        "base_url": "https://api.openai.com/v1",
-        "api_keys": [
-          {
-            "name": "Key 1",
-            "api_key": "sk-your-api-key",
-            "rpm": 60,
-            "rpd": 1000,
-            "enabled": true
-          }
-        ]
-      }
-    ],
-    "title_parse": {
-      "pool_name": "MyPool",
-      "model": "gpt-4"
-    },
-    "multi_file_rename": {
-      "pool_name": "MyPool"
-    }
-  },
-  "link_target_path": "D:/Media/TV Shows",
-  "movie_link_target_path": "D:/Media/Movies"
-}
-```
-
-> **Windows 路徑注意**: 使用正斜杠 `/` 或雙反斜杠 `\\`，例如 `D:/Downloads` 或 `D:\\Downloads`
-
-> 詳細配置說明請參閱 [配置說明](CONFIGURATION.md)
-
-### 5. 運行應用
+首次運行時，程序會自動生成 `config.json` 配置文件。
 
 ```powershell
 # 確保虛擬環境已激活 (命令行顯示 (venv))
@@ -308,9 +254,29 @@ python -m src.main
 python -m src.main --debug
 ```
 
-### 6. 訪問 Web UI
+### 5. 訪問 Web UI 進行配置
 
-打開瀏覽器訪問 `http://localhost:8081`
+1. 打開瀏覽器訪問 `http://localhost:8081`
+2. 配置 qBittorrent 連接、OpenAI API Key 等
+
+Windows 配置示例：
+
+```json
+{
+  "qbittorrent": {
+    "url": "http://localhost:8080",
+    "username": "admin",
+    "password": "your-password",
+    "base_download_path": "D:/Downloads/AniDown/"
+  },
+  "link_target_path": "D:/Media/Anime/TV Shows",
+  "movie_link_target_path": "D:/Media/Anime/Movies"
+}
+```
+
+> **Windows 路徑注意**: 使用正斜杠 `/` 或雙反斜杠 `\\`，例如 `D:/Downloads` 或 `D:\\Downloads`
+
+> 詳細配置說明請參閱 [配置說明](CONFIGURATION.md)
 
 ### 創建快捷啟動腳本 (可選)
 

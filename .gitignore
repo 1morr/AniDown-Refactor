@@ -39,3 +39,4 @@ CODE_STYLE.md
 .claude/
 docs/CODE_ANALYSIS.md
 docker_push.ps1
+.env

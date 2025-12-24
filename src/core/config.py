@@ -9,7 +9,6 @@ import json
 from typing import List, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator, ConfigDict
-from pydantic_settings import BaseSettings
 
 
 class RSSFeed(BaseModel):
@@ -76,7 +75,7 @@ class QBitTorrentConfig(BaseModel):
     url: str = 'http://localhost:8080'
     username: str = ''
     password: str = ''
-    base_download_path: str = '/downloads/AniDown/'
+    base_download_path: str = '/storage/Downloads/AniDown/'
     category: str = 'AniDown'
     anime_folder_name: str = 'Anime'
     live_action_folder_name: str = 'LiveAction'
@@ -190,8 +189,8 @@ class PathConversionConfig(BaseModel):
     """路径转换配置"""
 
     enabled: bool = False
-    source_base_path: str = '/downloads/AniDown/'
-    target_base_path: str = '/path/to/target/'
+    source_base_path: str = '/storage/Downloads/AniDown/'
+    target_base_path: str = '/storage/Downloads/AniDown/'
 
 
 class TVDBConfig(BaseModel):
@@ -201,7 +200,7 @@ class TVDBConfig(BaseModel):
     max_data_length: int = 10000
 
 
-class AppConfig(BaseSettings):
+class AppConfig(BaseModel):
     """主应用配置"""
 
     rss: RSSConfig = Field(default_factory=RSSConfig)
@@ -214,18 +213,13 @@ class AppConfig(BaseSettings):
     tvdb: TVDBConfig = Field(default_factory=TVDBConfig)
 
     # 动漫硬链接路径
-    link_target_path: str = '/library/Anime/TV Shows'
-    movie_link_target_path: str = '/library/Anime/Movies'
+    link_target_path: str = '/storage/Library/Anime/TV Shows'
+    movie_link_target_path: str = '/storage/Library/Anime/Movies'
     # 真人硬链接路径
-    live_action_tv_target_path: str = '/library/LiveAction/TV Shows'
-    live_action_movie_target_path: str = '/library/LiveAction/Movies'
+    live_action_tv_target_path: str = '/storage/Library/LiveAction/TV Shows'
+    live_action_movie_target_path: str = '/storage/Library/LiveAction/Movies'
     use_consistent_naming_tv: bool = False
     use_consistent_naming_movie: bool = False
-
-    model_config = ConfigDict(
-        env_prefix='ANIDOWN_',
-        env_nested_delimiter='__'
-    )
 
     def get(self, key: str, default=None):
         """获取配置值，支持点分隔的嵌套键"""

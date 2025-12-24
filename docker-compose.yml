@@ -18,22 +18,14 @@ services:
       # 統一存儲路徑 (包含下載和媒體庫，支持硬鏈接)
       - "${HOST_STORAGE_PATH:-./storage}:/storage"
     environment:
-      # 基本配置
+      # 基本配置 (僅 Docker 運行時需要的參數)
       - TZ=${TZ:-UTC}
       - DEBUG=${DEBUG:-false}
       - CONFIG_PATH=/data/config/config.json
       - DB_PATH=/data/db/anime_downloader.db
       - LOG_PATH=/data/logs
       - AI_LOG_PATH=/data/ai_logs
-
-      # Web UI 配置
-      - ANIDOWN_WEBUI__HOST=0.0.0.0
-      - ANIDOWN_WEBUI__PORT=8081
-
-      # Webhook 配置
-      - ANIDOWN_WEBHOOK__HOST=0.0.0.0
-      - ANIDOWN_WEBHOOK__PORT=5678
-      
+      # 所有應用配置 (OpenAI、qBittorrent、Discord 等) 請通過 Web UI 設置
 
     # 資源限制建議
     deploy:
