@@ -189,33 +189,6 @@ def api_delete_anime(
         return APIResponse.internal_error(error_msg)
 
 
-@anime_bp.route('/api/anime/<int:anime_id>/rebuild-regex', methods=['POST'])
-@inject
-@handle_api_errors
-def api_rebuild_regex(
-    anime_id: int,
-    anime_service: AnimeService = Provide[Container.anime_service]
-):
-    """重建正则表达式API"""
-    if anime_id < 1:
-        return APIResponse.bad_request("动漫ID必须大于0")
-
-    logger.api_request(f"重建正则表达式 - ID:{anime_id}")
-
-    result = anime_service.rebuild_regex_patterns(anime_id)
-
-    if result.get('success'):
-        logger.api_success(f'/api/anime/{anime_id}/rebuild-regex', result.get('message'))
-        return APIResponse.success(
-            message=result.get('message', '重建成功'),
-            patterns=result.get('patterns', {})
-        )
-    else:
-        error_msg = result.get('error', '重建失败')
-        logger.api_error_msg(f'/api/anime/{anime_id}/rebuild-regex', error_msg)
-        return APIResponse.internal_error(error_msg)
-
-
 @anime_bp.route('/api/anime/<int:anime_id>', methods=['PUT'])
 @inject
 @handle_api_errors

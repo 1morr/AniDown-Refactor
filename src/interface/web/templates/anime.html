@@ -298,54 +298,6 @@
     </div>
 
     <!-- ============================================ -->
-    <!-- 6. 正则重建 Modal -->
-    <!-- ============================================ -->
-    <div id="modal-rebuild" class="fixed inset-0 z-50 hidden flex items-center justify-center">
-        <div class="modal-backdrop" onclick="closeModal('modal-rebuild')"></div>
-        <div class="modal-content bg-white dark:bg-[#1e1e20] w-full max-w-lg rounded-xl shadow-2xl overflow-hidden">
-            <!-- Header -->
-            <div class="bg-blue-600 px-6 py-4 flex justify-between items-center">
-                <h3 class="text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-code"></i> 正则重建</h3>
-                <button onclick="closeModal('modal-rebuild')" class="text-white/80 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
-            </div>
-            
-            <div class="p-6 space-y-5">
-                <!-- Info -->
-                <div class="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 rounded-lg p-3 flex gap-3 items-start">
-                    <i class="fa-solid fa-circle-info text-blue-600 dark:text-blue-500 mt-0.5"></i>
-                    <div class="text-sm text-blue-700 dark:text-blue-200">
-                        使用AI重新生成正则表达式模式，以便更好地匹配文件名。
-                    </div>
-                </div>
-
-                <!-- 动漫信息 -->
-                <div class="space-y-2" id="rebuild-modal-info">
-                    <!-- JS 填充 -->
-                </div>
-
-                <!-- 提示 -->
-                <div class="bg-amber-50 dark:bg-amber-500/10 rounded-lg p-3 flex gap-3 text-xs text-amber-700 dark:text-amber-300">
-                    <i class="fa-solid fa-lightbulb mt-0.5"></i>
-                    <div>
-                        <p class="font-bold mb-1">重建说明：</p>
-                        <ul class="list-disc list-inside space-y-1">
-                            <li>使用原始标题作为种子词</li>
-                            <li>不会自动创建硬链接</li>
-                            <li>保留原始提示词模板</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Actions -->
-            <div class="px-6 py-4 bg-slate-50 dark:bg-[#1e1e20] border-t border-slate-200 dark:border-white/10 flex justify-end gap-3">
-                <button onclick="closeModal('modal-rebuild')" class="px-4 py-2 rounded bg-slate-500 hover:bg-slate-600 text-white text-sm font-medium transition-colors"><i class="fa-solid fa-xmark mr-1"></i> 取消</button>
-                <button onclick="confirmRebuild()" id="btn-rebuild" class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"><i class="fa-solid fa-refresh mr-1"></i> 开始重建</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ============================================ -->
     <!-- 7. 字幕管理 Modal -->
     <!-- ============================================ -->
     <div id="modal-subtitles" class="fixed inset-0 z-50 hidden flex items-center justify-center">
@@ -512,7 +464,6 @@
     let groupBy = '';
     let viewingGroup = null;
     let currentDeleteAnimeId = null;
-    let currentRebuildAnimeId = null;
     let requestCounter = 0;
 
     // 页面加载时初始化
@@ -775,9 +726,6 @@
                             </button>
                             <button onclick="openSubtitlesModal(${anime.id}, '${escapeJs(anime.short_title || anime.original_title)}')" class="w-7 h-7 rounded-md flex items-center justify-center bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/20 text-emerald-500 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 transition-colors" title="字幕管理">
                                 <i class="fa-solid fa-closed-captioning text-xs"></i>
-                            </button>
-                            <button onclick="openRebuildModal(${anime.id}, '${escapeJs(anime.short_title || anime.original_title)}', '${escapeJs(anime.original_title)}')" class="w-7 h-7 rounded-md flex items-center justify-center bg-amber-50 hover:bg-amber-100 dark:bg-amber-500/10 dark:hover:bg-amber-500/20 text-amber-500 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20 transition-colors" title="正则重建">
-                                <i class="fa-solid fa-code text-xs"></i>
                             </button>
                             <button onclick="openDeleteModal(${anime.id})" class="w-7 h-7 rounded-md flex items-center justify-center bg-red-50 hover:bg-red-100 dark:bg-red-500/10 dark:hover:bg-red-500/20 text-red-500 dark:text-red-400 border border-red-200 dark:border-red-500/20 transition-colors" title="删除">
                                 <i class="fa-solid fa-trash text-xs"></i>
@@ -1145,49 +1093,6 @@
 
         } catch (error) {
             showError('删除失败: ' + error.message);
-        }
-    }
-
-    // 打开正则重建 Modal
-    function openRebuildModal(animeId, shortTitle, originalTitle) {
-        currentRebuildAnimeId = animeId;
-        
-        document.getElementById('rebuild-modal-info').innerHTML = `
-            <div class="text-sm text-slate-600 dark:text-gray-300 space-y-2">
-                <div class="flex"><span class="font-bold w-20 shrink-0">动漫标题:</span> <span>${escapeHtml(shortTitle)}</span></div>
-                <div class="flex"><span class="font-bold w-20 shrink-0">原始标题:</span> <span class="text-xs font-mono break-all">${escapeHtml(originalTitle)}</span></div>
-            </div>
-        `;
-        
-        openModal('modal-rebuild');
-    }
-
-    // 确认正则重建
-    async function confirmRebuild() {
-        const btn = document.getElementById('btn-rebuild');
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> 重建中...';
-
-        try {
-            const response = await fetch(`{{ url_for('anime.api_rebuild_regex', anime_id=0) }}`.replace('0', currentRebuildAnimeId), {
-                method: 'POST'
-            });
-
-            const data = await response.json();
-
-            if (data.error) {
-                showError('正则重建失败: ' + data.error);
-                return;
-            }
-
-            showSuccess('正则模式重建成功！');
-            closeModal('modal-rebuild');
-
-        } catch (error) {
-            showError('正则重建失败: ' + error.message);
-        } finally {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fa-solid fa-refresh mr-1"></i> 开始重建';
         }
     }
 
