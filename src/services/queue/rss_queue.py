@@ -101,6 +101,12 @@ class RSSQueueWorker(QueueWorker[RSSPayload]):
         super().__init__(name=name, max_failures=max_failures)
         self._handlers: Dict[str, Callable] = {}
 
+        # 分类统计：Feed级别 vs Item级别
+        self._feed_success: int = 0
+        self._feed_failed: int = 0
+        self._item_success: int = 0
+        self._item_failed: int = 0
+
     def register_handler(
         self,
         event_type: str,
@@ -154,6 +160,28 @@ class RSSQueueWorker(QueueWorker[RSSPayload]):
             logger.warning(
                 f'⚠️ [{self._name}] No handler for event type: {event.event_type}'
             )
+
+    def _is_item_event(self, event_type: str) -> bool:
+        """判断是否为 Item 级别事件"""
+        return event_type == self.EVENT_SINGLE_ITEM
+
+    def _on_success(self) -> None:
+        """重写：在更新总统计的同时更新分类统计"""
+        super()._on_success()
+        if self._current_event:
+            if self._is_item_event(self._current_event.event_type):
+                self._item_success += 1
+            else:
+                self._feed_success += 1
+
+    def _on_failure(self) -> None:
+        """重写：在更新总统计的同时更新分类统计"""
+        super()._on_failure()
+        if self._current_event:
+            if self._is_item_event(self._current_event.event_type):
+                self._item_failed += 1
+            else:
+                self._feed_failed += 1
 
     def enqueue_scheduled_check(self, rss_url: str) -> int:
         """
@@ -321,6 +349,12 @@ class RSSQueueWorker(QueueWorker[RSSPayload]):
         if status.get('current_event') and self._current_event:
             if hasattr(self._current_event.payload, 'get_display_name'):
                 status['current_event']['display_name'] = self._current_event.payload.get_display_name()
+
+        # 添加分类统计
+        status['stats']['feed_success'] = self._feed_success
+        status['stats']['feed_failed'] = self._feed_failed
+        status['stats']['item_success'] = self._item_success
+        status['stats']['item_failed'] = self._item_failed
 
         return status
 
