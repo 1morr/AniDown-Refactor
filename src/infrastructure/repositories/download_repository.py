@@ -329,7 +329,7 @@ class DownloadRepository(IDownloadRepository):
                 AnimeInfo, DownloadStatus.anime_id == AnimeInfo.id
             )
 
-            query = self._apply_filters(query, filters, session)
+            query = self._apply_filters(query, filters, session, already_joined_anime=True)
 
             if filters.get('group_by') and filters.get('viewing_group'):
                 query = self._apply_group_filter(query, filters['group_by'], filters['viewing_group'])
@@ -470,10 +470,18 @@ class DownloadRepository(IDownloadRepository):
                 'total_count': len(groups)
             }
 
-    def _apply_filters(self, query, filters, session=None):
-        """应用通用过滤条件"""
+    def _apply_filters(self, query, filters, session=None, already_joined_anime=False):
+        """应用通用过滤条件
+
+        Args:
+            query: SQLAlchemy 查询对象
+            filters: 过滤条件字典
+            session: 数据库会话
+            already_joined_anime: 是否已经 join 了 AnimeInfo 表
+        """
         if filters.get('media_type_filter'):
-            query = query.join(AnimeInfo, DownloadStatus.anime_id == AnimeInfo.id)
+            if not already_joined_anime:
+                query = query.join(AnimeInfo, DownloadStatus.anime_id == AnimeInfo.id)
             query = query.filter(AnimeInfo.media_type == filters['media_type_filter'])
 
         if filters.get('search'):

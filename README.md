@@ -59,40 +59,40 @@
 
 ```bash
 # 1. 克隆項目
-git clone https://github.com/your-repo/anidown.git
-cd anidown
+git clone https://github.com/1morr/AniDown-Refactor.git
+cd AniDown-Refactor
 
-# 2. 複製配置
+# 2. 配置環境變數（可選，使用默認值可跳過）
 cp .env.example .env
-mkdir -p data/config
-cp config.json.example data/config/config.json
 
-# 3. 編輯配置文件
-# 編輯 .env 和 data/config/config.json
-
-# 4. 啟動
+# 3. 構建並啟動
+docker-compose build --no-cache
 docker-compose up -d
 ```
+
+首次運行會自動生成配置文件，訪問 `http://localhost:8081` 通過 Web UI 進行配置。
 
 > 詳細說明請參閱 [安裝指南 - Docker 部署](docs/INSTALLATION.md#方法一docker-部署推薦)
 
 ### 方法二：Windows 本地運行
 
 ```powershell
-# 1. 創建虛擬環境
+# 1. 克隆項目
+git clone https://github.com/1morr/AniDown-Refactor.git
+cd AniDown-Refactor
+
+# 2. 創建並激活虛擬環境
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 
-# 2. 安裝依賴
+# 3. 安裝依賴
 pip install -r requirements.txt
-
-# 3. 配置
-Copy-Item config.json.example config.json
-# 編輯 config.json
 
 # 4. 運行
 python -m src.main
 ```
+
+首次運行會自動生成 `config.json`，訪問 `http://localhost:8081` 通過 Web UI 進行配置。
 
 > 詳細說明請參閱 [安裝指南 - Windows 本地運行](docs/INSTALLATION.md#方法二windows-本地運行虛擬環境)
 
