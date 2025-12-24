@@ -40,12 +40,50 @@ class PathBuilder:
             tv_subdir: Subdirectory name for TV series.
             movie_subdir: Subdirectory name for movies.
         """
-        self._download_root = download_root
-        self._library_root = library_root
+        # Normalize paths: convert backslashes to forward slashes and remove trailing slash
+        self._download_root = self._normalize_path(download_root)
+        self._library_root = self._normalize_path(library_root)
         self._anime_subdir = anime_subdir
         self._live_action_subdir = live_action_subdir
         self._tv_subdir = tv_subdir
         self._movie_subdir = movie_subdir
+
+    def _normalize_path(self, path: str) -> str:
+        """
+        Normalize a path for cross-platform compatibility.
+
+        Converts Windows backslashes to forward slashes and removes trailing slash.
+        This ensures consistent path handling when running in Docker (Linux)
+        with Windows-style paths from config.
+
+        Args:
+            path: Path to normalize.
+
+        Returns:
+            Normalized path with forward slashes and no trailing slash.
+        """
+        if not path:
+            return path
+        # Convert backslashes to forward slashes
+        normalized = path.replace('\\', '/')
+        # Remove trailing slash (but keep root slash for absolute paths like '/')
+        if len(normalized) > 1 and normalized.endswith('/'):
+            normalized = normalized.rstrip('/')
+        return normalized
+
+    def _build_path(self, *parts: str) -> str:
+        """
+        Build a path from parts using forward slashes.
+
+        Args:
+            *parts: Path components to join.
+
+        Returns:
+            Joined path with forward slashes.
+        """
+        # Filter out empty parts and join with forward slash
+        non_empty = [p for p in parts if p]
+        return '/'.join(non_empty)
 
     @property
     def download_root(self) -> str:
@@ -91,19 +129,19 @@ class PathBuilder:
         # Determine category subdirectory (TV or Movies)
         category_dir = self._movie_subdir if (category == 'movie' or season == 0) else self._tv_subdir
 
-        # Build path components
+        # Build path components using forward slashes
         if category == 'movie' or season == 0:
             # Movies: /downloads/Anime/Movies/Title
-            path = os.path.join(self._download_root, media_dir, category_dir, safe_title)
+            path = self._build_path(self._download_root, media_dir, category_dir, safe_title)
         else:
             # TV: /downloads/Anime/TV/Title/Season X
             season_dir = f'Season {season}'
-            path = os.path.join(self._download_root, media_dir, category_dir, safe_title, season_dir)
+            path = self._build_path(self._download_root, media_dir, category_dir, safe_title, season_dir)
 
         # Optionally add subtitle group directory
         if subtitle_group:
             safe_group = self._sanitize_filename(subtitle_group)
-            path = os.path.join(path, f'[{safe_group}]')
+            path = self._build_path(path, f'[{safe_group}]')
 
         logger.debug(f'📁 Built download path: {path}')
         return path
@@ -137,17 +175,17 @@ class PathBuilder:
         # Determine media type subdirectory
         type_dir = self._anime_subdir if media_type == 'anime' else self._live_action_subdir
 
-        # Build path based on category
+        # Build path based on category using forward slashes
         if category == 'movie':
             # Movies: /library/Anime/Title
-            path = os.path.join(self._library_root, type_dir, safe_title)
+            path = self._build_path(self._library_root, type_dir, safe_title)
         else:
             # TV series: /library/Anime/Title/Season X
             if season is not None and season > 0:
                 season_dir = f'Season {season}'
-                path = os.path.join(self._library_root, type_dir, safe_title, season_dir)
+                path = self._build_path(self._library_root, type_dir, safe_title, season_dir)
             else:
-                path = os.path.join(self._library_root, type_dir, safe_title)
+                path = self._build_path(self._library_root, type_dir, safe_title)
 
         logger.debug(f'📁 Built library path: {path}')
         return path

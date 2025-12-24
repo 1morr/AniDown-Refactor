@@ -165,17 +165,41 @@ class TestPathConversion:
     def test_convert_path_windows_style(self, file_service):
         """
         Test path conversion with Windows-style paths.
+
+        Note: convert_path normalizes all paths to POSIX style (forward slashes)
+        for Docker/Linux compatibility.
         """
         with patch('src.services.file_service.config') as mock_config:
             mock_config.path_conversion.enabled = True
             mock_config.path_conversion.source_base_path = 'C:\\Downloads\\AniDown\\'
-            mock_config.path_conversion.target_base_path = 'D:\\Storage\\AniDown\\'
+            mock_config.path_conversion.target_base_path = '/storage/AniDown/'
 
             original_path = 'C:\\Downloads\\AniDown\\Anime\\test.mkv'
             result = file_service.convert_path(original_path)
 
-            expected = 'D:\\Storage\\AniDown\\Anime\\test.mkv'
+            # Output uses POSIX style slashes for Docker compatibility
+            expected = '/storage/AniDown/Anime/test.mkv'
             assert result == expected
+
+    def test_convert_path_mixed_separators(self, file_service):
+        """
+        Test path conversion with mixed Windows and Unix separators.
+
+        This is common when Windows qBittorrent webhook data contains
+        paths that get concatenated with Unix-style relative paths.
+        """
+        with patch('src.services.file_service.config') as mock_config:
+            mock_config.path_conversion.enabled = True
+            mock_config.path_conversion.source_base_path = 'C:\\Users\\Roxy\\storage\\Downloads\\AniDown\\'
+            mock_config.path_conversion.target_base_path = '/storage/Downloads/AniDown/'
+
+            # Mixed separator path (Windows base + Unix relative)
+            original_path = 'C:\\Users\\Roxy\\storage\\Downloads\\AniDown\\/Anime/TV/test.mkv'
+            result = file_service.convert_path(original_path)
+
+            expected = '/storage/Downloads/AniDown/Anime/TV/test.mkv'
+            assert result == expected
+            assert '//' not in result  # No double slashes
 
 
 class TestPathConversionConfig:

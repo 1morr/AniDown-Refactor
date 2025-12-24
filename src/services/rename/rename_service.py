@@ -45,7 +45,8 @@ class RenameService(IFileRenamer):
         filename_formatter: Optional[FilenameFormatter] = None,
         anime_repo: Optional['IAnimeRepository'] = None,
         ai_file_renamer: Optional['IAIFileRenamer'] = None,
-        on_ai_usage: Optional[Callable[[str, str], None]] = None
+        on_ai_usage: Optional[Callable[[str, str], None]] = None,
+        path_converter: Optional[Callable[[str], str]] = None
     ):
         """
         Initialize the rename service.
@@ -56,12 +57,14 @@ class RenameService(IFileRenamer):
             anime_repo: Anime repository for pattern storage.
             ai_file_renamer: AI file renamer for processing.
             on_ai_usage: Callback when AI is used (reason, project_name).
+            path_converter: Callback to convert paths (e.g., Windows to Docker).
         """
         self._classifier = file_classifier or FileClassifier()
         self._formatter = filename_formatter or FilenameFormatter()
         self._anime_repo = anime_repo
         self._ai_file_renamer = ai_file_renamer
         self._on_ai_usage = on_ai_usage
+        self._path_converter = path_converter
         # AI 使用跟踪
         self._last_ai_used: bool = False
         self._last_ai_reason: str = ''
@@ -170,7 +173,7 @@ class RenameService(IFileRenamer):
             file_infos.append({
                 'name': name,
                 'relative_path': f.get('relative_path', f.get('name', '')),
-                'full_path': os.path.join(
+                'full_path': self._convert_full_path(
                     download_directory,
                     f.get('name', '')
                 ),
@@ -180,6 +183,22 @@ class RenameService(IFileRenamer):
         classified = self._classifier.classify_files(file_infos, download_directory)
 
         return classified.video_files, classified.subtitle_files
+
+    def _convert_full_path(self, download_directory: str, filename: str) -> str:
+        """
+        Construct full path and apply path conversion if configured.
+
+        Args:
+            download_directory: Base download directory.
+            filename: File name or relative path.
+
+        Returns:
+            Full path, converted if path_converter is set.
+        """
+        full_path = os.path.join(download_directory, filename)
+        if self._path_converter:
+            full_path = self._path_converter(full_path)
+        return full_path
 
     def generate_mapping(
         self,

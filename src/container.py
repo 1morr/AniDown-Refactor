@@ -279,7 +279,8 @@ class Container(containers.DeclarativeContainer):
         hardlink_notifier=hardlink_notifier,
         error_notifier=error_notifier,
         ai_usage_notifier=ai_usage_notifier,
-        webhook_received_notifier=webhook_received_notifier
+        webhook_received_notifier=webhook_received_notifier,
+        file_service=file_service
     )
 
     # ===== Utility Services =====

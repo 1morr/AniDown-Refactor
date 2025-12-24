@@ -33,8 +33,34 @@ class TestPathBuilder:
         )
 
         assert builder is not None
-        assert builder._download_root == '/downloads/AniDown/'
+        # Path is normalized: trailing slash removed, backslashes converted to forward slashes
+        assert builder._download_root == '/downloads/AniDown'
         assert builder._library_root == '/library/TV Shows'
+
+    def test_path_builder_windows_path_normalization(self):
+        """Test PathBuilder normalizes Windows-style paths for Docker compatibility."""
+        from src.services.file.path_builder import PathBuilder
+
+        # Windows-style path with backslashes and trailing backslash
+        builder = PathBuilder(
+            download_root='C:\\Users\\Roxy\\storage\\Downloads\\AniDown\\',
+            library_root='/storage/Library/Anime/TV Shows'
+        )
+
+        # Backslashes should be converted to forward slashes
+        assert builder._download_root == 'C:/Users/Roxy/storage/Downloads/AniDown'
+        assert '\\' not in builder._download_root
+
+        # Build path should use forward slashes consistently
+        path = builder.build_download_path(
+            title='One Piece',
+            season=1,
+            category='tv',
+            media_type='anime'
+        )
+        assert path == 'C:/Users/Roxy/storage/Downloads/AniDown/Anime/TV/One Piece/Season 1'
+        assert '\\' not in path
+        assert '\\/' not in path  # No mixed separators
 
     @pytest.mark.parametrize(
         'title,season,category,media_type,expected_parts',

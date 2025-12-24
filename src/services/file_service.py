@@ -209,11 +209,14 @@ class FileService:
         """
         路径转换（用于Docker环境）。
 
+        将Windows路径转换为Docker容器内的POSIX路径。
+        处理混合路径分隔符（如 C:\\path\\/subpath）。
+
         Args:
             path: 原始路径。
 
         Returns:
-            转换后的路径。
+            转换后的路径（使用POSIX风格斜杠）。
         """
         if not config.path_conversion.enabled:
             return path
@@ -221,8 +224,18 @@ class FileService:
         source_base = config.path_conversion.source_base_path
         target_base = config.path_conversion.target_base_path
 
-        if path.startswith(source_base):
-            return path.replace(source_base, target_base, 1)
+        # Normalize Windows backslashes to forward slashes for comparison
+        normalized_path = path.replace('\\', '/')
+        normalized_source = source_base.replace('\\', '/')
+
+        if normalized_path.startswith(normalized_source):
+            # Replace source prefix with target prefix
+            converted = normalized_path.replace(normalized_source, target_base, 1)
+            # Remove any double slashes (except after protocol like http://)
+            while '//' in converted:
+                converted = converted.replace('//', '/')
+            return converted
+
         return path
 
     def delete_original_file(self, original_path: str) -> bool:

@@ -61,6 +61,7 @@ from src.core.interfaces.repositories import (
 )
 from src.services.file.hardlink_service import HardlinkService
 from src.services.file.path_builder import PathBuilder
+from src.services.file_service import FileService
 from src.services.filter_service import FilterService
 from src.services.metadata_service import MetadataService
 from src.services.rename.file_classifier import FileClassifier
@@ -129,7 +130,8 @@ class DownloadManager:
         hardlink_notifier: Optional[IHardlinkNotifier] = None,
         error_notifier: Optional[IErrorNotifier] = None,
         ai_usage_notifier: Optional[IAIUsageNotifier] = None,
-        webhook_received_notifier: Optional[IWebhookNotifier] = None
+        webhook_received_notifier: Optional[IWebhookNotifier] = None,
+        file_service: Optional[FileService] = None
     ):
         """
         Initialize the download manager.
@@ -153,6 +155,7 @@ class DownloadManager:
             error_notifier: Optional error notification service.
             ai_usage_notifier: Optional AI usage notification service.
             webhook_received_notifier: Optional webhook received notification service.
+            file_service: Optional file service for path conversion.
         """
         self._anime_repo = anime_repo
         self._download_repo = download_repo
@@ -172,11 +175,16 @@ class DownloadManager:
         self._error_notifier = error_notifier
         self._ai_usage_notifier = ai_usage_notifier
         self._webhook_received_notifier = webhook_received_notifier
+        self._file_service = file_service
         self._file_classifier = FileClassifier()
 
         # 设置 RenameService 的 AI 使用回调，实现即时通知
         if ai_usage_notifier and rename_service:
             rename_service._on_ai_usage = self._notify_rename_ai_usage
+
+        # 设置 RenameService 的路径转换回调
+        if file_service and rename_service:
+            rename_service._path_converter = file_service.convert_path
 
     def _notify_rename_ai_usage(self, reason: str, project_name: str) -> None:
         """
@@ -1276,6 +1284,33 @@ class DownloadManager:
                     self._hardlink_notifier.notify_hardlink_created(notification)
                 except Exception as e:
                     logger.error(f'发送硬链接创建通知失败: {e}')
+
+            # Send failure notification when all hardlinks failed
+            elif hardlink_count == 0 and video_files and self._hardlink_notifier:
+                failure_notification = HardlinkNotification(
+                    anime_title=anime_title,
+                    season=season,
+                    video_count=0,
+                    subtitle_count=0,
+                    target_dir=target_dir,
+                    rename_method=rename_result.method if rename_result else 'unknown',
+                    torrent_id=hash_id,
+                    torrent_name=download_info.original_filename,
+                    subtitle_group=subtitle_group,
+                    tvdb_used=False,
+                    hardlink_path=target_dir,
+                    rename_examples=[]
+                )
+                try:
+                    first_video = video_files[0] if video_files else None
+                    source_path = first_video.full_path if first_video else None
+                    self._hardlink_notifier.notify_hardlink_failed(
+                        notification=failure_notification,
+                        error_message=f'所有硬链接创建失败 (共 {len(video_files)} 个视频文件)，源文件不存在或路径错误',
+                        source_path=source_path
+                    )
+                except Exception as e:
+                    logger.error(f'发送硬链接失败通知失败: {e}')
 
         except Exception as e:
             logger.error(f'处理硬链接失败: {e}')
