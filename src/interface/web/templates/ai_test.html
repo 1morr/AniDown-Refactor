@@ -1133,12 +1133,7 @@
         currentStreamReader = null;
     }
 
-    // HTML转义
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
+    // escapeHtml 已在 utils.js 中定义
 
     // 打字机效果工具函数
     function typeWriter(text, element, callback) {

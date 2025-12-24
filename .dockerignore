@@ -29,6 +29,7 @@ coverage.xml
 .mypy_cache
 .pytest_cache
 .hypothesis
+.ruff_cache/
 
 # IDE
 .vscode/
@@ -37,6 +38,7 @@ coverage.xml
 *.swo
 *~
 .claude/
+.playwright-mcp/
 
 # OS
 .DS_Store
@@ -52,15 +54,13 @@ Thumbs.db
 *.db
 *.log
 ai_debug_logs/
+logs/
 data/
 downloads/
 library/
 storage/
 config.json
 .env
-
-# Old AniDown code
-AniDown/
 
 # Documentation & Tests
 # Exclude these to keep the image size small
@@ -72,6 +72,3 @@ tests/
 # Temporary files
 *.tmp
 *.temp
-
-# Torrent files
-*.torrent

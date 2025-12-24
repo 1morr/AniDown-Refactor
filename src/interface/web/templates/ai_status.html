@@ -305,10 +305,7 @@
     return `<span class="px-2 py-0.5 rounded-full text-xs font-semibold ${cls}">${text}</span>`;
   }
 
-  function escapeHtml(str) {
-    if (!str) return '';
-    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
+  // escapeHtml 已在 utils.js 中定义
 
   function truncate(str, len = 40) {
     if (!str) return '';

@@ -415,6 +415,193 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+/**
+ * 状态徽章生成器
+ * 用于统一生成各种状态的徽章HTML
+ */
+const StatusBadge = {
+  // 状态映射配置
+  statusConfig: {
+    // 下载状态
+    completed: { class: 'badge-completed', text: 'Completed', icon: 'fa-check' },
+    downloading: { class: 'badge-processing', text: 'Downloading', icon: 'fa-download' },
+    pending: { class: 'badge-pending', text: 'Pending', icon: 'fa-clock' },
+    missing: { class: 'badge-error', text: 'Missing', icon: 'fa-exclamation-triangle' },
+    paused: { class: 'badge-warning', text: 'Paused', icon: 'fa-pause' },
+    error: { class: 'badge-error', text: 'Error', icon: 'fa-times' },
+    failed: { class: 'badge-failed', text: 'Failed', icon: 'fa-times' },
+
+    // RSS处理状态
+    success: { class: 'badge-success', text: 'Success', icon: 'fa-check' },
+    exists: { class: 'badge-exists', text: 'Exists', icon: 'fa-database' },
+    filtered: { class: 'badge-filtered', text: 'Filtered', icon: 'fa-filter' },
+    interrupted: { class: 'badge-interrupted', text: 'Interrupted', icon: 'fa-stop' },
+    processing: { class: 'badge-processing', text: 'Processing', icon: 'fa-spinner fa-spin' },
+
+    // 通用状态
+    active: { class: 'badge-success', text: 'Active', icon: 'fa-check-circle' },
+    inactive: { class: 'badge-pending', text: 'Inactive', icon: 'fa-minus-circle' },
+    enabled: { class: 'badge-success', text: 'Enabled', icon: 'fa-toggle-on' },
+    disabled: { class: 'badge-pending', text: 'Disabled', icon: 'fa-toggle-off' },
+
+    // 默认
+    default: { class: 'badge-default', text: 'Unknown', icon: 'fa-question' }
+  },
+
+  // 触发类型映射
+  triggerConfig: {
+    webui: { class: 'badge-trigger-webui', text: 'WebUI' },
+    scheduled: { class: 'badge-trigger-scheduled', text: '定时' },
+    manual: { class: 'badge-trigger-manual', text: '手动' },
+    startup: { class: 'badge-trigger-startup', text: '启动' },
+    'fetch-all': { class: 'badge-trigger-fetch-all', text: '获取所有' },
+    refresh: { class: 'badge-trigger-refresh', text: '刷新' }
+  },
+
+  /**
+   * 生成状态徽章HTML
+   * @param {string} status - 状态值
+   * @param {Object} options - 配置选项
+   * @param {boolean} options.showIcon - 是否显示图标，默认false
+   * @param {string} options.customText - 自定义显示文本
+   * @param {string} options.customClass - 额外的CSS类
+   * @returns {string} HTML字符串
+   */
+  render(status, options = {}) {
+    const { showIcon = false, customText = null, customClass = '' } = options;
+    const normalizedStatus = (status || '').toLowerCase().replace(/\s+/g, '_');
+    const config = this.statusConfig[normalizedStatus] || this.statusConfig.default;
+
+    const displayText = customText || config.text;
+    const iconHtml = showIcon ? `<i class="fas ${config.icon} mr-1"></i>` : '';
+
+    return `<span class="badge ${config.class} ${customClass}">${iconHtml}${escapeHtml(displayText)}</span>`;
+  },
+
+  /**
+   * 生成触发类型徽章HTML
+   * @param {string} trigger - 触发类型
+   * @param {string} customClass - 额外的CSS类
+   * @returns {string} HTML字符串
+   */
+  renderTrigger(trigger, customClass = '') {
+    const normalizedTrigger = (trigger || '').toLowerCase().replace(/\s+/g, '-');
+    const config = this.triggerConfig[normalizedTrigger] || { class: 'badge-default', text: trigger || 'Unknown' };
+
+    return `<span class="badge ${config.class} ${customClass}">${escapeHtml(config.text)}</span>`;
+  },
+
+  /**
+   * 获取状态对应的CSS类名
+   * @param {string} status - 状态值
+   * @returns {string} CSS类名
+   */
+  getClass(status) {
+    const normalizedStatus = (status || '').toLowerCase().replace(/\s+/g, '_');
+    const config = this.statusConfig[normalizedStatus] || this.statusConfig.default;
+    return config.class;
+  },
+
+  /**
+   * 注册自定义状态
+   * @param {string} status - 状态名称
+   * @param {Object} config - 状态配置 { class, text, icon }
+   */
+  registerStatus(status, config) {
+    this.statusConfig[status.toLowerCase()] = config;
+  }
+};
+
+/**
+ * 全局快捷函数：打开Modal
+ * @param {string} modalId - Modal元素的ID
+ */
+function openModal(modalId) {
+  ModalManager.open(modalId);
+}
+
+/**
+ * 全局快捷函数：关闭Modal
+ * @param {string} modalId - Modal元素的ID
+ */
+function closeModal(modalId) {
+  ModalManager.close(modalId);
+}
+
+/**
+ * 生成确认对话框（Promise版本）
+ * @param {Object} options - 配置选项
+ * @param {string} options.title - 对话框标题
+ * @param {string} options.message - 确认消息
+ * @param {string} options.confirmText - 确认按钮文本
+ * @param {string} options.cancelText - 取消按钮文本
+ * @param {string} options.type - 类型：'danger', 'warning', 'info'
+ * @returns {Promise<boolean>} 用户是否确认
+ */
+function confirmDialog(options = {}) {
+  const {
+    title = '确认操作',
+    message = '确定要执行此操作吗？',
+    confirmText = '确认',
+    cancelText = '取消',
+    type = 'warning'
+  } = options;
+
+  return new Promise((resolve) => {
+    // 创建对话框元素
+    const dialogId = 'confirm-dialog-' + Date.now();
+    const typeColors = {
+      danger: 'bg-red-600 hover:bg-red-700',
+      warning: 'bg-yellow-600 hover:bg-yellow-700',
+      info: 'bg-blue-600 hover:bg-blue-700'
+    };
+    const buttonClass = typeColors[type] || typeColors.warning;
+
+    const dialogHtml = `
+      <div id="${dialogId}" class="fixed inset-0 z-[100] flex items-center justify-center modal-backdrop">
+        <div class="glass-static rounded-xl p-6 max-w-md w-full mx-4 slide-in-up">
+          <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-3">${escapeHtml(title)}</h3>
+          <p class="text-sm text-slate-600 dark:text-gray-400 mb-6">${escapeHtml(message)}</p>
+          <div class="flex justify-end gap-3">
+            <button id="${dialogId}-cancel" class="px-4 py-2 text-sm font-medium text-slate-600 dark:text-gray-400
+                    hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors">
+              ${escapeHtml(cancelText)}
+            </button>
+            <button id="${dialogId}-confirm" class="px-4 py-2 text-sm font-medium text-white ${buttonClass} rounded-lg transition-colors">
+              ${escapeHtml(confirmText)}
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', dialogHtml);
+    const dialog = document.getElementById(dialogId);
+
+    const cleanup = (result) => {
+      dialog.remove();
+      resolve(result);
+    };
+
+    document.getElementById(`${dialogId}-confirm`).addEventListener('click', () => cleanup(true));
+    document.getElementById(`${dialogId}-cancel`).addEventListener('click', () => cleanup(false));
+
+    // 点击背景关闭
+    dialog.addEventListener('click', (e) => {
+      if (e.target === dialog) cleanup(false);
+    });
+
+    // ESC键关闭
+    const escHandler = (e) => {
+      if (e.key === 'Escape') {
+        document.removeEventListener('keydown', escHandler);
+        cleanup(false);
+      }
+    };
+    document.addEventListener('keydown', escHandler);
+  });
+}
+
 // 导出到全局作用域
 window.showFlashMessage = showFlashMessage;
 window.formatDate = formatDate;
@@ -425,14 +612,18 @@ window.formatFileSize = formatFileSize;
 window.formatPercentage = formatPercentage;
 window.ModalManager = ModalManager;
 window.ApiClient = ApiClient;
+window.StatusBadge = StatusBadge;
 window.debounce = debounce;
 window.throttle = throttle;
 window.copyToClipboard = copyToClipboard;
 window.confirmAction = confirmAction;
+window.confirmDialog = confirmDialog;
 window.getUrlParam = getUrlParam;
 window.setUrlParam = setUrlParam;
 window.scrollToTop = scrollToTop;
 window.sleep = sleep;
+window.openModal = openModal;
+window.closeModal = closeModal;
 
 // ESC键关闭所有Modal
 document.addEventListener('keydown', (e) => {

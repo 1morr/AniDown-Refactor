@@ -1,0 +1,304 @@
+{#
+  可复用的Jinja2宏组件库
+
+  使用方法：
+  {% from 'macros/components.html' import page_header, search_box, filter_select, modal, empty_state %}
+
+  组件列表：
+  - page_header: 页面标题区域
+  - search_box: 搜索输入框
+  - filter_select: 筛选下拉框
+  - page_size_select: 每页数量选择
+  - action_button: 操作按钮
+  - modal: 模态框
+  - empty_state: 空状态显示
+  - loading_spinner: 加载动画
+  - sortable_th: 可排序的表头
+  - pagination_info: 分页信息
+#}
+
+
+{# ========================================================================
+   页面标题区域
+   ======================================================================== #}
+{% macro page_header(title, icon, subtitle='', icon_color='text-blue-600 dark:text-neon-blue') %}
+<div class="flex flex-col md:flex-row justify-between items-end gap-4">
+    <div>
+        <h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-3">
+            <i class="{{ icon }} {{ icon_color }}"></i>
+            {{ title }}
+        </h1>
+        {% if subtitle %}
+        <p class="text-slate-500 dark:text-gray-500 text-sm">{{ subtitle }}</p>
+        {% endif %}
+    </div>
+    {{ caller() if caller else '' }}
+</div>
+{% endmacro %}
+
+
+{# ========================================================================
+   页面标题区域（带总数显示）
+   ======================================================================== #}
+{% macro page_header_with_count(title, icon, subtitle='', count_label='Total Records', count_id='total-records', icon_color='text-blue-600 dark:text-neon-blue') %}
+<div class="flex flex-col md:flex-row justify-between items-end gap-4">
+    <div>
+        <h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-3">
+            <i class="{{ icon }} {{ icon_color }}"></i>
+            {{ title }}
+        </h1>
+        {% if subtitle %}
+        <p class="text-slate-500 dark:text-gray-500 text-sm">{{ subtitle }}</p>
+        {% endif %}
+    </div>
+    <div class="text-right">
+        <p class="text-xs text-slate-400 dark:text-gray-500 font-mono">{{ count_label }}</p>
+        <p class="text-2xl font-bold text-slate-800 dark:text-white font-mono" id="{{ count_id }}">Loading...</p>
+    </div>
+</div>
+{% endmacro %}
+
+
+{# ========================================================================
+   搜索输入框
+   ======================================================================== #}
+{% macro search_box(id='search-input', placeholder='搜索...', onchange='renderTable()', max_width='max-w-lg') %}
+<div class="relative flex-1 {{ max_width }}">
+    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-500 text-sm"></i>
+    <input type="text" id="{{ id }}" placeholder="{{ placeholder }}"
+        class="w-full pl-9 pr-10 py-2 rounded-lg text-sm font-medium form-control transition-all">
+    <button onclick="document.getElementById('{{ id }}').value=''; {{ onchange }}"
+        class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-white">
+        <i class="fa-solid fa-xmark"></i>
+    </button>
+</div>
+{% endmacro %}
+
+
+{# ========================================================================
+   筛选下拉框
+   ======================================================================== #}
+{% macro filter_select(id, label, options, default_value='all', default_text='全部') %}
+<div class="relative">
+    <label class="absolute -top-2.5 left-2 text-[10px] font-bold text-slate-500 dark:text-gray-500 bg-white dark:bg-[#0F0F11] px-1 rounded">{{ label }}</label>
+    <select id="{{ id }}" class="w-full appearance-none pl-3 pr-8 py-2 rounded-lg text-xs form-control cursor-pointer h-9">
+        <option value="{{ default_value }}">{{ default_text }}</option>
+        {% for value, text in options %}
+        <option value="{{ value }}">{{ text }}</option>
+        {% endfor %}
+    </select>
+    <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-600 text-xs pointer-events-none"></i>
+</div>
+{% endmacro %}
+
+
+{# ========================================================================
+   每页数量选择
+   ======================================================================== #}
+{% macro page_size_select(id='page-size', options=[20, 50, 100], default=20) %}
+<div class="relative w-24">
+    <select id="{{ id }}" class="w-full appearance-none pl-3 pr-8 py-2 rounded-lg text-sm font-medium form-control cursor-pointer">
+        {% for size in options %}
+        <option value="{{ size }}" {{ 'selected' if size == default else '' }}>{{ size }}条</option>
+        {% endfor %}
+    </select>
+    <i class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-500 text-xs pointer-events-none"></i>
+</div>
+{% endmacro %}
+
+
+{# ========================================================================
+   操作按钮
+   ======================================================================== #}
+{% macro action_button(text, icon='', onclick='', type='secondary', id='', disabled=false) %}
+{% set type_classes = {
+    'primary': 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 dark:shadow-emerald-900/20',
+    'secondary': 'bg-blue-50 hover:bg-blue-100 dark:bg-blue-600/20 dark:hover:bg-blue-600/30 border border-blue-200 dark:border-blue-500/30 text-blue-600 dark:text-blue-400',
+    'danger': 'bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-500/20',
+    'warning': 'bg-yellow-50 hover:bg-yellow-100 dark:bg-yellow-600/20 dark:hover:bg-yellow-600/30 border border-yellow-200 dark:border-yellow-500/30 text-yellow-600 dark:text-yellow-400',
+    'ghost': 'hover:bg-slate-100 dark:hover:bg-white/5 text-slate-600 dark:text-gray-400'
+} %}
+<button {% if id %}id="{{ id }}"{% endif %}
+        {% if onclick %}onclick="{{ onclick }}"{% endif %}
+        {% if disabled %}disabled{% endif %}
+        class="px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 {{ type_classes[type] }}">
+    {% if icon %}<i class="{{ icon }}"></i>{% endif %}
+    {{ text }}
+</button>
+{% endmacro %}
+
+
+{# ========================================================================
+   模态框
+   ======================================================================== #}
+{% macro modal(id, title, size='md', show_footer=true) %}
+{% set size_classes = {
+    'sm': 'max-w-md',
+    'md': 'max-w-2xl',
+    'lg': 'max-w-4xl',
+    'xl': 'max-w-6xl',
+    'full': 'max-w-[95vw]'
+} %}
+<div id="{{ id }}" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+    <!-- 背景遮罩 -->
+    <div class="modal-backdrop" onclick="closeModal('{{ id }}')"></div>
+
+    <!-- 模态框内容 -->
+    <div class="modal-content glass-static rounded-xl {{ size_classes[size] }} w-full max-h-[90vh] flex flex-col">
+        <!-- 头部 -->
+        <div class="modal-header flex-shrink-0">
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white">{{ title }}</h3>
+            <button onclick="closeModal('{{ id }}')"
+                class="text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-white transition-colors">
+                <i class="fas fa-times text-lg"></i>
+            </button>
+        </div>
+
+        <!-- 主体 -->
+        <div class="modal-body flex-1 overflow-y-auto custom-scrollbar">
+            {{ caller() }}
+        </div>
+
+        {% if show_footer %}
+        <!-- 底部 -->
+        <div class="modal-footer flex-shrink-0">
+            <button onclick="closeModal('{{ id }}')"
+                class="px-4 py-2 text-sm font-medium text-slate-600 dark:text-gray-400
+                       hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors">
+                关闭
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endmacro %}
+
+
+{# ========================================================================
+   空状态显示
+   ======================================================================== #}
+{% macro empty_state(icon='fa-inbox', text='暂无数据', colspan=1) %}
+<tr>
+    <td colspan="{{ colspan }}" class="text-center py-12">
+        <div class="empty-state">
+            <i class="fas {{ icon }} empty-state-icon"></i>
+            <p class="empty-state-text">{{ text }}</p>
+        </div>
+    </td>
+</tr>
+{% endmacro %}
+
+
+{# ========================================================================
+   加载动画
+   ======================================================================== #}
+{% macro loading_spinner(text='加载中...', colspan=1) %}
+<tr>
+    <td colspan="{{ colspan }}" class="text-center py-12">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <span class="text-sm">{{ text }}</span>
+        </div>
+    </td>
+</tr>
+{% endmacro %}
+
+
+{# ========================================================================
+   可排序的表头
+   ======================================================================== #}
+{% macro sortable_th(column, label, default_sort=false, default_order='desc', onclick_fn='toggleSort', align='left') %}
+{% set align_class = 'text-' + align %}
+<th class="py-3 px-2 {{ align_class }} text-xs font-semibold text-slate-500 dark:text-gray-500 uppercase tracking-wider sortable-header"
+    onclick="{{ onclick_fn }}('{{ column }}')">
+    {{ label }}
+    <span id="sort-{{ column }}" class="sort-indicator {{ 'active' if default_sort else '' }}">
+        <i class="fas {{ 'fa-sort-down' if default_sort and default_order == 'desc' else ('fa-sort-up' if default_sort else 'fa-sort') }} text-xs {{ 'opacity-30' if not default_sort else '' }}"></i>
+    </span>
+</th>
+{% endmacro %}
+
+
+{# ========================================================================
+   普通表头
+   ======================================================================== #}
+{% macro th(label, align='left', width='') %}
+{% set align_class = 'text-' + align %}
+<th class="py-3 px-2 {{ align_class }} text-xs font-semibold text-slate-500 dark:text-gray-500 uppercase tracking-wider {{ 'w-' + width if width else '' }}">
+    {{ label }}
+</th>
+{% endmacro %}
+
+
+{# ========================================================================
+   分页信息
+   ======================================================================== #}
+{% macro pagination_info(table_id) %}
+<div class="flex items-center justify-between text-xs text-slate-500 dark:text-gray-500">
+    <span>
+        显示 <span id="{{ table_id }}-page-start">0</span> -
+        <span id="{{ table_id }}-page-end">0</span> /
+        共 <span id="{{ table_id }}-total">0</span> 条
+    </span>
+    <div id="{{ table_id }}-pagination" class="flex items-center gap-1">
+        <!-- 分页按钮将由JS动态生成 -->
+    </div>
+</div>
+{% endmacro %}
+
+
+{# ========================================================================
+   控制面板容器
+   ======================================================================== #}
+{% macro control_panel() %}
+<section class="glass-card rounded-xl p-5 space-y-4">
+    {{ caller() }}
+</section>
+{% endmacro %}
+
+
+{# ========================================================================
+   表格容器
+   ======================================================================== #}
+{% macro table_container(id, headers) %}
+<section class="glass-card rounded-xl overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="border-b border-slate-200 dark:border-white/5">
+                <tr>
+                    {{ headers }}
+                </tr>
+            </thead>
+            <tbody id="{{ id }}-body" class="divide-y divide-slate-100 dark:divide-white/5">
+                {{ caller() }}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endmacro %}
+
+
+{# ========================================================================
+   分隔线
+   ======================================================================== #}
+{% macro divider() %}
+<div class="border-t border-slate-200 dark:border-white/5 pt-4"></div>
+{% endmacro %}
+
+
+{# ========================================================================
+   统计卡片
+   ======================================================================== #}
+{% macro stat_card(label, value_id, icon='', icon_color='text-blue-500') %}
+<div class="glass-card rounded-xl p-4 flex items-center gap-4">
+    {% if icon %}
+    <div class="w-12 h-12 rounded-lg bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center">
+        <i class="{{ icon }} {{ icon_color }} text-xl"></i>
+    </div>
+    {% endif %}
+    <div>
+        <p class="text-xs text-slate-500 dark:text-gray-500 font-medium">{{ label }}</p>
+        <p class="text-2xl font-bold text-slate-900 dark:text-white" id="{{ value_id }}">-</p>
+    </div>
+</div>
+{% endmacro %}
