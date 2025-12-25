@@ -118,9 +118,13 @@
                             季数
                             <span class="sort-indicator" id="sort-season"></span>
                         </th>
-                        <th class="py-3 px-2 text-center sortable-header" style="width: 8%;" onclick="toggleSort('file_count')">
+                        <th class="py-3 px-2 text-center sortable-header" style="width: 7%;" onclick="toggleSort('file_count')">
                             文件数
                             <span class="sort-indicator" id="sort-file_count"></span>
+                        </th>
+                        <th class="py-3 px-2 text-center sortable-header" style="width: 7%;" onclick="toggleSort('hardlink_count')">
+                            硬链接
+                            <span class="sort-indicator" id="sort-hardlink_count"></span>
                         </th>
                         <th class="py-3 px-2 text-center sortable-header" style="width: 8%;" onclick="toggleSort('media_type')">
                             类型
@@ -615,7 +619,7 @@
         if (!data.groups || data.groups.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="8" class="text-center py-8 text-slate-500 dark:text-gray-400">
+                    <td colspan="9" class="text-center py-8 text-slate-500 dark:text-gray-400">
                         <i class="fa-solid fa-info-circle text-2xl mb-2"></i>
                         <p>暂无数据</p>
                     </td>
@@ -641,6 +645,7 @@
                     <td class="py-3 px-2 text-center">-</td>
                     <td class="py-3 px-2 text-center">-</td>
                     <td class="py-3 px-2 text-center">-</td>
+                    <td class="py-3 px-2 text-center">-</td>
                     <td class="py-3 px-2 text-right">-</td>
                     <td class="py-3 pr-4 pl-2 text-right">
                         <button onclick="event.stopPropagation(); viewGroupDetails('${escapeJs(groupName)}')" class="w-7 h-7 rounded-md flex items-center justify-center bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 text-blue-500 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 transition-colors" title="查看详情">
@@ -661,7 +666,7 @@
         if (!data.anime_list || data.anime_list.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="8" class="text-center py-8 text-slate-500 dark:text-gray-400">
+                    <td colspan="9" class="text-center py-8 text-slate-500 dark:text-gray-400">
                         <i class="fa-solid fa-info-circle text-2xl mb-2"></i>
                         <p>暂无动漫数据</p>
                     </td>
@@ -676,7 +681,7 @@
         if (viewingGroup) {
             html += `
                 <tr>
-                    <td colspan="8" class="py-3 px-5 bg-purple-50 dark:bg-purple-900/10">
+                    <td colspan="9" class="py-3 px-5 bg-purple-50 dark:bg-purple-900/10">
                         <button onclick="exitGroupView()" class="inline-flex items-center gap-2 text-sm text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-200">
                             <i class="fa-solid fa-arrow-left"></i> 返回分组列表
                         </button>
@@ -707,6 +712,11 @@
                     <td class="py-3 px-2 text-center">
                         <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${anime.file_count > 0 ? 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300' : 'bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-400'}">
                             ${anime.file_count || 0}
+                        </span>
+                    </td>
+                    <td class="py-3 px-2 text-center">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${anime.hardlink_count > 0 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-400'}">
+                            ${anime.hardlink_count || 0}
                         </span>
                     </td>
                     <td class="py-3 px-2 text-center">
