@@ -8,7 +8,8 @@ import logging
 import os
 import re
 import shutil
-from typing import Any, Dict, List, Optional
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
 
 from sqlalchemy import func, or_
 
@@ -24,6 +25,9 @@ from src.infrastructure.database.models import (
     TorrentFile,
 )
 from src.core.interfaces import IAnimeRepository, IDownloadRepository, IDownloadClient
+
+if TYPE_CHECKING:
+    from src.services.rename.rename_service import RenameService
 
 logger = logging.getLogger(__name__)
 
@@ -720,6 +724,605 @@ class AnimeService:
         except Exception as e:
             logger.error(f'统计媒体类型失败: {e}')
             return {}
+
+    # =========================================================================
+    # Anime Detail Page Methods
+    # =========================================================================
+
+    def get_anime_detail_with_files(self, anime_id: int) -> Dict[str, Any]:
+        """
+        Get comprehensive anime details including source files and hardlinks.
+
+        Args:
+            anime_id: Anime ID.
+
+        Returns:
+            Dictionary with anime info, patterns, source files, and hardlinks.
+        """
+        try:
+            with db_manager.session() as session:
+                anime = session.query(AnimeInfo).filter_by(id=anime_id).first()
+                if not anime:
+                    return {'error': '动漫不存在'}
+
+                # Get downloads for qBit file fetching
+                downloads = session.query(DownloadStatus).filter_by(
+                    anime_id=anime_id
+                ).all()
+
+                # Get hardlinks
+                hardlinks = session.query(Hardlink).filter_by(
+                    anime_id=anime_id
+                ).all()
+
+                # Get patterns
+                patterns = session.query(AnimePattern).filter_by(
+                    anime_id=anime_id
+                ).first()
+
+                # Build patterns dict
+                patterns_data = {}
+                if patterns:
+                    patterns_data = {
+                        'episode_regex': patterns.episode_regex,
+                        'quality_regex': patterns.quality_regex,
+                        'special_tags_regex': patterns.special_tags_regex,
+                        'subtitle_type_regex': patterns.subtitle_type_regex,
+                        'title_group_regex': patterns.title_group_regex,
+                        'video_codec_regex': patterns.video_codec_regex,
+                        'source_regex': patterns.source_regex,
+                    }
+
+                # Get source files from qBittorrent
+                source_files = []
+                for download in downloads:
+                    try:
+                        torrent_files = self._download_client.get_torrent_files(
+                            download.hash_id
+                        )
+                        for f in torrent_files:
+                            file_name = f.get('name', '')
+                            # Extract just the filename if it's a path
+                            if '/' in file_name or '\\' in file_name:
+                                display_name = os.path.basename(file_name)
+                            else:
+                                display_name = file_name
+
+                            metadata = self.extract_file_metadata(
+                                display_name, patterns_data
+                            )
+                            source_files.append({
+                                'name': display_name,
+                                'full_path': os.path.join(
+                                    download.download_directory or '', file_name
+                                ),
+                                'size': f.get('size', 0),
+                                'torrent_hash': download.hash_id,
+                                'metadata': metadata
+                            })
+                    except Exception as e:
+                        logger.warning(
+                            f'获取torrent文件失败 {download.hash_id}: {e}'
+                        )
+
+                # Build hardlink list with metadata
+                hardlink_files = []
+                for h in hardlinks:
+                    hardlink_name = os.path.basename(h.hardlink_path)
+                    metadata = self.extract_file_metadata(
+                        hardlink_name, patterns_data
+                    )
+                    hardlink_files.append({
+                        'id': h.id,
+                        'original_path': h.original_file_path,
+                        'hardlink_path': h.hardlink_path,
+                        'file_size': h.file_size,
+                        'torrent_hash': h.torrent_hash,
+                        'created_at': h.created_at,
+                        'metadata': metadata
+                    })
+
+                return {
+                    'success': True,
+                    'anime': {
+                        'id': anime.id,
+                        'original_title': anime.original_title,
+                        'short_title': anime.short_title,
+                        'long_title': anime.long_title,
+                        'subtitle_group': anime.subtitle_group,
+                        'season': anime.season,
+                        'category': anime.category,
+                        'media_type': anime.media_type,
+                        'tvdb_id': anime.tvdb_id,
+                        'created_at': anime.created_at,
+                        'updated_at': anime.updated_at
+                    },
+                    'patterns': patterns_data,
+                    'source_files': source_files,
+                    'hardlinks': hardlink_files,
+                    'download_count': len(downloads),
+                    'hardlink_count': len(hardlinks)
+                }
+
+        except Exception as e:
+            logger.error(f'获取动漫详情失败: {e}')
+            return {'error': str(e)}
+
+    def extract_file_metadata(
+        self,
+        filename: str,
+        patterns: Dict[str, str]
+    ) -> Dict[str, Any]:
+        """
+        Extract metadata from filename using regex patterns.
+
+        Args:
+            filename: File name to extract from.
+            patterns: Dictionary of regex patterns.
+
+        Returns:
+            Dictionary with extracted metadata.
+        """
+        result = {}
+
+        pattern_fields = [
+            ('episode_regex', 'episode'),
+            ('quality_regex', 'quality'),
+            ('subtitle_type_regex', 'subtitle_type'),
+            ('special_tags_regex', 'special_tag'),
+            ('video_codec_regex', 'video_codec'),
+            ('source_regex', 'source'),
+            ('title_group_regex', 'subtitle_group'),
+        ]
+
+        for pattern_key, result_key in pattern_fields:
+            pattern = patterns.get(pattern_key)
+            if pattern and pattern != '无':
+                try:
+                    match = re.search(pattern, filename)
+                    if match:
+                        value = match.group(1) if match.groups() else match.group(0)
+                        result[result_key] = value.strip('[]').strip()
+                except re.error:
+                    pass
+
+        return result
+
+    def rename_files(
+        self,
+        anime_id: int,
+        mappings: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """
+        Rename files on filesystem and update database.
+
+        Args:
+            anime_id: Anime ID.
+            mappings: List of {path, new_name, type} dicts.
+
+        Returns:
+            Result dictionary with success status.
+        """
+        results = {
+            'success': True,
+            'renamed': [],
+            'failed': [],
+            'errors': []
+        }
+
+        try:
+            with db_manager.session() as session:
+                for mapping in mappings:
+                    old_path = mapping.get('path', '')
+                    new_name = mapping.get('new_name', '')
+                    file_type = mapping.get('type', 'hardlink')
+
+                    if not old_path or not new_name:
+                        results['failed'].append({
+                            'path': old_path,
+                            'error': '路径或新名称为空'
+                        })
+                        continue
+
+                    try:
+                        old_dir = os.path.dirname(old_path)
+                        new_path = os.path.join(old_dir, new_name)
+
+                        # Check if source exists
+                        if not os.path.exists(old_path):
+                            results['failed'].append({
+                                'path': old_path,
+                                'error': '文件不存在'
+                            })
+                            continue
+
+                        # Rename file
+                        os.rename(old_path, new_path)
+
+                        # Update database if hardlink
+                        if file_type == 'hardlink':
+                            session.query(Hardlink).filter(
+                                Hardlink.anime_id == anime_id,
+                                Hardlink.hardlink_path == old_path
+                            ).update({'hardlink_path': new_path})
+
+                        results['renamed'].append({
+                            'old_path': old_path,
+                            'new_path': new_path
+                        })
+                        logger.info(f'✅ 重命名成功: {old_path} -> {new_path}')
+
+                    except Exception as e:
+                        results['failed'].append({
+                            'path': old_path,
+                            'error': str(e)
+                        })
+                        logger.error(f'❌ 重命名失败 {old_path}: {e}')
+
+                session.commit()
+
+        except Exception as e:
+            logger.error(f'重命名文件失败: {e}')
+            results['success'] = False
+            results['errors'].append(str(e))
+
+        return results
+
+    def delete_selected_files(
+        self,
+        anime_id: int,
+        file_ids: List[int],
+        delete_hardlinks: bool = True,
+        delete_source: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Delete selected files with user options.
+
+        Args:
+            anime_id: Anime ID.
+            file_ids: List of hardlink IDs to delete.
+            delete_hardlinks: Whether to delete hardlink files.
+            delete_source: Whether to also delete source files.
+
+        Returns:
+            Result dictionary.
+        """
+        results = {
+            'success': True,
+            'hardlinks_deleted': 0,
+            'source_deleted': 0,
+            'errors': []
+        }
+
+        try:
+            with db_manager.session() as session:
+                hardlinks = session.query(Hardlink).filter(
+                    Hardlink.id.in_(file_ids),
+                    Hardlink.anime_id == anime_id
+                ).all()
+
+                for hardlink in hardlinks:
+                    # Delete hardlink file
+                    if delete_hardlinks and os.path.exists(hardlink.hardlink_path):
+                        try:
+                            os.remove(hardlink.hardlink_path)
+                            results['hardlinks_deleted'] += 1
+                            logger.info(f'🗑️ 删除硬链接: {hardlink.hardlink_path}')
+                        except Exception as e:
+                            results['errors'].append(
+                                f'删除硬链接失败 {hardlink.hardlink_path}: {e}'
+                            )
+
+                    # Delete source file if requested
+                    if delete_source and os.path.exists(hardlink.original_file_path):
+                        try:
+                            os.remove(hardlink.original_file_path)
+                            results['source_deleted'] += 1
+                            logger.info(f'🗑️ 删除源文件: {hardlink.original_file_path}')
+                        except Exception as e:
+                            results['errors'].append(
+                                f'删除源文件失败 {hardlink.original_file_path}: {e}'
+                            )
+
+                    # Delete database record
+                    session.delete(hardlink)
+
+                session.commit()
+
+        except Exception as e:
+            logger.error(f'删除文件失败: {e}')
+            results['success'] = False
+            results['errors'].append(str(e))
+
+        return results
+
+    def move_hardlink_files(
+        self,
+        anime_id: int,
+        file_ids: List[int],
+        destination_folder: str
+    ) -> Dict[str, Any]:
+        """
+        Move hardlink files to a new subfolder.
+
+        Args:
+            anime_id: Anime ID.
+            file_ids: List of hardlink IDs to move.
+            destination_folder: Target folder name (e.g., 'Season 2').
+
+        Returns:
+            Result dictionary.
+        """
+        results = {
+            'success': True,
+            'moved': [],
+            'failed': [],
+            'errors': []
+        }
+
+        try:
+            with db_manager.session() as session:
+                hardlinks = session.query(Hardlink).filter(
+                    Hardlink.id.in_(file_ids),
+                    Hardlink.anime_id == anime_id
+                ).all()
+
+                for hardlink in hardlinks:
+                    try:
+                        old_path = hardlink.hardlink_path
+                        parent_dir = os.path.dirname(old_path)
+
+                        # Go up one level if in a Season folder
+                        if os.path.basename(parent_dir).startswith('Season'):
+                            parent_dir = os.path.dirname(parent_dir)
+
+                        # Create new destination
+                        new_dir = os.path.join(parent_dir, destination_folder)
+                        os.makedirs(new_dir, exist_ok=True)
+
+                        new_path = os.path.join(
+                            new_dir, os.path.basename(old_path)
+                        )
+
+                        if not os.path.exists(old_path):
+                            results['failed'].append({
+                                'path': old_path,
+                                'error': '文件不存在'
+                            })
+                            continue
+
+                        # Move file
+                        shutil.move(old_path, new_path)
+
+                        # Update database
+                        hardlink.hardlink_path = new_path
+
+                        results['moved'].append({
+                            'old_path': old_path,
+                            'new_path': new_path
+                        })
+                        logger.info(f'📦 移动文件: {old_path} -> {new_path}')
+
+                    except Exception as e:
+                        results['failed'].append({
+                            'path': hardlink.hardlink_path,
+                            'error': str(e)
+                        })
+                        logger.error(f'❌ 移动失败: {e}')
+
+                session.commit()
+
+        except Exception as e:
+            logger.error(f'移动文件失败: {e}')
+            results['success'] = False
+            results['errors'].append(str(e))
+
+        return results
+
+    def send_files_to_ai_rename(
+        self,
+        anime_id: int,
+        source_files: List[str],
+        rename_service: 'RenameService'
+    ) -> Dict[str, Any]:
+        """
+        Send source files to AI for rename suggestions.
+
+        Args:
+            anime_id: Anime ID.
+            source_files: List of source file paths.
+            rename_service: RenameService instance.
+
+        Returns:
+            Dictionary with proposed mappings.
+        """
+        try:
+            with db_manager.session() as session:
+                anime = session.query(AnimeInfo).filter_by(id=anime_id).first()
+                if not anime:
+                    return {'error': '动漫不存在'}
+
+                anime_title = anime.short_title or anime.original_title
+                subtitle_group = anime.subtitle_group or ''
+                season = anime.season or 1
+                category = anime.category or 'tv'
+
+                # Build classified files for rename service
+                from src.services.rename.file_classifier import ClassifiedFile
+
+                video_files = []
+                for file_path in source_files:
+                    filename = os.path.basename(file_path)
+                    ext = os.path.splitext(filename)[1].lower()
+                    video_files.append(ClassifiedFile(
+                        name=filename,
+                        relative_path=file_path,
+                        full_path=file_path,
+                        size=0,
+                        extension=ext
+                    ))
+
+                # Call AI rename
+                result = rename_service.generate_mapping(
+                    video_files=video_files,
+                    anime_id=anime_id,
+                    anime_title=anime_title,
+                    subtitle_group=subtitle_group,
+                    season=season,
+                    category=category,
+                    is_multi_season=False,
+                    tvdb_data=None,
+                    folder_structure=None,
+                    torrent_hash=None
+                )
+
+                if not result:
+                    return {'error': 'AI处理失败'}
+
+                # Build mapping list
+                mappings = []
+                for original, new_name in result.main_files.items():
+                    mappings.append({
+                        'source': original,
+                        'proposed_path': new_name
+                    })
+
+                return {
+                    'success': True,
+                    'mappings': mappings,
+                    'method': result.method
+                }
+
+        except Exception as e:
+            logger.error(f'AI重命名失败: {e}')
+            return {'error': str(e)}
+
+    def apply_ai_rename_results(
+        self,
+        anime_id: int,
+        mappings: List[Dict[str, Any]],
+        replace_all: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Apply AI rename results by creating new hardlinks.
+
+        Args:
+            anime_id: Anime ID.
+            mappings: List of {source_file, new_hardlink_path, replace_hardlink_id}.
+            replace_all: Whether to replace all existing hardlinks.
+
+        Returns:
+            Result dictionary.
+        """
+        results = {
+            'success': True,
+            'created': [],
+            'replaced': [],
+            'failed': [],
+            'errors': []
+        }
+
+        try:
+            with db_manager.session() as session:
+                anime = session.query(AnimeInfo).filter_by(id=anime_id).first()
+                if not anime:
+                    return {'error': '动漫不存在'}
+
+                # Get hardlink base path
+                anime_title = anime.short_title or anime.original_title
+                media_type = anime.media_type or 'anime'
+                category = anime.category or 'tv'
+                base_path = self._get_hardlink_folder_path(
+                    anime_title, media_type, category
+                )
+
+                for mapping in mappings:
+                    source_file = mapping.get('source_file', '')
+                    new_path_suffix = mapping.get('new_hardlink_path', '')
+                    replace_id = mapping.get('replace_hardlink_id')
+
+                    if not source_file or not new_path_suffix:
+                        continue
+
+                    try:
+                        # Build full new path
+                        new_hardlink_path = os.path.join(base_path, new_path_suffix)
+
+                        # Create directory if needed
+                        new_dir = os.path.dirname(new_hardlink_path)
+                        os.makedirs(new_dir, exist_ok=True)
+
+                        # Check if source exists
+                        if not os.path.exists(source_file):
+                            results['failed'].append({
+                                'source': source_file,
+                                'error': '源文件不存在'
+                            })
+                            continue
+
+                        # Remove old hardlink if replacing
+                        if replace_id or replace_all:
+                            old_hardlinks = session.query(Hardlink).filter(
+                                Hardlink.anime_id == anime_id,
+                                Hardlink.original_file_path == source_file
+                            ).all()
+
+                            for old_hl in old_hardlinks:
+                                if replace_id and old_hl.id != replace_id:
+                                    continue
+                                if os.path.exists(old_hl.hardlink_path):
+                                    os.remove(old_hl.hardlink_path)
+                                session.delete(old_hl)
+                                results['replaced'].append(old_hl.hardlink_path)
+
+                        # Create new hardlink
+                        if os.path.exists(new_hardlink_path):
+                            os.remove(new_hardlink_path)
+
+                        os.link(source_file, new_hardlink_path)
+
+                        # Get file size
+                        file_size = os.path.getsize(source_file)
+
+                        # Find torrent hash
+                        torrent_hash = None
+                        download = session.query(DownloadStatus).filter(
+                            DownloadStatus.anime_id == anime_id
+                        ).first()
+                        if download:
+                            torrent_hash = download.hash_id
+
+                        # Create database record
+                        new_hardlink = Hardlink(
+                            anime_id=anime_id,
+                            torrent_hash=torrent_hash,
+                            original_file_path=source_file,
+                            hardlink_path=new_hardlink_path,
+                            file_size=file_size
+                        )
+                        session.add(new_hardlink)
+
+                        results['created'].append({
+                            'source': source_file,
+                            'hardlink': new_hardlink_path
+                        })
+                        logger.info(f'✅ 创建硬链接: {source_file} -> {new_hardlink_path}')
+
+                    except Exception as e:
+                        results['failed'].append({
+                            'source': source_file,
+                            'error': str(e)
+                        })
+                        logger.error(f'❌ 创建硬链接失败: {e}')
+
+                session.commit()
+
+        except Exception as e:
+            logger.error(f'应用AI结果失败: {e}')
+            results['success'] = False
+            results['errors'].append(str(e))
+
+        return results
 
 
 # Global anime service instance
