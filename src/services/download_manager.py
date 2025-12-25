@@ -508,6 +508,9 @@ class DownloadManager:
                         download_method='manual_rss'
                     )
 
+                    # Save torrent files information
+                    self._save_torrent_files_on_add(hash_id, anime_id)
+
                     result.new_items += 1
                     self._history_repo.insert_rss_detail(history_id, title, 'success')
 
@@ -731,6 +734,9 @@ class DownloadManager:
                 download_method='rss_ai'
             )
 
+            # Save torrent files information
+            self._save_torrent_files_on_add(hash_id, anime_id)
+
             # Send download task notification (immediate)
             self._notify_download_task(
                 project_name=title,
@@ -809,6 +815,9 @@ class DownloadManager:
             anime_id=anime_id,
             download_method='fixed_rss'
         )
+
+        # Save torrent files information
+        self._save_torrent_files_on_add(hash_id, anime_id)
 
         # Send download task notification (immediate)
         self._notify_download_task(
@@ -905,6 +914,9 @@ class DownloadManager:
                 is_multi_season=is_multi_season,
                 requires_tvdb=requires_tvdb
             )
+
+            # Save torrent files information
+            self._save_torrent_files_on_add(hash_id, anime_id)
 
             # Record history (only on success)
             self._history_repo.insert_manual_upload_history(
@@ -1052,16 +1064,6 @@ class DownloadManager:
 
             if torrent_files:
                 logger.info(f'  文件数量: {len(torrent_files)}')
-
-                # Save file info to database
-                logger.debug('💾 保存文件信息到数据库...')
-                for file_info in torrent_files:
-                    self._save_torrent_file(
-                        torrent_hash=hash_id,
-                        file_path=file_info.get('name', ''),
-                        file_size=file_info.get('size', 0),
-                        anime_id=download_info.anime_id
-                    )
 
                 # Create hardlinks
                 logger.info('🔗 开始创建硬链接...')
@@ -1514,6 +1516,9 @@ class DownloadManager:
                 is_multi_season=history.get('is_multi_season', False)
             )
 
+            # Save torrent files information
+            self._save_torrent_files_on_add(hash_id, history.get('anime_id'))
+
             # Delete from history
             if self._history_repo.delete_download_history_by_hash(hash_id):
                 logger.info(f'✅ 已从历史记录中移除: {hash_id}')
@@ -1704,6 +1709,53 @@ class DownloadManager:
             )
         except Exception as e:
             logger.warning(f'⚠️ Failed to save torrent file to database: {e}')
+
+    def _save_torrent_files_on_add(
+        self,
+        hash_id: str,
+        anime_id: Optional[int],
+        max_retries: int = 5,
+        retry_delay: float = 1.0
+    ) -> None:
+        """
+        Save torrent file information when download starts.
+
+        Waits for qBittorrent to parse the torrent and retrieves file list.
+        For magnet links, may need multiple retries to get metadata.
+
+        Args:
+            hash_id: Torrent hash.
+            anime_id: Anime ID for records.
+            max_retries: Maximum retry attempts for getting file list.
+            retry_delay: Delay between retries in seconds.
+        """
+        import time
+
+        logger.debug(f'💾 正在保存种子文件信息: {hash_id[:8]}...')
+
+        torrent_files = []
+        for attempt in range(max_retries):
+            torrent_files = self._download_client.get_torrent_files(hash_id)
+            if torrent_files:
+                break
+            # Wait and retry (torrent may still be loading metadata)
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay)
+                logger.debug(f'  重试获取文件列表 ({attempt + 2}/{max_retries})...')
+
+        if not torrent_files:
+            logger.warning(f'⚠️ 无法获取种子文件列表: {hash_id[:8]} (可能是磁力链接等待元数据)')
+            return
+
+        logger.info(f'📋 获取到 {len(torrent_files)} 个文件，正在保存到数据库...')
+        for file_info in torrent_files:
+            self._save_torrent_file(
+                torrent_hash=hash_id,
+                file_path=file_info.get('name', ''),
+                file_size=file_info.get('size', 0),
+                anime_id=anime_id
+            )
+        logger.debug(f'✅ 种子文件信息保存完成: {hash_id[:8]}')
 
     def _generate_save_path(self, ai_result: Dict[str, Any]) -> str:
         """Generate download save path."""
