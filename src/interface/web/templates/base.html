@@ -72,6 +72,11 @@
 
     <!-- Global Styles -->
     <style>
+        /* 防止页面切换时滚动条出现/消失导致的布局抖动 */
+        html {
+            overflow-y: scroll;
+        }
+
         body, div, nav, button, span, p, h1, h2, h3, table, tr, td, th, i, section, input, textarea, select, label {
             transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
         }
