@@ -360,6 +360,7 @@
 
         tbody.innerHTML = history.map((record, index) => {
             // record 结构: [id, rss_url, triggered_by, items_found, items_attempted, items_processed, created_at, status, completed_at]
+            const isQueued = record[7] === 'queued';
             const isProcessing = record[7] === 'processing';
             const isCompleted = record[7] === 'completed';
             const isInterrupted = record[7] === 'interrupted';
@@ -369,10 +370,14 @@
             let detailsButton = '';
             let statusBadge = '';
 
-            if (isProcessing) {
+            if (isQueued) {
+                statsDisplay = '<span class="text-blue-500 dark:text-blue-400">队列中...</span>';
+                statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20">队列中</span>';
+                detailsButton = '<small class="text-slate-400 dark:text-gray-600">等待处理...</small>';
+            } else if (isProcessing) {
                 statsDisplay = '<span class="text-amber-500 dark:text-amber-400">处理中...</span>';
                 statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20">处理中</span>';
-                detailsButton = '<small class="text-slate-400 dark:text-gray-600">处理中。..</small>';
+                detailsButton = '<small class="text-slate-400 dark:text-gray-600">处理中...</small>';
             } else if (isCompleted) {
                 const itemsAttempted = record[4] || 0;
                 const itemsProcessed = record[5] || 0;
@@ -758,7 +763,7 @@
 
         // 禁用按钮并显示加载状态
         btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 处理中。..';
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 处理中...';
 
         fetch('/api/refresh_all_rss', {
             method: 'POST',

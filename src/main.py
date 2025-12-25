@@ -445,9 +445,13 @@ def init_queue_workers(download_manager):
                 except Exception as e:
                     logger.warning(f'⚠️ 发送RSS开始通知失败: {e}')
 
-            # 使用批处理历史ID或创建新的历史记录
+            # 使用批处理历史ID、已有历史ID或创建新的历史记录
             if is_batch_mode:
                 history_id = batch_history_id
+            elif payload.extra_data.get('history_id'):
+                # 从队列中获取已创建的历史记录ID（queued状态），更新为processing
+                history_id = payload.extra_data.get('history_id')
+                history_repo.update_rss_history_stats(history_id, status='processing')
             else:
                 history_id = history_repo.insert_rss_history(
                     rss_url=payload.rss_url,

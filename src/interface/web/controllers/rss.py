@@ -47,7 +47,8 @@ def rss_page():
 @handle_api_errors
 @validate_json('rss_url')
 def process_unified_rss(
-    download_manager: DownloadManager = Provide[Container.download_manager]
+    download_manager: DownloadManager = Provide[Container.download_manager],
+    history_repo: HistoryRepository = Provide[Container.history_repo]
 ):
     """统一的RSS处理接口"""
     data = request.get_json()
@@ -86,6 +87,13 @@ def process_unified_rss(
         if error:
             return APIResponse.bad_request(error)
 
+        # 先创建历史记录，状态为 queued
+        history_id = history_repo.insert_rss_history(
+            rss_url=rss_url,
+            triggered_by='手动添加',
+            status='queued'
+        )
+
         # 加入队列处理
         payload = RSSPayload(
             rss_url=rss_url,
@@ -99,6 +107,7 @@ def process_unified_rss(
                 'media_type': media_type,
                 'blocked_keywords': blocked_keywords,
                 'blocked_regex': blocked_regex,
+                'history_id': history_id,
             }
         )
         queue_size = worker.enqueue_event(
@@ -113,6 +122,13 @@ def process_unified_rss(
         )
 
     else:
+        # 先创建历史记录，状态为 queued
+        history_id = history_repo.insert_rss_history(
+            rss_url=rss_url,
+            triggered_by='手动添加',
+            status='queued'
+        )
+
         # AI模式，加入队列处理
         payload = RSSPayload(
             rss_url=rss_url,
@@ -121,6 +137,7 @@ def process_unified_rss(
                 'mode': 'ai_mode',
                 'blocked_keywords': blocked_keywords,
                 'blocked_regex': blocked_regex,
+                'history_id': history_id,
             }
         )
         queue_size = worker.enqueue_event(
