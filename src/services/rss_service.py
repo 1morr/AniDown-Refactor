@@ -43,6 +43,7 @@ class RSSService(IRSSParser):
         'atom': 'http://www.w3.org/2005/Atom',
         'media': 'http://search.yahoo.com/mrss/',
         'torrent': 'http://xmlns.ezrss.it/0.1/',
+        'nyaa': 'https://nyaa.si/xmlns/nyaa',
     }
 
     def __init__(
@@ -172,6 +173,36 @@ class RSSService(IRSSParser):
         # Handle torrent URLs
         return self._extract_hash_from_torrent_url(url)
 
+    def ensure_valid_hash(self, hash_id: str, torrent_url: str) -> str:
+        """
+        Ensure a valid torrent hash is available.
+
+        If the provided hash is invalid (empty or less than 32 chars),
+        attempts to download the torrent file and extract the real info_hash.
+
+        This method should be called during actual processing, not during
+        RSS parsing, to avoid slowing down previews.
+
+        Args:
+            hash_id: Current hash value (may be empty or invalid).
+            torrent_url: URL to the torrent file.
+
+        Returns:
+            Valid hash string (40 chars), or empty if unable to obtain.
+        """
+        # Check if hash is already valid
+        if hash_id and len(hash_id) >= 32:
+            return hash_id
+
+        # Try to download torrent file and extract hash
+        if torrent_url and torrent_url.endswith('.torrent'):
+            fetched_hash = self._fetch_hash_from_torrent_file(torrent_url)
+            if fetched_hash:
+                logger.debug(f'🔑 从torrent文件获取hash: {fetched_hash[:8]}...')
+                return fetched_hash
+
+        return hash_id
+
     def _parse_rss_feed(self, root: ET.Element) -> List[RSSItem]:
         """
         Parse RSS 2.0 format feed.
@@ -220,6 +251,13 @@ class RSSService(IRSSParser):
         """
         Parse an RSS item element.
 
+        Supports multiple RSS sources:
+        - Standard RSS 2.0 with enclosure
+        - nyaa.si with nyaa:infoHash tag
+        - bangumi.moe with hash in link
+        - share.acgnx.se with magnet in enclosure
+        - acg.rip with torrent URL in enclosure
+
         Args:
             item: XML element for the item.
 
@@ -234,11 +272,18 @@ class RSSService(IRSSParser):
 
             # Get torrent URL from enclosure
             torrent_url = ''
+            hash_id = ''
             enclosure = item.find('enclosure')
             if enclosure is not None:
+                enc_url = enclosure.get('url', '')
                 enc_type = enclosure.get('type', '')
-                if 'torrent' in enc_type or enc_type == 'application/x-bittorrent':
-                    torrent_url = enclosure.get('url', '')
+                if enc_url:
+                    # Check if enclosure URL is a magnet link (share.acgnx.se)
+                    if enc_url.startswith('magnet:'):
+                        torrent_url = enc_url
+                        hash_id = self._extract_hash_from_magnet(enc_url)
+                    elif 'torrent' in enc_type or enc_type == 'application/x-bittorrent':
+                        torrent_url = enc_url
 
             # Try ezRSS namespace for torrent info
             if not torrent_url:
@@ -249,9 +294,19 @@ class RSSService(IRSSParser):
                 if torrent_elem is not None and torrent_elem.text:
                     torrent_url = torrent_elem.text
 
-            # Determine effective URL
-            effective_url = torrent_url or link
-            hash_id = self.extract_hash_from_url(effective_url)
+            # Try nyaa:infoHash namespace (nyaa.si)
+            if not hash_id:
+                nyaa_hash = item.find(
+                    'nyaa:infoHash',
+                    {'nyaa': 'https://nyaa.si/xmlns/nyaa'}
+                )
+                if nyaa_hash is not None and nyaa_hash.text:
+                    hash_id = nyaa_hash.text.lower()
+
+            # Fallback: extract hash from effective URL
+            if not hash_id:
+                effective_url = torrent_url or link
+                hash_id = self.extract_hash_from_url(effective_url)
 
             return RSSItem(
                 title=title,
@@ -376,6 +431,10 @@ class RSSService(IRSSParser):
         """
         Extract hash from a torrent URL.
 
+        Supports multiple torrent URL formats:
+        - Standard torrent URLs with hash in filename
+        - URLs containing 40-character hex hash anywhere
+
         Args:
             url: Torrent file URL.
 
@@ -401,6 +460,138 @@ class RSSService(IRSSParser):
             return hash_match.group(1).lower()
 
         return ''
+
+    def _fetch_hash_from_torrent_file(self, torrent_url: str) -> str:
+        """
+        Download a torrent file and extract the info hash.
+
+        This is used for sites like acg.rip where the hash is not
+        available in the URL or RSS metadata.
+
+        Args:
+            torrent_url: URL to the torrent file.
+
+        Returns:
+            Lowercase hex hash string, empty if failed.
+        """
+        import hashlib
+
+        try:
+            response = self._session.get(torrent_url, timeout=self._timeout)
+            if response.status_code != 200:
+                logger.debug(f'⚠️ 无法下载torrent文件: {torrent_url}')
+                return ''
+
+            torrent_data = response.content
+
+            # Parse bencode and extract info hash
+            info_dict = self._extract_info_from_bencode(torrent_data)
+            if info_dict:
+                # Re-encode the info dict and calculate SHA1 hash
+                info_bencoded = self._bencode(info_dict)
+                info_hash = hashlib.sha1(info_bencoded).hexdigest().lower()
+                logger.debug(f'✅ 从torrent文件提取hash: {info_hash}')
+                return info_hash
+
+        except Exception as e:
+            logger.debug(f'⚠️ 从torrent文件提取hash失败: {e}')
+
+        return ''
+
+    def _extract_info_from_bencode(self, data: bytes) -> Optional[Dict[str, Any]]:
+        """
+        Parse bencoded data and extract the 'info' dictionary.
+
+        Args:
+            data: Bencoded torrent file data.
+
+        Returns:
+            The 'info' dictionary if found, None otherwise.
+        """
+        try:
+            decoded, _ = self._bdecode(data, 0)
+            if isinstance(decoded, dict) and b'info' in decoded:
+                return decoded[b'info']
+        except Exception:
+            pass
+        return None
+
+    def _bdecode(self, data: bytes, idx: int) -> tuple:
+        """
+        Decode bencoded data starting at the given index.
+
+        Args:
+            data: Bencoded data.
+            idx: Starting index.
+
+        Returns:
+            Tuple of (decoded_value, next_index).
+        """
+        char = chr(data[idx])
+
+        if char == 'd':  # Dictionary
+            idx += 1
+            result = {}
+            while chr(data[idx]) != 'e':
+                key, idx = self._bdecode(data, idx)
+                value, idx = self._bdecode(data, idx)
+                result[key] = value
+            return result, idx + 1
+
+        elif char == 'l':  # List
+            idx += 1
+            result = []
+            while chr(data[idx]) != 'e':
+                value, idx = self._bdecode(data, idx)
+                result.append(value)
+            return result, idx + 1
+
+        elif char == 'i':  # Integer
+            idx += 1
+            end = data.index(b'e', idx)
+            return int(data[idx:end]), end + 1
+
+        elif char.isdigit():  # String
+            colon = data.index(b':', idx)
+            length = int(data[idx:colon])
+            idx = colon + 1
+            return data[idx:idx + length], idx + length
+
+        raise ValueError(f'Invalid bencode at position {idx}')
+
+    def _bencode(self, data: Any) -> bytes:
+        """
+        Encode data into bencode format.
+
+        Args:
+            data: Data to encode (dict, list, int, bytes, or str).
+
+        Returns:
+            Bencoded bytes.
+        """
+        if isinstance(data, dict):
+            result = b'd'
+            for key in sorted(data.keys()):
+                result += self._bencode(key) + self._bencode(data[key])
+            return result + b'e'
+
+        elif isinstance(data, list):
+            result = b'l'
+            for item in data:
+                result += self._bencode(item)
+            return result + b'e'
+
+        elif isinstance(data, int):
+            return f'i{data}e'.encode()
+
+        elif isinstance(data, bytes):
+            return f'{len(data)}:'.encode() + data
+
+        elif isinstance(data, str):
+            encoded = data.encode('utf-8')
+            return f'{len(encoded)}:'.encode() + encoded
+
+        raise ValueError(f'Cannot bencode type {type(data)}')
 
     def _is_base32_hash(self, hash_str: str) -> bool:
         """

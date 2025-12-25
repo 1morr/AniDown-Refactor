@@ -143,7 +143,7 @@
                 <!-- Flask Todo: 为这些按钮添加实际的链接或 JS 事件 -->
                 <a href="{{ url_for('config.config_page') }}" class="px-3 py-2 rounded bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-medium border border-blue-200 dark:border-blue-500/20 hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-colors text-center"><i class="fa-solid fa-gear mr-1"></i> 配置链接</a>
                 <button onclick="refreshAllRSS()" id="refresh-all-btn" class="px-3 py-2 rounded bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-medium border border-emerald-200 dark:border-emerald-500/20 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors"><i class="fa-solid fa-rotate mr-1"></i> 立即刷新</button>
-                <button onclick="fetchAllBangumiRSS()" id="fetch-all-btn" class="col-span-2 px-3 py-2 rounded bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 text-xs font-medium border border-slate-200 dark:border-white/10 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors"><i class="fa-solid fa-cloud-arrow-down mr-1"></i> 获取所有</button>
+                <button onclick="fetchAllBangumiRSS()" id="fetch-all-btn" title="仅支持 Mikan (mikanani.me) RSS链接，其他来源的RSS将被跳过" class="col-span-2 px-3 py-2 rounded bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 text-xs font-medium border border-slate-200 dark:border-white/10 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors"><i class="fa-solid fa-cloud-arrow-down mr-1"></i> 获取所有 <span class="text-[10px] text-slate-400 dark:text-gray-500">(仅Mikan)</span></button>
             </div>
         </div>
     </div>

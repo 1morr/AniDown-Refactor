@@ -430,7 +430,7 @@ def fetch_all_bangumi_rss_api(
     history_repo: HistoryRepository = Provide[Container.history_repo],
     rss_notifier = Provide[Container.rss_notifier]
 ):
-    """API: 从配置的RSS链接中提取所有番组RSS"""
+    """API: 从配置的RSS链接中提取所有番组RSS (仅支持Mikan)"""
     import requests
     from bs4 import BeautifulSoup
     from src.core.config import RSSFeed
@@ -442,8 +442,27 @@ def fetch_all_bangumi_rss_api(
     if not rss_feeds:
         return APIResponse.bad_request('没有配置RSS链接')
 
-    logger.api_request(f"提取番组RSS - {len(rss_feeds)} 个源RSS")
-    logger.processing_start(f"从 {len(rss_feeds)} 个RSS链接中提取番组信息")
+    # Filter to only include Mikan RSS feeds
+    mikan_feeds = []
+    skipped_feeds = []
+    for feed in rss_feeds:
+        if 'mikanani.me' in feed.url or 'mikan.me' in feed.url:
+            mikan_feeds.append(feed)
+        else:
+            skipped_feeds.append(feed.url)
+
+    if skipped_feeds:
+        logger.info(f'⚠️ 跳过非Mikan RSS链接: {len(skipped_feeds)} 个')
+        for url in skipped_feeds:
+            logger.debug(f'  - 跳过: {url}')
+
+    if not mikan_feeds:
+        return APIResponse.bad_request(
+            '没有配置Mikan RSS链接。"获取所有"功能仅支持 mikanani.me 的RSS链接。'
+        )
+
+    logger.api_request(f"提取番组RSS - {len(mikan_feeds)} 个Mikan源 (跳过 {len(skipped_feeds)} 个非Mikan源)")
+    logger.processing_start(f"从 {len(mikan_feeds)} 个Mikan RSS链接中提取番组信息")
 
     # 立即创建历史记录，让用户知道命令已被执行
     batch_history_id = history_repo.insert_rss_history(
@@ -455,8 +474,8 @@ def fetch_all_bangumi_rss_api(
     bangumi_feed_mapping = {}  # {parent_feed_index: {feed, episode_links, bangumi_rss}}
     episode_links = []
 
-    # 1. 从所有RSS链接中提取Episode链接
-    for feed_idx, feed in enumerate(rss_feeds):
+    # 1. 从所有Mikan RSS链接中提取Episode链接
+    for feed_idx, feed in enumerate(mikan_feeds):
         try:
             rss_url = feed.url
             logger.db_query("解析RSS", rss_url)
@@ -624,8 +643,14 @@ def fetch_all_bangumi_rss_api(
         f"已加入队列 {len(bangumi_rss_feeds)} 个番组RSS"
     )
 
+    # Build response message
+    message = f'已将 {len(bangumi_rss_feeds)} 个番组RSS链接加入处理队列（已应用过滤规则）'
+    if skipped_feeds:
+        message += f'，跳过了 {len(skipped_feeds)} 个非Mikan源'
+
     return APIResponse.success(
-        message=f'已将 {len(bangumi_rss_feeds)} 个番组RSS链接加入处理队列（已应用过滤规则）',
+        message=message,
         rss_links=[feed.url for feed in bangumi_rss_feeds],
+        skipped_count=len(skipped_feeds),
         queue_len=worker.get_queue_size()
     )

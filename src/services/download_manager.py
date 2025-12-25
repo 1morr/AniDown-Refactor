@@ -668,6 +668,9 @@ class DownloadManager:
         torrent_url = item.get('torrent_url', '') or item.get('link', '')
         hash_id = item.get('hash', '')
 
+        # Ensure valid hash (may need to download torrent file)
+        hash_id = self._rss_service.ensure_valid_hash(hash_id, torrent_url)
+
         try:
             # AI title parsing
             parse_result = self._title_parser.parse(title)
@@ -763,6 +766,9 @@ class DownloadManager:
         title = item.get('title', '')
         torrent_url = item.get('torrent_url', '') or item.get('link', '')
         hash_id = item.get('hash', '')
+
+        # Ensure valid hash (may need to download torrent file)
+        hash_id = self._rss_service.ensure_valid_hash(hash_id, torrent_url)
 
         anime_id = anime_info.id
         anime_short_title = anime_info.short_title  # Use short_title for file naming
