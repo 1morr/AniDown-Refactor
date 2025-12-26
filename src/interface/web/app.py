@@ -14,6 +14,7 @@ from src.core.utils.timezone_utils import format_datetime_iso
 from src.interface.web.controllers.ai_queue_status import ai_queue_bp
 from src.interface.web.controllers.ai_test import ai_test_bp
 from src.interface.web.controllers.anime import anime_bp
+from src.interface.web.controllers.anime_detail import anime_detail_bp
 from src.interface.web.controllers.config import config_bp
 from src.interface.web.controllers.dashboard import dashboard_bp
 from src.interface.web.controllers.database import database_bp
@@ -63,6 +64,7 @@ def create_app(container: Container) -> Flask:
     app.register_blueprint(ai_queue_bp)
     app.register_blueprint(ai_test_bp)
     app.register_blueprint(anime_bp)
+    app.register_blueprint(anime_detail_bp)
     app.register_blueprint(config_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(database_bp)
@@ -76,6 +78,7 @@ def create_app(container: Container) -> Flask:
         "src.interface.web.controllers.ai_queue_status",
         "src.interface.web.controllers.ai_test",
         "src.interface.web.controllers.anime",
+        "src.interface.web.controllers.anime_detail",
         "src.interface.web.controllers.config",
         "src.interface.web.controllers.dashboard",
         "src.interface.web.controllers.database",

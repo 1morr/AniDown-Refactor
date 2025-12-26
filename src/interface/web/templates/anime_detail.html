@@ -1,0 +1,1512 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ anime_info.short_title or '动漫详情' }} - AniDown{% endblock %}
+
+{% block content %}
+    <!-- 1. 页面头部 -->
+    <div class="flex flex-col md:flex-row justify-between items-start gap-4 mb-6">
+        <div class="flex items-start gap-4">
+            <!-- 返回按钮 -->
+            <a href="{{ url_for('anime.anime_page') }}" class="flex items-center justify-center w-10 h-10 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-500 dark:text-gray-400 transition-colors shrink-0">
+                <i class="fa-solid fa-arrow-left"></i>
+            </a>
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-3">
+                    <i class="fa-solid fa-film text-purple-600 dark:text-neon-purple"></i>
+                    <span id="anime-title">{{ anime_info.short_title or '加载中...' }}</span>
+                </h1>
+                <div class="flex flex-wrap items-center gap-2 text-sm">
+                    <span id="anime-group" class="px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 font-medium">{{ anime_info.subtitle_group or '-' }}</span>
+                    <span id="anime-season" class="px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300 font-medium">Season {{ anime_info.season or 1 }}</span>
+                    <span id="anime-category" class="px-2 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-gray-400">{{ 'TV' if anime_info.category == 'tv' else 'Movie' }}</span>
+                    {% if anime_info.tvdb_id %}
+                    <a href="https://thetvdb.com/series/{{ anime_info.tvdb_id }}" target="_blank" class="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-500/30 transition-colors">
+                        <i class="fa-solid fa-link mr-1"></i>TVDB
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="text-right">
+            <p class="text-xs text-slate-400 dark:text-gray-500 font-mono">Target Path</p>
+            <p class="text-sm font-mono text-slate-600 dark:text-gray-300 max-w-xs truncate" id="target-path" title="">-</p>
+        </div>
+    </div>
+
+    <!-- 2. 统计摘要 -->
+    <div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
+        <div class="glass-card rounded-xl p-4 text-center">
+            <p class="text-2xl font-bold text-slate-800 dark:text-white" id="stat-total">0</p>
+            <p class="text-xs text-slate-500 dark:text-gray-500">总文件</p>
+        </div>
+        <div class="glass-card rounded-xl p-4 text-center">
+            <p class="text-2xl font-bold text-blue-600 dark:text-blue-400" id="stat-video">0</p>
+            <p class="text-xs text-slate-500 dark:text-gray-500">视频</p>
+        </div>
+        <div class="glass-card rounded-xl p-4 text-center">
+            <p class="text-2xl font-bold text-amber-600 dark:text-amber-400" id="stat-subtitle">0</p>
+            <p class="text-xs text-slate-500 dark:text-gray-500">字幕</p>
+        </div>
+        <div class="glass-card rounded-xl p-4 text-center">
+            <p class="text-2xl font-bold text-emerald-600 dark:text-emerald-400" id="stat-linked">0</p>
+            <p class="text-xs text-slate-500 dark:text-gray-500">已链接</p>
+        </div>
+        <div class="glass-card rounded-xl p-4 text-center">
+            <p class="text-2xl font-bold text-slate-600 dark:text-slate-400" id="stat-unlinked">0</p>
+            <p class="text-xs text-slate-500 dark:text-gray-500">未链接</p>
+        </div>
+        <div class="glass-card rounded-xl p-4 text-center">
+            <p class="text-2xl font-bold text-slate-800 dark:text-white" id="stat-size">0</p>
+            <p class="text-xs text-slate-500 dark:text-gray-500">总大小</p>
+        </div>
+    </div>
+
+    <!-- 3. 操作栏 -->
+    <section class="glass-card rounded-xl p-4 mb-6">
+        <div class="flex flex-col lg:flex-row gap-4 justify-between items-center">
+            <!-- 左侧：筛选 -->
+            <div class="flex flex-wrap items-center gap-3">
+                <!-- 筛选 Tabs -->
+                <div class="flex p-1 bg-slate-100 dark:bg-white/5 rounded-lg">
+                    <button onclick="detailManager.setFilter('all')" class="filter-tab active px-4 py-1.5 rounded-md text-xs font-semibold transition-all" data-filter="all">
+                        全部 <span id="filter-count-all" class="ml-1 opacity-60 font-normal">0</span>
+                    </button>
+                    <button onclick="detailManager.setFilter('video')" class="filter-tab px-4 py-1.5 rounded-md text-xs font-semibold transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" data-filter="video">
+                        <i class="fa-solid fa-video mr-1"></i>视频 <span id="filter-count-video" class="ml-1 opacity-60 font-normal">0</span>
+                    </button>
+                    <button onclick="detailManager.setFilter('subtitle')" class="filter-tab px-4 py-1.5 rounded-md text-xs font-semibold transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" data-filter="subtitle">
+                        <i class="fa-solid fa-closed-captioning mr-1"></i>字幕 <span id="filter-count-subtitle" class="ml-1 opacity-60 font-normal">0</span>
+                    </button>
+                    <button onclick="detailManager.setFilter('other')" class="filter-tab px-4 py-1.5 rounded-md text-xs font-semibold transition-all text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" data-filter="other">
+                        其他 <span id="filter-count-other" class="ml-1 opacity-60 font-normal">0</span>
+                    </button>
+                </div>
+
+                <!-- 选择操作 -->
+                <div class="flex items-center gap-2">
+                    <button onclick="detailManager.selectAllFiles()" class="text-xs font-medium px-3 py-1.5 rounded border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                        <i class="fa-solid fa-check-double mr-1 text-blue-500"></i> 全选
+                    </button>
+                    <button onclick="detailManager.clearSelection()" class="text-xs font-medium px-3 py-1.5 rounded border border-dashed border-slate-300 dark:border-slate-600 text-slate-500 hover:text-rose-500 hover:border-rose-300 transition-colors">
+                        清空
+                    </button>
+                </div>
+
+                <!-- 选中计数 -->
+                <span class="text-xs text-slate-500 dark:text-gray-500">
+                    已选 <span id="selected-count" class="font-bold text-blue-600 dark:text-blue-400">0</span> 个文件
+                </span>
+            </div>
+
+            <!-- 右侧：动作按钮 -->
+            <div class="flex items-center gap-3">
+                <button id="btn-manage" onclick="detailManager.openHardlinkModal()" class="px-4 py-2 rounded-lg border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    <i class="fa-solid fa-sliders mr-2"></i>管理硬链接
+                </button>
+                <button id="btn-send-ai" onclick="detailManager.openAIProcessModal()" class="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-500/25 text-sm font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    <i class="fa-solid fa-wand-magic-sparkles mr-2"></i>发送到AI
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- 4. 文件列表区域 -->
+    <section class="glass-card rounded-xl overflow-hidden">
+        <!-- 加载状态 -->
+        <div id="loading-state" class="flex flex-col items-center justify-center py-20 text-blue-500">
+            <i class="fa-solid fa-circle-notch fa-spin text-3xl mb-3"></i>
+            <p class="text-sm font-medium">正在加载文件列表...</p>
+        </div>
+
+        <!-- 文件列表容器 -->
+        <div id="torrents-container" class="hidden divide-y divide-slate-100 dark:divide-white/5">
+            <!-- JS 动态填充 -->
+        </div>
+
+        <!-- 空状态 -->
+        <div id="empty-state" class="hidden flex flex-col items-center justify-center py-20 text-slate-400">
+            <i class="fa-regular fa-folder-open text-4xl mb-3 opacity-50"></i>
+            <p class="text-sm">暂无文件数据</p>
+        </div>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- 5. 硬链接管理 Modal -->
+    <!-- ============================================ -->
+    <div id="modal-hardlink" class="fixed inset-0 z-50 hidden flex items-center justify-center">
+        <div class="modal-backdrop" onclick="closeModal('modal-hardlink')"></div>
+
+        <div class="modal-content bg-white dark:bg-[#18181b] w-full max-w-6xl h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden ring-1 ring-slate-900/5 transition-all transform scale-100">
+
+            <!-- A. 顶部标题 -->
+            <div class="px-6 py-4 border-b border-slate-100 dark:border-white/5 flex justify-between items-start bg-slate-50/50 dark:bg-[#18181b]">
+                <div class="space-y-1">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                            <i class="fa-solid fa-link"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-slate-800 dark:text-white">硬链接管理</h3>
+                    </div>
+                    <div id="modal-file-summary" class="text-xs text-slate-500 dark:text-slate-400 pl-11 flex gap-4">
+                        <span>已选择 <span id="modal-selected-count">0</span> 个文件</span>
+                    </div>
+                </div>
+                <button onclick="closeModal('modal-hardlink')" class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-200 dark:hover:bg-white/10 text-slate-400 transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- B. 工具栏 -->
+            <div class="px-6 py-3 border-b border-slate-100 dark:border-white/5 flex flex-col md:flex-row gap-4 justify-between items-center bg-white dark:bg-[#18181b]">
+                <!-- 左侧：筛选 -->
+                <div class="flex p-1 bg-slate-100 dark:bg-white/5 rounded-lg">
+                    <button onclick="hardlinkModal.setFilter('all')" class="modal-filter-tab active px-4 py-1.5 rounded-md text-xs font-semibold transition-all" data-filter="all">
+                        全部 <span id="modal-count-all" class="ml-1 opacity-60 font-normal">0</span>
+                    </button>
+                    <button onclick="hardlinkModal.setFilter('video')" class="modal-filter-tab px-4 py-1.5 rounded-md text-xs font-semibold transition-all text-slate-500 dark:text-slate-400" data-filter="video">
+                        <i class="fa-solid fa-video mr-1"></i>视频 <span id="modal-count-video" class="ml-1 opacity-60 font-normal">0</span>
+                    </button>
+                    <button onclick="hardlinkModal.setFilter('subtitle')" class="modal-filter-tab px-4 py-1.5 rounded-md text-xs font-semibold transition-all text-slate-500 dark:text-slate-400" data-filter="subtitle">
+                        <i class="fa-solid fa-closed-captioning mr-1"></i>字幕 <span id="modal-count-subtitle" class="ml-1 opacity-60 font-normal">0</span>
+                    </button>
+                    <button onclick="hardlinkModal.setFilter('other')" class="modal-filter-tab px-4 py-1.5 rounded-md text-xs font-semibold transition-all text-slate-500 dark:text-slate-400" data-filter="other">
+                        其他 <span id="modal-count-other" class="ml-1 opacity-60 font-normal">0</span>
+                    </button>
+                </div>
+
+                <!-- 右侧：选择操作 -->
+                <div class="flex items-center gap-2">
+                    <button onclick="hardlinkModal.selectAllFiles()" class="text-xs font-medium px-3 py-1.5 rounded border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                        <i class="fa-solid fa-check-double mr-1 text-blue-500"></i> 全选当前
+                    </button>
+                    <button onclick="hardlinkModal.clearSelection()" class="text-xs font-medium px-3 py-1.5 rounded border border-dashed border-slate-300 dark:border-slate-600 text-slate-500 hover:text-rose-500 hover:border-rose-300 transition-colors">
+                        清空
+                    </button>
+                </div>
+            </div>
+
+            <!-- C. 文件列表 -->
+            <div class="flex-1 overflow-y-auto bg-slate-50/30 dark:bg-[#121214] relative scrollbar-thin">
+                <!-- 表头 -->
+                <div class="sticky top-0 z-10 grid grid-cols-12 gap-4 px-6 py-2 bg-slate-50 dark:bg-[#1c1c1f] border-b border-slate-200 dark:border-white/5 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    <div class="col-span-6 md:col-span-7 pl-2 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex items-center gap-2" onclick="hardlinkModal.toggleSort('name')">
+                        文件信息 <span id="modal-sort-name" class="text-[10px]"></span>
+                    </div>
+                    <div class="col-span-2 md:col-span-1 text-right hidden md:block cursor-pointer hover:text-blue-600 dark:hover:text-blue-400" onclick="hardlinkModal.toggleSort('size')">
+                        大小 <span id="modal-sort-size" class="text-[10px]"></span>
+                    </div>
+                    <div class="col-span-2 md:col-span-1 text-center hidden md:block cursor-pointer hover:text-blue-600 dark:hover:text-blue-400" onclick="hardlinkModal.toggleSort('status')">
+                        状态 <span id="modal-sort-status" class="text-[10px]"></span>
+                    </div>
+                    <div class="col-span-6 md:col-span-3">重命名 / 目标文件名</div>
+                </div>
+
+                <!-- 列表容器 -->
+                <div id="modal-file-list" class="divide-y divide-slate-100 dark:divide-white/5">
+                    <!-- JS 动态填充 -->
+                </div>
+
+                <!-- 空状态 -->
+                <div id="modal-empty-state" class="hidden flex flex-col items-center justify-center py-20 text-slate-400">
+                    <i class="fa-regular fa-folder-open text-4xl mb-3 opacity-50"></i>
+                    <p class="text-sm">当前筛选条件下没有文件</p>
+                </div>
+            </div>
+
+            <!-- D. 底部操作 -->
+            <div class="border-t border-slate-200 dark:border-white/10 bg-white dark:bg-[#18181b] p-4 md:px-6 md:py-5">
+                <div class="flex flex-col xl:flex-row gap-6 items-center justify-between">
+                    <!-- 路径设置 -->
+                    <div class="w-full xl:w-1/2">
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">目标子路径 (Relative Path)</label>
+                        <div class="relative group">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i class="fa-regular fa-folder text-slate-400 group-focus-within:text-blue-500 transition-colors"></i>
+                            </div>
+                            <input type="text" id="modal-target-path"
+                                placeholder="例如: /Season 1 (留空则链接到根目录)"
+                                class="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-sm outline-none transition-all dark:text-white form-control">
+                        </div>
+                    </div>
+
+                    <!-- 动作按钮 -->
+                    <div class="w-full xl:w-auto flex flex-col sm:flex-row gap-3 justify-end">
+                        <div class="flex gap-2">
+                            <button id="modal-btn-delete" onclick="hardlinkModal.deleteHardlinks()" class="flex-1 sm:flex-none px-4 py-2.5 rounded-xl border border-rose-200 dark:border-rose-500/30 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 text-sm font-semibold transition-colors flex items-center justify-center gap-2" disabled>
+                                <i class="fa-regular fa-trash-can"></i> <span class="hidden sm:inline">删除链接</span>
+                            </button>
+                            <button id="modal-btn-rename" onclick="hardlinkModal.renameHardlinks()" class="flex-1 sm:flex-none px-4 py-2.5 rounded-xl border border-amber-200 dark:border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-500/10 text-sm font-semibold transition-colors flex items-center justify-center gap-2" disabled>
+                                <i class="fa-solid fa-pencil"></i> <span class="hidden sm:inline">重命名</span>
+                            </button>
+                        </div>
+                        <button id="modal-btn-create" onclick="hardlinkModal.createHardlinks()" class="flex-1 sm:flex-none px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/25 text-sm font-bold transition-all transform active:scale-95 flex items-center justify-center gap-2" disabled>
+                            <i class="fa-solid fa-link"></i> 创建硬链接
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- 6. AI处理 Modal -->
+    <!-- ============================================ -->
+    <div id="modal-ai-process" class="fixed inset-0 z-50 hidden flex items-center justify-center">
+        <div class="modal-backdrop" onclick="closeAIModal()"></div>
+        <div class="modal-content bg-white dark:bg-[#1e1e20] w-full max-w-4xl max-h-[90vh] rounded-xl shadow-2xl overflow-hidden flex flex-col">
+            <!-- Header -->
+            <div class="bg-purple-600 px-6 py-4 flex justify-between items-center shrink-0">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> AI智能重命名
+                </h3>
+                <button onclick="closeAIModal()" class="text-white/80 hover:text-white">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-5 overflow-y-auto flex-1">
+                <!-- Step 0: 确认 -->
+                <div id="ai-step-confirm" class="space-y-4">
+                    <div class="flex flex-col items-center justify-center py-8">
+                        <div class="w-16 h-16 rounded-full bg-purple-100 dark:bg-purple-500/20 flex items-center justify-center mb-4">
+                            <i class="fa-solid fa-wand-magic-sparkles text-purple-600 dark:text-purple-400 text-2xl"></i>
+                        </div>
+                        <h4 class="text-lg font-bold text-slate-800 dark:text-white mb-2">确认发送到AI处理</h4>
+                        <p class="text-sm text-slate-500 dark:text-gray-400 text-center max-w-md">
+                            将选中的 <span id="ai-confirm-count" class="font-bold text-purple-600 dark:text-purple-400">0</span> 个文件发送给AI进行智能重命名分析。
+                        </p>
+                    </div>
+
+                    <!-- 文件列表预览 -->
+                    <div class="bg-slate-50 dark:bg-white/5 rounded-lg p-4">
+                        <p class="text-xs font-bold text-slate-500 dark:text-gray-500 uppercase mb-3">选中的文件</p>
+                        <div id="ai-confirm-file-list" class="max-h-48 overflow-y-auto space-y-1">
+                            <!-- JS 填充 -->
+                        </div>
+                    </div>
+
+                    <div class="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 rounded-lg p-3">
+                        <div class="flex items-start gap-2">
+                            <i class="fa-solid fa-circle-info text-amber-500 mt-0.5"></i>
+                            <div class="text-xs text-amber-700 dark:text-amber-300">
+                                <p class="font-medium mb-1">AI处理说明</p>
+                                <ul class="list-disc list-inside space-y-0.5 text-amber-600 dark:text-amber-400">
+                                    <li>AI将分析文件名并生成标准化的重命名建议</li>
+                                    <li>处理完成后您可以选择要应用的重命名</li>
+                                    <li>已有硬链接的文件可以选择是否替换</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 1: 加载中 -->
+                <div id="ai-step-loading" class="hidden space-y-4">
+                    <div class="flex flex-col items-center justify-center py-12">
+                        <i class="fa-solid fa-spinner fa-spin text-purple-500 text-4xl mb-4"></i>
+                        <p class="text-sm text-slate-600 dark:text-gray-300">正在调用AI获取重命名建议...</p>
+                        <p class="text-xs text-slate-400 dark:text-gray-500 mt-2">请稍候，这可能需要几秒钟</p>
+                    </div>
+                </div>
+
+                <!-- Step 2: 对比选择 -->
+                <div id="ai-step-comparison" class="hidden space-y-4">
+                    <!-- 统计信息 -->
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="bg-slate-50 dark:bg-white/5 rounded-lg p-3 text-center">
+                            <p class="text-xl font-bold text-slate-800 dark:text-white" id="ai-preview-total">0</p>
+                            <p class="text-xs text-slate-500 dark:text-gray-500">总文件数</p>
+                        </div>
+                        <div class="bg-amber-50 dark:bg-amber-500/10 rounded-lg p-3 text-center">
+                            <p class="text-xl font-bold text-amber-600 dark:text-amber-400" id="ai-preview-existing">0</p>
+                            <p class="text-xs text-slate-500 dark:text-gray-500">已有硬链接</p>
+                        </div>
+                        <div class="bg-emerald-50 dark:bg-emerald-500/10 rounded-lg p-3 text-center">
+                            <p class="text-xl font-bold text-emerald-600 dark:text-emerald-400" id="ai-preview-new">0</p>
+                            <p class="text-xs text-slate-500 dark:text-gray-500">新文件</p>
+                        </div>
+                    </div>
+
+                    <!-- 目标路径显示 -->
+                    <div class="bg-slate-50 dark:bg-white/5 rounded-lg p-3">
+                        <p class="text-xs font-bold text-slate-500 dark:text-gray-500 uppercase mb-1">目标路径</p>
+                        <p class="text-sm font-mono text-slate-700 dark:text-gray-300 break-all" id="ai-target-path">-</p>
+                    </div>
+
+                    <!-- 选择操作 -->
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <button onclick="aiProcessor.selectAll()" class="text-xs font-medium px-3 py-1.5 rounded border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                                <i class="fa-solid fa-check-double mr-1 text-blue-500"></i> 全选
+                            </button>
+                            <button onclick="aiProcessor.selectNone()" class="text-xs font-medium px-3 py-1.5 rounded border border-dashed border-slate-300 dark:border-slate-600 text-slate-500 hover:text-rose-500 hover:border-rose-300 transition-colors">
+                                清空
+                            </button>
+                            <button onclick="aiProcessor.selectDifferent()" class="text-xs font-medium px-3 py-1.5 rounded border border-purple-200 dark:border-purple-500/30 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-500/10 transition-colors">
+                                <i class="fa-solid fa-not-equal mr-1"></i> 选择有差异
+                            </button>
+                        </div>
+                        <span class="text-xs text-slate-500 dark:text-gray-500">
+                            已选 <span id="ai-selected-count" class="font-bold text-purple-600 dark:text-purple-400">0</span> 个
+                        </span>
+                    </div>
+
+                    <!-- 对比表格 -->
+                    <div class="border border-slate-200 dark:border-white/10 rounded-lg overflow-hidden">
+                        <!-- 表头 -->
+                        <div class="grid grid-cols-12 gap-2 px-4 py-2 bg-slate-100 dark:bg-white/5 text-xs font-bold text-slate-500 dark:text-gray-400 uppercase">
+                            <div class="col-span-1 text-center">选择</div>
+                            <div class="col-span-4">原文件名</div>
+                            <div class="col-span-4">AI建议名</div>
+                            <div class="col-span-3">当前硬链接</div>
+                        </div>
+                        <!-- 表格内容 -->
+                        <div id="ai-comparison-list" class="divide-y divide-slate-100 dark:divide-white/5 max-h-[40vh] overflow-y-auto">
+                            <!-- JS 填充 -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: 应用中 -->
+                <div id="ai-step-applying" class="hidden space-y-4">
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-spinner fa-spin text-purple-500 text-2xl"></i>
+                        <span class="text-sm text-slate-600 dark:text-gray-300">正在应用选中的重命名...</span>
+                    </div>
+                    <div class="w-full bg-slate-200 dark:bg-white/10 rounded-full h-2">
+                        <div id="ai-apply-progress" class="bg-purple-500 h-2 rounded-full transition-all" style="width: 50%"></div>
+                    </div>
+                </div>
+
+                <!-- Step 4: 结果 -->
+                <div id="ai-step-result" class="hidden space-y-4">
+                    <!-- 成功统计 -->
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="bg-emerald-50 dark:bg-emerald-500/10 rounded-lg p-4 text-center">
+                            <p class="text-2xl font-bold text-emerald-600 dark:text-emerald-400" id="ai-result-created">0</p>
+                            <p class="text-xs text-slate-500 dark:text-gray-500">新建</p>
+                        </div>
+                        <div class="bg-amber-50 dark:bg-amber-500/10 rounded-lg p-4 text-center">
+                            <p class="text-2xl font-bold text-amber-600 dark:text-amber-400" id="ai-result-replaced">0</p>
+                            <p class="text-xs text-slate-500 dark:text-gray-500">替换</p>
+                        </div>
+                        <div class="bg-rose-50 dark:bg-rose-500/10 rounded-lg p-4 text-center">
+                            <p class="text-2xl font-bold text-rose-600 dark:text-rose-400" id="ai-result-failed">0</p>
+                            <p class="text-xs text-slate-500 dark:text-gray-500">失败</p>
+                        </div>
+                    </div>
+
+                    <!-- 结果列表 -->
+                    <div id="ai-result-list" class="max-h-60 overflow-y-auto space-y-2">
+                        <!-- JS 填充 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="px-6 py-4 bg-slate-50 dark:bg-[#1e1e20] border-t border-slate-200 dark:border-white/10 flex justify-end gap-3 shrink-0">
+                <button onclick="closeAIModal()" class="px-4 py-2 rounded bg-slate-500 hover:bg-slate-600 text-white text-sm font-medium transition-colors">
+                    <i class="fa-solid fa-xmark mr-1"></i> <span id="ai-close-btn-text">取消</span>
+                </button>
+                <button id="ai-start-btn" onclick="aiProcessor.startProcessing()" class="px-4 py-2 rounded bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium transition-colors">
+                    <i class="fa-solid fa-paper-plane mr-1"></i> 开始处理
+                </button>
+                <button id="ai-apply-btn" onclick="aiProcessor.applySelected()" class="hidden px-4 py-2 rounded bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium transition-colors">
+                    <i class="fa-solid fa-check mr-1"></i> 应用选中 (<span id="ai-apply-count">0</span>)
+                </button>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const ANIME_ID = {{ anime_id }};
+
+    // ============================================
+    // 工具函数
+    // ============================================
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    function openModal(modalId) {
+        document.getElementById(modalId).classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+    }
+
+    function closeModal(modalId) {
+        document.getElementById(modalId).classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+    }
+
+    function showSuccess(message) {
+        showFlashMessage('success', message);
+    }
+
+    function showError(message) {
+        showFlashMessage('error', message);
+    }
+
+    // ============================================
+    // AnimeDetailManager - 主页面管理器
+    // ============================================
+    class AnimeDetailManager {
+        constructor(animeId) {
+            this.animeId = animeId;
+            this.animeInfo = null;
+            this.torrents = [];
+            this.allFiles = [];
+            this.selectedFiles = new Set();
+            this.currentFilter = 'all';
+            this.sortColumn = 'name';
+            this.sortOrder = 'asc';
+            this.lastClickedKey = null;
+            this.collapsedTorrents = new Set();
+            this.targetPath = '';
+        }
+
+        // 获取文件唯一键
+        getFileKey(hashId, relativePath) {
+            return `${hashId}::${relativePath}`;
+        }
+
+        parseFileKey(key) {
+            const [hashId, ...pathParts] = key.split('::');
+            return { hashId, relativePath: pathParts.join('::') };
+        }
+
+        // 加载数据
+        async loadData() {
+            document.getElementById('loading-state').classList.remove('hidden');
+            document.getElementById('torrents-container').classList.add('hidden');
+            document.getElementById('empty-state').classList.add('hidden');
+
+            try {
+                const response = await fetch(`/api/anime/${this.animeId}/torrents`);
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || '加载失败');
+                }
+
+                this.animeInfo = data.anime;
+                this.torrents = data.torrents || [];
+                this.targetPath = data.target_path || '';
+
+                // 扁平化所有文件
+                this.allFiles = [];
+                this.torrents.forEach(torrent => {
+                    (torrent.files || []).forEach(file => {
+                        this.allFiles.push({
+                            ...file,
+                            torrent_hash: torrent.hash_id,
+                            torrent_name: torrent.original_filename,
+                            download_directory: torrent.download_directory,
+                            in_client: torrent.in_client
+                        });
+                    });
+                });
+
+                // 更新UI
+                this.updateHeader();
+                this.updateStats(data.stats);
+                this.updateFilterCounts();
+                this.renderTorrents();
+
+                document.getElementById('loading-state').classList.add('hidden');
+                if (this.allFiles.length > 0) {
+                    document.getElementById('torrents-container').classList.remove('hidden');
+                } else {
+                    document.getElementById('empty-state').classList.remove('hidden');
+                }
+
+            } catch (error) {
+                console.error('加载数据失败:', error);
+                showError('加载数据失败: ' + error.message);
+                document.getElementById('loading-state').classList.add('hidden');
+                document.getElementById('empty-state').classList.remove('hidden');
+            }
+        }
+
+        updateHeader() {
+            if (this.animeInfo) {
+                document.getElementById('anime-title').textContent = this.animeInfo.short_title || this.animeInfo.original_title;
+                document.getElementById('anime-group').textContent = this.animeInfo.subtitle_group || '-';
+                document.getElementById('anime-season').textContent = `Season ${this.animeInfo.season || 1}`;
+            }
+            document.getElementById('target-path').textContent = this.targetPath;
+            document.getElementById('target-path').title = this.targetPath;
+        }
+
+        updateStats(stats) {
+            document.getElementById('stat-total').textContent = stats.total_files || 0;
+            document.getElementById('stat-video').textContent = stats.video_count || 0;
+            document.getElementById('stat-subtitle').textContent = stats.subtitle_count || 0;
+            document.getElementById('stat-linked').textContent = stats.linked_count || 0;
+            document.getElementById('stat-unlinked').textContent = stats.unlinked_count || 0;
+            document.getElementById('stat-size').textContent = formatFileSize(stats.total_size || 0);
+        }
+
+        updateFilterCounts() {
+            const counts = { all: 0, video: 0, subtitle: 0, other: 0 };
+            this.allFiles.forEach(f => {
+                counts.all++;
+                if (f.type === 'video') counts.video++;
+                else if (f.type === 'subtitle') counts.subtitle++;
+                else counts.other++;
+            });
+            document.getElementById('filter-count-all').textContent = counts.all;
+            document.getElementById('filter-count-video').textContent = counts.video;
+            document.getElementById('filter-count-subtitle').textContent = counts.subtitle;
+            document.getElementById('filter-count-other').textContent = counts.other;
+        }
+
+        // 渲染种子组
+        renderTorrents() {
+            const container = document.getElementById('torrents-container');
+            if (this.torrents.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+
+            let html = '';
+            this.torrents.forEach(torrent => {
+                const isCollapsed = this.collapsedTorrents.has(torrent.hash_id);
+                const filteredFiles = (torrent.files || []).filter(f =>
+                    this.currentFilter === 'all' || f.type === this.currentFilter
+                );
+
+                const linkedCount = filteredFiles.filter(f => f.has_hardlink).length;
+                const statusBadge = torrent.in_client
+                    ? '<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-400">在客户端</span>'
+                    : '<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-400">不在客户端</span>';
+
+                html += `
+                    <div class="torrent-group">
+                        <!-- 种子头部 -->
+                        <div class="flex items-center justify-between px-6 py-3 bg-slate-50 dark:bg-white/[0.02] cursor-pointer hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+                             onclick="detailManager.toggleTorrentCollapse('${torrent.hash_id}')">
+                            <div class="flex items-center gap-3 min-w-0 flex-1">
+                                <i class="fa-solid ${isCollapsed ? 'fa-chevron-right' : 'fa-chevron-down'} text-slate-400 text-xs transition-transform"></i>
+                                <div class="min-w-0">
+                                    <div class="text-sm font-medium text-slate-700 dark:text-slate-200 truncate" title="${escapeHtml(torrent.original_filename)}">
+                                        ${escapeHtml(torrent.original_filename || torrent.hash_id.substring(0, 8))}
+                                    </div>
+                                    <div class="text-xs text-slate-400 dark:text-gray-500 flex items-center gap-3 mt-0.5">
+                                        <span>${filteredFiles.length} 个文件</span>
+                                        <span>${linkedCount} 个已链接</span>
+                                        ${statusBadge}
+                                    </div>
+                                </div>
+                            </div>
+                            <button onclick="event.stopPropagation(); detailManager.selectAllInTorrent('${torrent.hash_id}')"
+                                    class="text-xs px-2 py-1 rounded bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-gray-400 hover:bg-blue-100 dark:hover:bg-blue-500/10 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                                全选
+                            </button>
+                        </div>
+
+                        <!-- 文件列表 -->
+                        <div class="${isCollapsed ? 'hidden' : ''} divide-y divide-slate-50 dark:divide-white/[0.02]" id="torrent-files-${torrent.hash_id}">
+                            ${this.renderFileRows(torrent.hash_id, filteredFiles)}
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        renderFileRows(torrentHash, files) {
+            if (files.length === 0) {
+                return `<div class="px-6 py-4 text-center text-sm text-slate-400">当前筛选条件下没有文件</div>`;
+            }
+
+            // 排序
+            const sortedFiles = [...files].sort((a, b) => {
+                let result = 0;
+                switch (this.sortColumn) {
+                    case 'name': result = a.name.localeCompare(b.name); break;
+                    case 'size': result = a.size - b.size; break;
+                    case 'status': result = (b.has_hardlink ? 1 : 0) - (a.has_hardlink ? 1 : 0); break;
+                }
+                return this.sortOrder === 'asc' ? result : -result;
+            });
+
+            return sortedFiles.map(file => {
+                const fileKey = this.getFileKey(torrentHash, file.relative_path);
+                const isSelected = this.selectedFiles.has(fileKey);
+                const icon = file.type === 'video'
+                    ? '<i class="fa-solid fa-file-video text-blue-500"></i>'
+                    : (file.type === 'subtitle'
+                        ? '<i class="fa-solid fa-closed-captioning text-amber-500"></i>'
+                        : '<i class="fa-regular fa-file text-slate-400"></i>');
+
+                const statusBadge = file.has_hardlink
+                    ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-400">
+                        <i class="fa-solid fa-link mr-1"></i>已链接
+                    </span>`
+                    : `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-400">未链接</span>`;
+
+                const hardlinkPath = file.has_hardlink && file.hardlink_info
+                    ? `<div class="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1 truncate" title="${escapeHtml(file.hardlink_info.hardlink_path)}">
+                        <i class="fa-solid fa-share fa-flip-vertical mr-1"></i>${escapeHtml(file.hardlink_info.hardlink_path)}
+                    </div>`
+                    : '';
+
+                return `
+                    <div class="file-row grid grid-cols-12 gap-4 px-6 py-3 items-center transition-colors border-l-2 ${isSelected ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/10' : 'border-transparent hover:bg-slate-50 dark:hover:bg-white/[0.02]'}">
+                        <!-- Checkbox & Icon & Name -->
+                        <div class="col-span-12 md:col-span-7 flex items-start gap-3 min-w-0">
+                            <div class="pt-1 shrink-0">
+                                <input type="checkbox" class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                    data-key="${escapeHtml(fileKey)}" ${isSelected ? 'checked' : ''}
+                                    onclick="detailManager.handleCheckboxClick(event, '${escapeHtml(fileKey)}')">
+                            </div>
+                            <div class="text-lg opacity-80 pt-0.5 shrink-0">${icon}</div>
+                            <div class="min-w-0 flex-1">
+                                <div class="text-sm font-medium text-slate-700 dark:text-slate-200 truncate" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</div>
+                                <div class="text-[10px] text-slate-400 font-mono truncate">${escapeHtml(file.relative_path)}</div>
+                                ${hardlinkPath}
+                            </div>
+                        </div>
+
+                        <!-- Size -->
+                        <div class="col-span-2 md:col-span-1 text-right hidden md:block">
+                            <span class="text-xs font-mono text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-white/5 px-1.5 py-0.5 rounded">${formatFileSize(file.size)}</span>
+                        </div>
+
+                        <!-- Status -->
+                        <div class="col-span-2 md:col-span-1 text-center hidden md:block">
+                            ${statusBadge}
+                        </div>
+
+                        <!-- Info -->
+                        <div class="col-span-6 md:col-span-3 text-right">
+                            <span class="text-xs text-slate-400">${formatFileSize(file.size)}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 筛选
+        setFilter(filter) {
+            this.currentFilter = filter;
+            document.querySelectorAll('.filter-tab').forEach(btn => {
+                if (btn.dataset.filter === filter) {
+                    btn.classList.add('active');
+                    btn.classList.remove('text-slate-500', 'dark:text-slate-400');
+                } else {
+                    btn.classList.remove('active');
+                    btn.classList.add('text-slate-500', 'dark:text-slate-400');
+                }
+            });
+            this.renderTorrents();
+        }
+
+        // 折叠/展开
+        toggleTorrentCollapse(hashId) {
+            if (this.collapsedTorrents.has(hashId)) {
+                this.collapsedTorrents.delete(hashId);
+            } else {
+                this.collapsedTorrents.add(hashId);
+            }
+            this.renderTorrents();
+        }
+
+        // 选择处理
+        handleCheckboxClick(event, fileKey) {
+            const checkbox = event.target;
+
+            // Shift + 点击
+            if (event.shiftKey && this.lastClickedKey !== null && this.lastClickedKey !== fileKey) {
+                event.preventDefault();
+
+                const visibleFiles = this.getVisibleFiles();
+                const lastIndex = visibleFiles.findIndex(f => this.getFileKey(f.torrent_hash, f.relative_path) === this.lastClickedKey);
+                const currentIndex = visibleFiles.findIndex(f => this.getFileKey(f.torrent_hash, f.relative_path) === fileKey);
+
+                if (lastIndex !== -1 && currentIndex !== -1) {
+                    const start = Math.min(lastIndex, currentIndex);
+                    const end = Math.max(lastIndex, currentIndex);
+                    for (let i = start; i <= end; i++) {
+                        const key = this.getFileKey(visibleFiles[i].torrent_hash, visibleFiles[i].relative_path);
+                        this.selectedFiles.add(key);
+                    }
+                }
+
+                this.lastClickedKey = fileKey;
+                this.updateSelectionUI();
+                return;
+            }
+
+            // 普通点击
+            if (checkbox.checked) {
+                this.selectedFiles.add(fileKey);
+            } else {
+                this.selectedFiles.delete(fileKey);
+            }
+            this.lastClickedKey = fileKey;
+            this.updateSelectionUI();
+        }
+
+        getVisibleFiles() {
+            return this.allFiles.filter(f => this.currentFilter === 'all' || f.type === this.currentFilter);
+        }
+
+        selectAllFiles() {
+            this.getVisibleFiles().forEach(f => {
+                this.selectedFiles.add(this.getFileKey(f.torrent_hash, f.relative_path));
+            });
+            this.updateSelectionUI();
+        }
+
+        selectAllInTorrent(hashId) {
+            const torrent = this.torrents.find(t => t.hash_id === hashId);
+            if (torrent) {
+                (torrent.files || []).forEach(f => {
+                    if (this.currentFilter === 'all' || f.type === this.currentFilter) {
+                        this.selectedFiles.add(this.getFileKey(hashId, f.relative_path));
+                    }
+                });
+            }
+            this.updateSelectionUI();
+        }
+
+        clearSelection() {
+            this.selectedFiles.clear();
+            this.updateSelectionUI();
+        }
+
+        updateSelectionUI() {
+            document.getElementById('selected-count').textContent = this.selectedFiles.size;
+            document.getElementById('btn-manage').disabled = this.selectedFiles.size === 0;
+            document.getElementById('btn-send-ai').disabled = this.selectedFiles.size === 0;
+
+            // 更新复选框状态
+            document.querySelectorAll('.file-row input[type="checkbox"]').forEach(cb => {
+                const key = cb.dataset.key;
+                const isSelected = this.selectedFiles.has(key);
+                cb.checked = isSelected;
+
+                const row = cb.closest('.file-row');
+                if (isSelected) {
+                    row.classList.add('border-blue-500', 'bg-blue-50/50', 'dark:bg-blue-900/10');
+                    row.classList.remove('border-transparent');
+                } else {
+                    row.classList.remove('border-blue-500', 'bg-blue-50/50', 'dark:bg-blue-900/10');
+                    row.classList.add('border-transparent');
+                }
+            });
+        }
+
+        getSelectedFilesData() {
+            return Array.from(this.selectedFiles).map(key => {
+                const { hashId, relativePath } = this.parseFileKey(key);
+                const file = this.allFiles.find(f => f.torrent_hash === hashId && f.relative_path === relativePath);
+                return {
+                    hash_id: hashId,
+                    relative_path: relativePath,
+                    name: file?.name || relativePath.split('/').pop(),
+                    type: file?.type || 'other',
+                    has_hardlink: file?.has_hardlink || false,
+                    hardlink_info: file?.hardlink_info || null
+                };
+            });
+        }
+
+        // 打开硬链接管理弹窗
+        openHardlinkModal() {
+            const selectedData = this.getSelectedFilesData();
+            hardlinkModal.open(selectedData);
+        }
+
+        // 打开AI处理弹窗
+        openAIProcessModal() {
+            const selectedData = this.getSelectedFilesData();
+            aiProcessor.open(selectedData);
+        }
+    }
+
+    // ============================================
+    // HardlinkModalManager - 硬链接管理弹窗
+    // ============================================
+    class HardlinkModalManager {
+        constructor() {
+            this.files = [];
+            this.selectedFiles = new Set();
+            this.currentFilter = 'all';
+            this.sortColumn = 'name';
+            this.sortOrder = 'asc';
+            this.lastClickedIndex = null;
+        }
+
+        open(files) {
+            this.files = files.map((f, index) => ({...f, originalIndex: index}));
+            this.selectedFiles = new Set(this.files.map((_, i) => i));
+            this.currentFilter = 'all';
+            this.updateCounts();
+            this.renderFilesList();
+            this.updateActionButtons();
+            openModal('modal-hardlink');
+        }
+
+        updateCounts() {
+            const counts = { all: 0, video: 0, subtitle: 0, other: 0 };
+            this.files.forEach(f => {
+                counts.all++;
+                if (f.type === 'video') counts.video++;
+                else if (f.type === 'subtitle') counts.subtitle++;
+                else counts.other++;
+            });
+            document.getElementById('modal-count-all').textContent = counts.all;
+            document.getElementById('modal-count-video').textContent = counts.video;
+            document.getElementById('modal-count-subtitle').textContent = counts.subtitle;
+            document.getElementById('modal-count-other').textContent = counts.other;
+            document.getElementById('modal-selected-count').textContent = this.selectedFiles.size;
+        }
+
+        setFilter(filter) {
+            this.currentFilter = filter;
+            document.querySelectorAll('.modal-filter-tab').forEach(btn => {
+                if (btn.dataset.filter === filter) {
+                    btn.classList.add('active');
+                    btn.classList.remove('text-slate-500', 'dark:text-slate-400');
+                } else {
+                    btn.classList.remove('active');
+                    btn.classList.add('text-slate-500', 'dark:text-slate-400');
+                }
+            });
+            this.renderFilesList();
+        }
+
+        toggleSort(column) {
+            if (this.sortColumn === column) {
+                this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                this.sortColumn = column;
+                this.sortOrder = 'asc';
+            }
+            this.renderFilesList();
+        }
+
+        renderFilesList() {
+            const container = document.getElementById('modal-file-list');
+            const emptyState = document.getElementById('modal-empty-state');
+
+            let filteredFiles = this.files
+                .filter(f => this.currentFilter === 'all' || f.type === this.currentFilter);
+
+            // 排序
+            filteredFiles.sort((a, b) => {
+                let result = 0;
+                switch (this.sortColumn) {
+                    case 'name': result = a.name.localeCompare(b.name); break;
+                    case 'size': result = (a.size || 0) - (b.size || 0); break;
+                    case 'status': result = (b.has_hardlink ? 1 : 0) - (a.has_hardlink ? 1 : 0); break;
+                }
+                return this.sortOrder === 'asc' ? result : -result;
+            });
+
+            if (filteredFiles.length === 0) {
+                container.innerHTML = '';
+                container.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            container.classList.remove('hidden');
+            emptyState.classList.add('hidden');
+
+            let html = '';
+            filteredFiles.forEach(file => {
+                const index = file.originalIndex;
+                const isSelected = this.selectedFiles.has(index);
+                const icon = file.type === 'video'
+                    ? '<i class="fa-solid fa-file-video text-blue-500"></i>'
+                    : (file.type === 'subtitle'
+                        ? '<i class="fa-solid fa-closed-captioning text-amber-500"></i>'
+                        : '<i class="fa-regular fa-file text-slate-400"></i>');
+
+                const statusBadge = file.has_hardlink
+                    ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-400"><i class="fa-solid fa-link mr-1"></i>已链接</span>`
+                    : `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-400">未链接</span>`;
+
+                const linkPathDisplay = file.has_hardlink && file.hardlink_info
+                    ? `<div class="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1 truncate"><i class="fa-solid fa-share fa-flip-vertical mr-1"></i>${escapeHtml(file.hardlink_info.hardlink_path)}</div>`
+                    : '';
+
+                const inputValue = isSelected && file.has_hardlink && file.hardlink_info
+                    ? file.hardlink_info.hardlink_path.split(/[/\\]/).pop() : '';
+
+                html += `
+                    <div class="file-row grid grid-cols-12 gap-4 px-6 py-3 items-center transition-colors border-l-2 ${isSelected ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/10' : 'border-transparent hover:bg-slate-50 dark:hover:bg-white/[0.02]'}">
+                        <div class="col-span-12 md:col-span-7 flex items-start gap-3 min-w-0">
+                            <div class="pt-1 shrink-0">
+                                <input type="checkbox" class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                    data-index="${index}" ${isSelected ? 'checked' : ''}
+                                    onclick="hardlinkModal.handleCheckboxClick(event, ${index})">
+                            </div>
+                            <div class="text-lg opacity-80 pt-0.5 shrink-0">${icon}</div>
+                            <div class="min-w-0 flex-1">
+                                <div class="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">${escapeHtml(file.name)}</div>
+                                <div class="text-[10px] text-slate-400 font-mono truncate">${escapeHtml(file.relative_path)}</div>
+                                ${linkPathDisplay}
+                            </div>
+                        </div>
+                        <div class="col-span-2 md:col-span-1 text-right hidden md:block">
+                            <span class="text-xs font-mono text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-white/5 px-1.5 py-0.5 rounded">${formatFileSize(file.size || 0)}</span>
+                        </div>
+                        <div class="col-span-2 md:col-span-1 text-center hidden md:block">${statusBadge}</div>
+                        <div class="col-span-12 md:col-span-3 pl-2 md:pl-0 mt-2 md:mt-0">
+                            <input type="text" class="w-full form-control rounded-lg px-3 py-1.5 text-xs modal-custom-name bg-white dark:bg-[#0F0F11] border border-slate-200 dark:border-white/10 ${isSelected ? 'text-slate-700 dark:text-white' : 'text-slate-400'}"
+                                placeholder="${isSelected ? '输入自定义文件名' : '选中以重命名'}"
+                                data-index="${index}" value="${escapeHtml(inputValue)}"
+                                ${isSelected ? '' : 'disabled'}>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        handleCheckboxClick(event, index) {
+            const checkbox = event.target;
+
+            if (event.shiftKey && this.lastClickedIndex !== null && this.lastClickedIndex !== index) {
+                event.preventDefault();
+                const start = Math.min(this.lastClickedIndex, index);
+                const end = Math.max(this.lastClickedIndex, index);
+                const visibleIndices = this.files
+                    .filter(f => this.currentFilter === 'all' || f.type === this.currentFilter)
+                    .map(f => f.originalIndex);
+                for (let i = start; i <= end; i++) {
+                    if (visibleIndices.includes(i)) {
+                        this.selectedFiles.add(i);
+                    }
+                }
+                this.lastClickedIndex = index;
+                this.updateActionButtons();
+                this.renderFilesList();
+                return;
+            }
+
+            if (checkbox.checked) {
+                this.selectedFiles.add(index);
+            } else {
+                this.selectedFiles.delete(index);
+            }
+            this.lastClickedIndex = index;
+            this.updateActionButtons();
+            this.renderFilesList();
+        }
+
+        selectAllFiles() {
+            this.files
+                .filter(f => this.currentFilter === 'all' || f.type === this.currentFilter)
+                .forEach(f => this.selectedFiles.add(f.originalIndex));
+            this.updateActionButtons();
+            this.renderFilesList();
+        }
+
+        clearSelection() {
+            this.selectedFiles.clear();
+            this.updateActionButtons();
+            this.renderFilesList();
+        }
+
+        updateActionButtons() {
+            document.getElementById('modal-selected-count').textContent = this.selectedFiles.size;
+            const btnCreate = document.getElementById('modal-btn-create');
+            const btnDelete = document.getElementById('modal-btn-delete');
+            const btnRename = document.getElementById('modal-btn-rename');
+
+            if (this.selectedFiles.size === 0) {
+                btnCreate.disabled = btnDelete.disabled = btnRename.disabled = true;
+                return;
+            }
+
+            const selectedItems = Array.from(this.selectedFiles).map(i => this.files[i]);
+            const hasLinked = selectedItems.some(f => f.has_hardlink);
+            const hasUnlinked = selectedItems.some(f => !f.has_hardlink);
+
+            btnCreate.disabled = hasLinked;
+            btnDelete.disabled = hasUnlinked;
+            btnRename.disabled = hasUnlinked;
+        }
+
+        async createHardlinks() {
+            const targetPath = document.getElementById('modal-target-path').value.trim();
+            const files = Array.from(this.selectedFiles)
+                .map(i => this.files[i])
+                .filter(f => !f.has_hardlink)
+                .map(f => {
+                    const input = document.querySelector(`.modal-custom-name[data-index="${f.originalIndex}"]`);
+                    return {
+                        hash_id: f.hash_id,
+                        relative_path: f.relative_path,
+                        custom_name: input?.value?.trim() || ''
+                    };
+                });
+
+            if (files.length === 0) {
+                showError('没有可创建硬链接的文件');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/anime/${ANIME_ID}/hardlinks`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ files, target_path: targetPath })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    showSuccess(`成功创建 ${data.total_created} 个硬链接`);
+                    closeModal('modal-hardlink');
+                    detailManager.loadData();
+                } else {
+                    showError(data.error || '创建失败');
+                }
+            } catch (error) {
+                showError('创建硬链接失败: ' + error.message);
+            }
+        }
+
+        async deleteHardlinks() {
+            const hardlinkIds = Array.from(this.selectedFiles)
+                .map(i => this.files[i])
+                .filter(f => f.has_hardlink && f.hardlink_info)
+                .map(f => f.hardlink_info.id);
+
+            if (hardlinkIds.length === 0) {
+                showError('没有可删除的硬链接');
+                return;
+            }
+
+            if (!confirm(`确定要删除 ${hardlinkIds.length} 个硬链接吗？`)) return;
+
+            try {
+                const response = await fetch(`/api/anime/${ANIME_ID}/hardlinks/delete`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ hardlink_ids: hardlinkIds })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    showSuccess(`成功删除 ${data.deleted_count} 个硬链接`);
+                    closeModal('modal-hardlink');
+                    detailManager.loadData();
+                } else {
+                    showError(data.error || '删除失败');
+                }
+            } catch (error) {
+                showError('删除硬链接失败: ' + error.message);
+            }
+        }
+
+        async renameHardlinks() {
+            const renames = Array.from(this.selectedFiles)
+                .map(i => this.files[i])
+                .filter(f => f.has_hardlink && f.hardlink_info)
+                .map(f => {
+                    const input = document.querySelector(`.modal-custom-name[data-index="${f.originalIndex}"]`);
+                    return {
+                        hardlink_id: f.hardlink_info.id,
+                        new_name: input?.value?.trim() || ''
+                    };
+                })
+                .filter(r => r.new_name);
+
+            if (renames.length === 0) {
+                showError('请输入新的文件名');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/anime/${ANIME_ID}/hardlinks/rename`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ renames })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    showSuccess(`成功重命名 ${data.total_renamed} 个硬链接`);
+                    closeModal('modal-hardlink');
+                    detailManager.loadData();
+                } else {
+                    showError(data.error || '重命名失败');
+                }
+            } catch (error) {
+                showError('重命名失败: ' + error.message);
+            }
+        }
+    }
+
+    // ============================================
+    // AIProcessor - AI处理管理器
+    // ============================================
+    class AIProcessor {
+        constructor() {
+            this.files = [];
+            this.previewItems = [];
+            this.targetPath = '';
+            this.currentStep = 'confirm';
+        }
+
+        open(files) {
+            this.files = files;
+            this.previewItems = [];
+            this.targetPath = '';
+            this.currentStep = 'confirm';
+
+            // Reset UI - show confirm step
+            this.showStep('confirm');
+            document.getElementById('ai-start-btn').classList.remove('hidden');
+            document.getElementById('ai-apply-btn').classList.add('hidden');
+            document.getElementById('ai-close-btn-text').textContent = '取消';
+
+            // Update confirm info
+            document.getElementById('ai-confirm-count').textContent = files.length;
+
+            // Render file list preview
+            const fileListContainer = document.getElementById('ai-confirm-file-list');
+            let fileListHtml = '';
+            files.forEach(f => {
+                const icon = f.type === 'video'
+                    ? '<i class="fa-solid fa-file-video text-blue-500"></i>'
+                    : (f.type === 'subtitle'
+                        ? '<i class="fa-solid fa-closed-captioning text-amber-500"></i>'
+                        : '<i class="fa-regular fa-file text-slate-400"></i>');
+                const statusBadge = f.has_hardlink
+                    ? '<span class="px-1.5 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">已链接</span>'
+                    : '';
+                fileListHtml += `
+                    <div class="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-white dark:hover:bg-white/5">
+                        <span class="text-sm">${icon}</span>
+                        <span class="text-xs text-slate-600 dark:text-gray-300 truncate flex-1">${escapeHtml(f.name)}</span>
+                        ${statusBadge}
+                    </div>
+                `;
+            });
+            fileListContainer.innerHTML = fileListHtml;
+
+            openModal('modal-ai-process');
+        }
+
+        async startProcessing() {
+            // Hide start button, show loading
+            document.getElementById('ai-start-btn').classList.add('hidden');
+            this.currentStep = 'loading';
+            this.showStep('loading');
+
+            // Call AI to get rename preview
+            try {
+                const response = await fetch(`/api/anime/${ANIME_ID}/ai-rename-preview`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        files: this.files.map(f => ({ hash_id: f.hash_id, relative_path: f.relative_path }))
+                    })
+                });
+                const data = await response.json();
+
+                if (!data.success) {
+                    showError(data.error || 'AI预览失败');
+                    closeModal('modal-ai-process');
+                    return;
+                }
+
+                this.previewItems = data.preview_items || [];
+                this.targetPath = data.target_path || '';
+
+                // Update stats
+                document.getElementById('ai-preview-total').textContent = data.total_count || 0;
+                document.getElementById('ai-preview-existing').textContent = data.existing_count || 0;
+                document.getElementById('ai-preview-new').textContent = data.new_count || 0;
+                document.getElementById('ai-target-path').textContent = this.targetPath;
+
+                // Render comparison list
+                this.renderComparisonList();
+                this.updateSelectedCount();
+
+                // Show comparison step
+                this.currentStep = 'comparison';
+                this.showStep('comparison');
+                document.getElementById('ai-apply-btn').classList.remove('hidden');
+
+            } catch (error) {
+                console.error('AI预览失败:', error);
+                showError('AI预览失败: ' + error.message);
+                closeModal('modal-ai-process');
+            }
+        }
+
+        showStep(step) {
+            const steps = ['confirm', 'loading', 'comparison', 'applying', 'result'];
+            steps.forEach(s => {
+                const el = document.getElementById(`ai-step-${s}`);
+                if (el) {
+                    el.classList.toggle('hidden', s !== step);
+                }
+            });
+        }
+
+        renderComparisonList() {
+            const container = document.getElementById('ai-comparison-list');
+
+            if (this.previewItems.length === 0) {
+                container.innerHTML = `
+                    <div class="p-8 text-center text-slate-400">
+                        <i class="fa-solid fa-inbox text-2xl mb-2"></i>
+                        <p class="text-sm">没有可处理的文件</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            this.previewItems.forEach((item, index) => {
+                const isSelected = item.selected;
+                const isDifferent = item.is_different;
+                const hasExisting = item.has_existing;
+
+                // Determine row style
+                let rowClass = 'hover:bg-slate-50 dark:hover:bg-white/5';
+                if (isSelected) {
+                    rowClass = 'bg-purple-50/50 dark:bg-purple-900/10';
+                }
+
+                // Status badge
+                let statusBadge = '';
+                if (hasExisting) {
+                    if (isDifferent) {
+                        statusBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">有差异</span>';
+                    } else {
+                        statusBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">相同</span>';
+                    }
+                } else {
+                    statusBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300">新建</span>';
+                }
+
+                html += `
+                    <div class="grid grid-cols-12 gap-2 px-4 py-3 items-center transition-colors ${rowClass}" data-index="${index}">
+                        <!-- Checkbox -->
+                        <div class="col-span-1 text-center">
+                            <input type="checkbox" class="ai-item-checkbox w-4 h-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                                data-index="${index}" ${isSelected ? 'checked' : ''}
+                                onchange="aiProcessor.toggleItem(${index})">
+                        </div>
+
+                        <!-- Original name -->
+                        <div class="col-span-4 min-w-0">
+                            <div class="text-xs text-slate-600 dark:text-gray-300 truncate" title="${escapeHtml(item.original_name)}">
+                                ${escapeHtml(item.original_name)}
+                            </div>
+                        </div>
+
+                        <!-- AI suggested name -->
+                        <div class="col-span-4 min-w-0">
+                            <div class="text-xs font-medium text-purple-700 dark:text-purple-300 truncate" title="${escapeHtml(item.ai_suggested_name)}">
+                                <i class="fa-solid fa-wand-magic-sparkles text-[10px] mr-1"></i>${escapeHtml(item.ai_suggested_name)}
+                            </div>
+                        </div>
+
+                        <!-- Current hardlink -->
+                        <div class="col-span-3 min-w-0">
+                            ${hasExisting ? `
+                                <div class="flex items-center gap-1">
+                                    ${statusBadge}
+                                    <div class="text-[10px] text-slate-500 dark:text-gray-400 truncate flex-1" title="${escapeHtml(item.existing_hardlink_name)}">
+                                        ${escapeHtml(item.existing_hardlink_name)}
+                                    </div>
+                                </div>
+                            ` : `
+                                <div class="flex items-center gap-1">
+                                    ${statusBadge}
+                                    <span class="text-[10px] text-slate-400">-</span>
+                                </div>
+                            `}
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        toggleItem(index) {
+            if (index >= 0 && index < this.previewItems.length) {
+                this.previewItems[index].selected = !this.previewItems[index].selected;
+                this.updateSelectedCount();
+                this.renderComparisonList();
+            }
+        }
+
+        selectAll() {
+            this.previewItems.forEach(item => item.selected = true);
+            this.updateSelectedCount();
+            this.renderComparisonList();
+        }
+
+        selectNone() {
+            this.previewItems.forEach(item => item.selected = false);
+            this.updateSelectedCount();
+            this.renderComparisonList();
+        }
+
+        selectDifferent() {
+            this.previewItems.forEach(item => {
+                // Select if: new file (no existing) OR has difference from existing
+                item.selected = !item.has_existing || item.is_different;
+            });
+            this.updateSelectedCount();
+            this.renderComparisonList();
+        }
+
+        updateSelectedCount() {
+            const count = this.previewItems.filter(item => item.selected).length;
+            document.getElementById('ai-selected-count').textContent = count;
+            document.getElementById('ai-apply-count').textContent = count;
+
+            // Disable apply button if nothing selected
+            const applyBtn = document.getElementById('ai-apply-btn');
+            applyBtn.disabled = count === 0;
+            applyBtn.classList.toggle('opacity-50', count === 0);
+            applyBtn.classList.toggle('cursor-not-allowed', count === 0);
+        }
+
+        async applySelected() {
+            const selectedItems = this.previewItems.filter(item => item.selected);
+            if (selectedItems.length === 0) {
+                showError('请选择要应用的项目');
+                return;
+            }
+
+            this.currentStep = 'applying';
+            this.showStep('applying');
+            document.getElementById('ai-apply-btn').classList.add('hidden');
+
+            try {
+                const response = await fetch(`/api/anime/${ANIME_ID}/apply-ai-renames`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        items: selectedItems.map(item => ({
+                            hash_id: item.hash_id,
+                            relative_path: item.relative_path,
+                            ai_suggested_name: item.ai_suggested_name,
+                            hardlink_id: item.hardlink_id || null
+                        })),
+                        target_path: this.targetPath
+                    })
+                });
+                const data = await response.json();
+
+                this.showResultStep(data);
+
+            } catch (error) {
+                console.error('应用重命名失败:', error);
+                this.showResultStep({
+                    success: false,
+                    created: [],
+                    replaced: [],
+                    failed: [{ name: '请求失败', error: error.message }]
+                });
+            }
+        }
+
+        showResultStep(data) {
+            this.currentStep = 'result';
+            this.showStep('result');
+            document.getElementById('ai-close-btn-text').textContent = '完成';
+
+            const created = data.created || [];
+            const replaced = data.replaced || [];
+            const failed = data.failed || [];
+
+            document.getElementById('ai-result-created').textContent = created.length;
+            document.getElementById('ai-result-replaced').textContent = replaced.length;
+            document.getElementById('ai-result-failed').textContent = failed.length;
+
+            let resultHtml = '';
+
+            if (created.length > 0) {
+                resultHtml += `<div class="text-xs font-bold text-emerald-600 dark:text-emerald-400 mb-1">新建 (${created.length})</div>`;
+                created.slice(0, 5).forEach(item => {
+                    resultHtml += `<div class="text-xs text-slate-600 dark:text-gray-300 bg-emerald-50 dark:bg-emerald-500/10 rounded p-2 mb-1">
+                        <i class="fa-solid fa-plus text-emerald-500 mr-1"></i>
+                        <span class="font-medium">${escapeHtml(item.new_name)}</span>
+                    </div>`;
+                });
+                if (created.length > 5) {
+                    resultHtml += `<div class="text-xs text-slate-400 mb-2">...还有 ${created.length - 5} 个</div>`;
+                }
+            }
+
+            if (replaced.length > 0) {
+                resultHtml += `<div class="text-xs font-bold text-amber-600 dark:text-amber-400 mt-3 mb-1">替换 (${replaced.length})</div>`;
+                replaced.slice(0, 5).forEach(item => {
+                    resultHtml += `<div class="text-xs text-slate-600 dark:text-gray-300 bg-amber-50 dark:bg-amber-500/10 rounded p-2 mb-1">
+                        <i class="fa-solid fa-rotate text-amber-500 mr-1"></i>
+                        <span class="font-medium">${escapeHtml(item.new_name)}</span>
+                    </div>`;
+                });
+                if (replaced.length > 5) {
+                    resultHtml += `<div class="text-xs text-slate-400 mb-2">...还有 ${replaced.length - 5} 个</div>`;
+                }
+            }
+
+            if (failed.length > 0) {
+                resultHtml += `<div class="text-xs font-bold text-rose-600 dark:text-rose-400 mt-3 mb-1">失败 (${failed.length})</div>`;
+                failed.forEach(item => {
+                    resultHtml += `<div class="text-xs text-slate-600 dark:text-gray-300 bg-rose-50 dark:bg-rose-500/10 rounded p-2 mb-1">
+                        <i class="fa-solid fa-xmark text-rose-500 mr-1"></i>
+                        ${escapeHtml(item.name || '未知')}: ${escapeHtml(item.error || '未知错误')}
+                    </div>`;
+                });
+            }
+
+            if (!resultHtml) {
+                resultHtml = '<div class="text-center text-slate-400 py-4">没有处理结果</div>';
+            }
+
+            document.getElementById('ai-result-list').innerHTML = resultHtml;
+        }
+    }
+
+    function closeAIModal() {
+        closeModal('modal-ai-process');
+        if (aiProcessor.currentStep === 'result') {
+            detailManager.loadData();
+        }
+    }
+
+    // ============================================
+    // 初始化
+    // ============================================
+    const detailManager = new AnimeDetailManager(ANIME_ID);
+    const hardlinkModal = new HardlinkModalManager();
+    const aiProcessor = new AIProcessor();
+
+    document.addEventListener('DOMContentLoaded', function() {
+        detailManager.loadData();
+    });
+</script>
+{% endblock %}

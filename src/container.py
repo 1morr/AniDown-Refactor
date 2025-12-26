@@ -53,6 +53,7 @@ from src.services.rename.rename_service import RenameService
 from src.services.filter_service import FilterService
 from src.services.metadata_service import MetadataService
 from src.services.anime_service import AnimeService
+from src.services.anime_detail_service import AnimeDetailService
 from src.services.rss_service import RSSService
 from src.services.download_manager import DownloadManager
 from src.services.file_service import FileService
@@ -84,6 +85,7 @@ class Container(containers.DeclarativeContainer):
         'src.interface.web.controllers.ai_queue_status',
         'src.interface.web.controllers.ai_test',
         'src.interface.web.controllers.anime',
+        'src.interface.web.controllers.anime_detail',
         'src.interface.web.controllers.config',
         'src.interface.web.controllers.dashboard',
         'src.interface.web.controllers.database',
@@ -242,6 +244,13 @@ class Container(containers.DeclarativeContainer):
 
     anime_service = providers.Singleton(
         AnimeService,
+        anime_repo=anime_repo,
+        download_repo=download_repo,
+        download_client=qb_client
+    )
+
+    anime_detail_service = providers.Singleton(
+        AnimeDetailService,
         anime_repo=anime_repo,
         download_repo=download_repo,
         download_client=qb_client
