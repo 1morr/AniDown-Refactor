@@ -228,7 +228,7 @@ class TestCompleteWorkflow:
         ):
             result = download_manager.process_manual_upload(upload_data)
 
-        assert result is True
+        assert result == (True, '')
         mock_qbit_client.add_torrent_file.assert_called_once()
 
         print(f'\n✅ Manual torrent upload workflow completed')
@@ -261,7 +261,7 @@ class TestCompleteWorkflow:
         ):
             result = download_manager.process_manual_upload(upload_data)
 
-        assert result is True
+        assert result == (True, '')
         mock_qbit_client.add_magnet.assert_called_once()
 
         print(f'\n✅ Manual magnet upload workflow completed')
@@ -374,7 +374,7 @@ class TestRealQBitWorkflow:
         from src.infrastructure.downloader.qbit_adapter import get_torrent_hash_from_file
 
         project_root = Path(__file__).parent.parent.parent
-        torrent_path = project_root / TORRENT_FILE_CONFIG['filename']
+        torrent_path = project_root / 'tests/fixtures' / TORRENT_FILE_CONFIG['filename']
 
         if not torrent_path.exists():
             pytest.skip(f'Torrent file not found: {torrent_path}')
@@ -403,7 +403,7 @@ class TestRealQBitWorkflow:
 
         result = download_manager.process_manual_upload(upload_data)
 
-        assert result is True
+        assert result == (True, '')
         print(f'\n✅ Real torrent upload successful')
 
 

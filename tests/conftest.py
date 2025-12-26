@@ -360,8 +360,6 @@ def requires_tvdb(real_config):
 
     Skips test if TVDB is not configured.
     """
-    if not real_config.get('tvdb', {}).get('enabled', False):
-        pytest.skip('TVDB not configured')
     if not real_config.get('tvdb', {}).get('api_key'):
         pytest.skip('TVDB API key not configured')
     return real_config['tvdb']

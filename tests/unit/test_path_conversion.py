@@ -212,8 +212,8 @@ class TestPathConversionConfig:
         config = PathConversionConfig()
 
         assert config.enabled is False
-        assert config.source_base_path == '/downloads/AniDown/'
-        assert config.target_base_path == '/path/to/target/'
+        assert config.source_base_path == '/storage/Downloads/AniDown/'
+        assert config.target_base_path == '/storage/Downloads/AniDown/'
 
     def test_custom_config_values(self):
         """Test custom configuration values."""

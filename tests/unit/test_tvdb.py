@@ -30,15 +30,18 @@ class TestTVDBAdapter:
 
     def test_tvdb_disabled_returns_none(self, tvdb_adapter):
         """Test that disabled TVDB returns None."""
-        from src.core.config import config
-
-        if not config.tvdb.api_key:
-            result = tvdb_adapter.search_series('Test')
-            assert result is None or result == []
+        # Ensure TVDB is disabled
+        tvdb_adapter._api_key = ''
+        
+        result = tvdb_adapter.search_series('Test')
+        assert result is None or result == []
 
     @patch('requests.Session.get')
     def test_search_series_success(self, mock_get, tvdb_adapter):
         """Test searching series on TVDB."""
+        # Ensure TVDB is enabled
+        tvdb_adapter._api_key = 'test_api_key'
+
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -83,12 +86,6 @@ class TestTVDBAdapter:
             }
         }
         mock_get.return_value = mock_response
-
-        # Skip if TVDB is not configured
-        from src.core.config import config
-        if not config.tvdb.api_key:
-            pytest.skip('TVDB not configured')
-
 
 class TestMetadataService:
     """Tests for metadata service."""

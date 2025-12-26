@@ -188,7 +188,6 @@ class TestRSSWithAIProcessing:
         filename_formatter = FilenameFormatter()
         rename_service = RenameService(
             file_classifier=file_classifier,
-            pattern_matcher=pattern_matcher,
             filename_formatter=filename_formatter
         )
         hardlink_service = HardlinkService(

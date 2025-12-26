@@ -332,7 +332,7 @@ class TestManualUploadIntegration:
         from src.infrastructure.downloader.qbit_adapter import get_torrent_hash_from_file
 
         project_root = Path(__file__).parent.parent.parent
-        torrent_path = project_root / TORRENT_FILE_CONFIG['filename']
+        torrent_path = project_root / 'tests/fixtures' / TORRENT_FILE_CONFIG['filename']
 
         if not torrent_path.exists():
             pytest.skip(f'Torrent file not found: {torrent_path}')

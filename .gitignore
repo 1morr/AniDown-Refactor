@@ -27,18 +27,22 @@ env/
 htmlcov/
 
 # Misc
+.serena/
 .claude/
 .playwright-mcp/
 
 CLAUDE.md
 CODE_STYLE.md
 docs/CODE_ANALYSIS.md
+docs/REFACTOR_WORKFLOW.md
 
 ai_debug_logs/
 logs/
 *.log
+*.torrent
 .DS_Store
 anime_downloader.db
 config.json
 docker_push.ps1
 .env
+

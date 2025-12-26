@@ -366,7 +366,6 @@ def api_delete_anime_hardlinks(
 
 
 @anime_detail_bp.route('/api/anime/<int:anime_id>/hardlinks/rename', methods=['POST'])
-@inject
 @handle_api_errors
 @validate_json('renames')
 def api_rename_anime_hardlinks(
