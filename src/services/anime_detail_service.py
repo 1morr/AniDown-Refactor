@@ -644,6 +644,13 @@ class AnimeDetailService:
                         'error': 'AI未能生成重命名建议'
                     }
 
+                # Build target path first (needed for relative path extraction)
+                target_path = self._build_auto_target_path({
+                    'short_title': anime_title,
+                    'media_type': media_type,
+                    'category': category
+                })
+
                 # Build preview results
                 preview_items = []
 
@@ -666,29 +673,32 @@ class AnimeDetailService:
                             hardlink_id = torrent_map[path]['id']
                             break
 
-                    existing_name = None
+                    # Extract relative path from target_path base (including Season folder)
+                    existing_relative_name = None
                     if existing_hardlink:
-                        existing_name = existing_hardlink.split('/')[-1].split('\\')[-1]
+                        # Normalize paths for comparison
+                        normalized_hardlink = existing_hardlink.replace('\\', '/')
+                        normalized_target = target_path.replace('\\', '/')
+
+                        # Extract relative path from target directory
+                        if normalized_hardlink.startswith(normalized_target):
+                            existing_relative_name = normalized_hardlink[len(normalized_target):].lstrip('/')
+                        else:
+                            # Fallback to just filename if paths don't match
+                            existing_relative_name = existing_hardlink.split('/')[-1].split('\\')[-1]
 
                     preview_items.append({
                         'original_name': original_name,
                         'ai_suggested_name': new_name,
                         'existing_hardlink_path': existing_hardlink,
-                        'existing_hardlink_name': existing_name,
+                        'existing_hardlink_name': existing_relative_name,
                         'hardlink_id': hardlink_id,
                         'hash_id': hash_id,
                         'relative_path': relative_path,
                         'has_existing': existing_hardlink is not None,
-                        'is_different': existing_name != new_name if existing_name else True,
+                        'is_different': existing_relative_name != new_name if existing_relative_name else True,
                         'selected': True  # Default to selected
                     })
-
-                # Build target path
-                target_path = self._build_auto_target_path({
-                    'short_title': anime_title,
-                    'media_type': media_type,
-                    'category': category
-                })
 
                 return {
                     'success': True,
@@ -762,8 +772,10 @@ class AnimeDetailService:
                         })
                         continue
 
-                    # Build source path
-                    source_path = os.path.join(download.download_directory, relative_path)
+                    # Build source path and normalize
+                    source_path = os.path.normpath(
+                        os.path.join(download.download_directory, relative_path)
+                    )
                     if not os.path.exists(source_path):
                         failed.append({
                             'name': relative_path,
@@ -771,10 +783,23 @@ class AnimeDetailService:
                         })
                         continue
 
-                    target_file_path = os.path.join(target_path, new_name)
+                    # Build target path - handle Season subfolder in new_name
+                    if '/' in new_name:
+                        # new_name contains subfolder like "Season 1/filename.mkv"
+                        subfolder, filename = new_name.rsplit('/', 1)
+                        target_dir = os.path.join(target_path, subfolder)
+                        os.makedirs(target_dir, mode=0o775, exist_ok=True)
+                        target_file_path = os.path.normpath(
+                            os.path.join(target_dir, filename)
+                        )
+                    else:
+                        target_file_path = os.path.normpath(
+                            os.path.join(target_path, new_name)
+                        )
 
                     try:
-                        # Delete existing hardlink if replacing
+                        # Delete existing hardlink if replacing (by ID)
+                        is_replacement = False
                         if hardlink_id:
                             old_hardlink = session.query(Hardlink).filter_by(
                                 id=hardlink_id
@@ -784,8 +809,22 @@ class AnimeDetailService:
                                 if os.path.exists(old_path):
                                     os.remove(old_path)
                                 session.delete(old_hardlink)
+                                session.flush()  # Flush delete before insert
+                                is_replacement = True
 
-                        # Remove target if exists
+                        # Also check for existing record by source path (in case not found by ID)
+                        existing_by_source = session.query(Hardlink).filter_by(
+                            original_file_path=source_path
+                        ).first()
+                        if existing_by_source:
+                            old_path = existing_by_source.hardlink_path
+                            if os.path.exists(old_path):
+                                os.remove(old_path)
+                            session.delete(existing_by_source)
+                            session.flush()
+                            is_replacement = True
+
+                        # Remove target file if exists
                         if os.path.exists(target_file_path):
                             os.remove(target_file_path)
 
@@ -803,7 +842,7 @@ class AnimeDetailService:
                         )
                         session.add(new_hardlink)
 
-                        if hardlink_id:
+                        if is_replacement:
                             replaced.append({
                                 'original': relative_path,
                                 'new_name': new_name,

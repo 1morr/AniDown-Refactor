@@ -353,15 +353,8 @@
 
                     <!-- 对比表格 -->
                     <div class="border border-slate-200 dark:border-white/10 rounded-lg overflow-hidden">
-                        <!-- 表头 -->
-                        <div class="grid grid-cols-12 gap-2 px-4 py-2 bg-slate-100 dark:bg-white/5 text-xs font-bold text-slate-500 dark:text-gray-400 uppercase">
-                            <div class="col-span-1 text-center">选择</div>
-                            <div class="col-span-4">原文件名</div>
-                            <div class="col-span-4">AI建议名</div>
-                            <div class="col-span-3">当前硬链接</div>
-                        </div>
                         <!-- 表格内容 -->
-                        <div id="ai-comparison-list" class="divide-y divide-slate-100 dark:divide-white/5 max-h-[40vh] overflow-y-auto">
+                        <div id="ai-comparison-list" class="divide-y divide-slate-100 dark:divide-white/5 max-h-[50vh] overflow-y-auto">
                             <!-- JS 填充 -->
                         </div>
                     </div>
@@ -1297,52 +1290,59 @@
                 let statusBadge = '';
                 if (hasExisting) {
                     if (isDifferent) {
-                        statusBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">有差异</span>';
+                        statusBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300 whitespace-nowrap">有差异</span>';
                     } else {
-                        statusBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">相同</span>';
+                        statusBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 whitespace-nowrap">相同</span>';
                     }
                 } else {
-                    statusBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300">新建</span>';
+                    statusBadge = '<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300 whitespace-nowrap">新建</span>';
                 }
 
                 html += `
-                    <div class="grid grid-cols-12 gap-2 px-4 py-3 items-center transition-colors ${rowClass}" data-index="${index}">
-                        <!-- Checkbox -->
-                        <div class="col-span-1 text-center">
-                            <input type="checkbox" class="ai-item-checkbox w-4 h-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
-                                data-index="${index}" ${isSelected ? 'checked' : ''}
-                                onchange="aiProcessor.toggleItem(${index})">
-                        </div>
-
-                        <!-- Original name -->
-                        <div class="col-span-4 min-w-0">
-                            <div class="text-xs text-slate-600 dark:text-gray-300 truncate" title="${escapeHtml(item.original_name)}">
-                                ${escapeHtml(item.original_name)}
+                    <div class="px-4 py-3 transition-colors ${rowClass}" data-index="${index}">
+                        <div class="flex items-start gap-3">
+                            <!-- Checkbox -->
+                            <div class="pt-0.5 shrink-0">
+                                <input type="checkbox" class="ai-item-checkbox w-4 h-4 rounded border-slate-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                                    data-index="${index}" ${isSelected ? 'checked' : ''}
+                                    onchange="aiProcessor.toggleItem(${index})">
                             </div>
-                        </div>
 
-                        <!-- AI suggested name -->
-                        <div class="col-span-4 min-w-0">
-                            <div class="text-xs font-medium text-purple-700 dark:text-purple-300 truncate" title="${escapeHtml(item.ai_suggested_name)}">
-                                <i class="fa-solid fa-wand-magic-sparkles text-[10px] mr-1"></i>${escapeHtml(item.ai_suggested_name)}
-                            </div>
-                        </div>
-
-                        <!-- Current hardlink -->
-                        <div class="col-span-3 min-w-0">
-                            ${hasExisting ? `
-                                <div class="flex items-center gap-1">
-                                    ${statusBadge}
-                                    <div class="text-[10px] text-slate-500 dark:text-gray-400 truncate flex-1" title="${escapeHtml(item.existing_hardlink_name)}">
-                                        ${escapeHtml(item.existing_hardlink_name)}
+                            <!-- Content -->
+                            <div class="flex-1 space-y-2">
+                                <!-- Original name -->
+                                <div>
+                                    <span class="text-[10px] text-slate-400 dark:text-gray-500 uppercase font-medium">原文件名</span>
+                                    <div class="text-xs text-slate-600 dark:text-gray-300 break-all leading-relaxed">
+                                        ${escapeHtml(item.original_name)}
                                     </div>
                                 </div>
-                            ` : `
-                                <div class="flex items-center gap-1">
-                                    ${statusBadge}
-                                    <span class="text-[10px] text-slate-400">-</span>
+
+                                <!-- AI suggested name -->
+                                <div>
+                                    <span class="text-[10px] text-purple-500 dark:text-purple-400 uppercase font-medium">
+                                        <i class="fa-solid fa-wand-magic-sparkles mr-1"></i>AI建议名
+                                    </span>
+                                    <div class="text-xs font-medium text-purple-700 dark:text-purple-300 break-all leading-relaxed">
+                                        ${escapeHtml(item.ai_suggested_name)}
+                                    </div>
                                 </div>
-                            `}
+
+                                <!-- Current hardlink -->
+                                <div class="flex items-start gap-2">
+                                    ${statusBadge}
+                                    ${hasExisting ? `
+                                        <div>
+                                            <span class="text-[10px] text-slate-400 dark:text-gray-500 uppercase font-medium">当前硬链接</span>
+                                            <div class="text-xs text-slate-500 dark:text-gray-400 break-all leading-relaxed">
+                                                ${escapeHtml(item.existing_hardlink_name)}
+                                            </div>
+                                        </div>
+                                    ` : `
+                                        <span class="text-[10px] text-slate-400">无现有硬链接</span>
+                                    `}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 `;
