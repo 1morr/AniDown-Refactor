@@ -26,8 +26,12 @@ today = datetime.now().strftime('%Y-%m-%d')
 log_file = os.path.join(log_path, f'anidown_{today}.log')
 
 # 清理旧日志文件（保留最近 5 天）
+# 注意：传入基础文件名，让 LogRotationService 匹配 anidown_*.log 模式
 from src.services.log_rotation_service import LogRotationService
-log_rotation = LogRotationService(log_file=log_file, max_days=5)
+log_rotation = LogRotationService(
+    log_file=os.path.join(log_path, 'anidown.log'),
+    max_days=5
+)
 log_rotation.cleanup_old_logs()
 
 # 配置日志 - 修復 Windows 控制台 UTF-8 編碼問題
