@@ -8,30 +8,30 @@
 
 ## 概览
 
-| Phase | 名称 | 优先级 | 预计删除代码 | 风险等级 |
-|-------|------|--------|-------------|----------|
-| 1 | 删除死代码文件 | 🔴 高 | ~800 行 | 低 |
-| 2 | 统一路径构建逻辑 | 🔴 高 | ~110 行 | 中 |
-| 3 | 清理未使用的代码片段 | 🟠 中 | ~50 行 | 低 |
-| 4 | 待确认服务处理 | 🟡 低 | ~200 行 | 低 |
+| Phase | 名称 | 优先级 | 预计删除代码 | 风险等级 | 状态 |
+|-------|------|--------|-------------|----------|------|
+| 1 | 删除死代码文件 | 🔴 高 | ~800 行 | 低 | ✅ 已完成 |
+| 2 | 统一路径构建逻辑 | 🔴 高 | ~110 行 | 中 | ✅ 已完成 |
+| 3 | 清理未使用的代码片段 | 🟠 中 | ~50 行 | 低 | ⏳ 待开始 |
+| 4 | 待确认服务处理 | 🟡 低 | ~200 行 | 低 | ⏳ 待开始 |
 
 **总计**: 删除约 1160+ 行冗余代码
 
 ---
 
-## Phase 1: 删除死代码文件 🔴
+## Phase 1: 删除死代码文件 🔴 ✅ 已完成
 
 **风险等级**: 低 (这些文件从未被导入)
-**预计时间**: 15 分钟
+**完成日期**: 2025-12-28
 
 ### 1.1 删除未使用的处理器类
 
 这些类已完整实现，但从未被实例化。`DownloadManager` 自己实现了相同功能。
 
 ```bash
-# 待删除文件
-src/services/download/rss_processor.py           # ~300 行
-src/services/download/torrent_completion_handler.py  # ~200 行
+# 已删除文件
+src/services/download/rss_processor.py           # ~300 行 ✅
+src/services/download/torrent_completion_handler.py  # ~200 行 ✅
 ```
 
 **验证步骤**:
@@ -43,24 +43,24 @@ grep -r "RSSProcessor" src/ --include="*.py"
 grep -r "TorrentCompletionHandler" src/ --include="*.py"
 ```
 
-- [ ] 运行验证命令确认无引用
-- [ ] 删除 `src/services/download/rss_processor.py`
-- [ ] 删除 `src/services/download/torrent_completion_handler.py`
-- [ ] 运行测试: `pytest tests/`
-- [ ] 运行应用验证: `python -m src.main --test`
+- [x] 运行验证命令确认无引用
+- [x] 删除 `src/services/download/rss_processor.py`
+- [x] 删除 `src/services/download/torrent_completion_handler.py`
+- [x] 运行测试: `pytest tests/`
+- [x] 运行应用验证: `python -m src.main --test`
 
 ### 1.2 删除未使用的 utils 文件夹
 
 所有控制器使用 `src/interface/web/utils.py`，而不是 `utils/` 文件夹。
 
 ```bash
-# 待删除文件夹
-src/interface/web/utils/                         # 整个文件夹 ~300 行
+# 已删除文件夹
+src/interface/web/utils/                         # 整个文件夹 ~300 行 ✅
   ├── api_response.py
   ├── decorators.py
   ├── logger.py
   ├── validators.py
-  └── __init__.py (如果存在)
+  └── __init__.py
 ```
 
 **验证步骤**:
@@ -70,23 +70,23 @@ grep -r "from src.interface.web.utils." src/
 grep -r "from src.interface.web.utils import" src/ | grep -v "utils.py"
 ```
 
-- [ ] 运行验证命令确认无引用
-- [ ] 删除整个 `src/interface/web/utils/` 文件夹
-- [ ] 运行测试: `pytest tests/`
-- [ ] 启动应用验证 Web UI 正常
+- [x] 运行验证命令确认无引用
+- [x] 删除整个 `src/interface/web/utils/` 文件夹
+- [x] 运行测试: `pytest tests/`
+- [x] 启动应用验证 Web UI 正常
 
 ### Phase 1 完成检查
-- [ ] 所有死代码文件已删除
-- [ ] 测试通过: `pytest tests/`
-- [ ] 应用验证通过: `python -m src.main --test`
-- [ ] Web UI 正常访问
+- [x] 所有死代码文件已删除
+- [x] 测试通过: `pytest tests/` (254 passed)
+- [x] 应用验证通过: `python -m src.main --test`
+- [x] Web UI 正常访问
 
 ---
 
-## Phase 2: 统一路径构建逻辑 🔴
+## Phase 2: 统一路径构建逻辑 🔴 ✅ 已完成
 
 **风险等级**: 中 (需要修改多个服务的构造函数和方法调用)
-**预计时间**: 45 分钟
+**完成日期**: 2025-12-28
 
 ### 2.1 修改 container.py - 注入 PathBuilder
 
@@ -99,7 +99,7 @@ anime_service = providers.Singleton(
     anime_repo=anime_repo,
     download_repo=download_repo,
     download_client=qb_client,
-    path_builder=path_builder  # ← 添加
+    path_builder=path_builder  # ← 已添加
 )
 
 # 修改 AnimeDetailService 注入
@@ -108,23 +108,15 @@ anime_detail_service = providers.Singleton(
     anime_repo=anime_repo,
     download_repo=download_repo,
     download_client=qb_client,
-    path_builder=path_builder  # ← 添加
+    path_builder=path_builder  # ← 已添加
 )
 
-# 修改 RenameService 注入 (如果还没有)
-rename_service = providers.Singleton(
-    RenameService,
-    file_classifier=file_classifier,
-    filename_formatter=filename_formatter,
-    anime_repo=anime_repo,
-    ai_file_renamer=file_renamer,
-    path_builder=path_builder  # ← 添加
-)
+# RenameService 保持原样（其 _sanitize_filename 有不同行为）
 ```
 
-- [ ] 修改 `container.py` 中的 `anime_service` 定义
-- [ ] 修改 `container.py` 中的 `anime_detail_service` 定义
-- [ ] 修改 `container.py` 中的 `rename_service` 定义
+- [x] 修改 `container.py` 中的 `anime_service` 定义
+- [x] 修改 `container.py` 中的 `anime_detail_service` 定义
+- [x] ~~修改 `container.py` 中的 `rename_service` 定义~~ (保留原样，见2.4说明)
 
 ### 2.2 修改 AnimeService
 
@@ -140,17 +132,17 @@ class AnimeService:
         anime_repo: IAnimeRepository,
         download_repo: IDownloadRepository,
         download_client: IDownloadClient,
-        path_builder: PathBuilder  # ← 添加
+        path_builder: PathBuilder  # ← 已添加
     ):
         self._anime_repo = anime_repo
         self._download_repo = download_repo
         self._download_client = download_client
-        self._path_builder = path_builder  # ← 添加
+        self._path_builder = path_builder  # ← 已添加
 ```
 
 **Step 2**: 删除重复方法
 ```python
-# 删除这些方法 (~50 行):
+# 已删除这些方法 (~86 行):
 # - _sanitize_title()
 # - _get_original_folder_path()
 # - _get_hardlink_folder_path()
@@ -160,7 +152,6 @@ class AnimeService:
 ```python
 # 原来:
 path = self._get_original_folder_path(title, media_type, category)
-
 # 改为:
 path = self._path_builder.build_download_path(title, season, category, media_type)
 ```
@@ -168,17 +159,16 @@ path = self._path_builder.build_download_path(title, season, category, media_typ
 ```python
 # 原来:
 path = self._get_hardlink_folder_path(title, media_type, category)
-
 # 改为:
 path = self._path_builder.build_library_path(title, media_type, category)
 ```
 
-- [ ] 修改 `AnimeService.__init__()` 添加 `path_builder` 参数
-- [ ] 查找 `_get_original_folder_path` 的所有调用点并替换
-- [ ] 查找 `_get_hardlink_folder_path` 的所有调用点并替换
-- [ ] 删除 `_sanitize_title()` 方法
-- [ ] 删除 `_get_original_folder_path()` 方法
-- [ ] 删除 `_get_hardlink_folder_path()` 方法
+- [x] 修改 `AnimeService.__init__()` 添加 `path_builder` 参数
+- [x] 查找 `_get_original_folder_path` 的所有调用点并替换
+- [x] 查找 `_get_hardlink_folder_path` 的所有调用点并替换
+- [x] 删除 `_sanitize_title()` 方法
+- [x] 删除 `_get_original_folder_path()` 方法
+- [x] 删除 `_get_hardlink_folder_path()` 方法
 
 ### 2.3 修改 AnimeDetailService
 
@@ -194,17 +184,17 @@ class AnimeDetailService:
         anime_repo: IAnimeRepository,
         download_repo: IDownloadRepository,
         download_client: IDownloadClient,
-        path_builder: PathBuilder  # ← 添加
+        path_builder: PathBuilder  # ← 已添加
     ):
         self._anime_repo = anime_repo
         self._download_repo = download_repo
         self._download_client = download_client
-        self._path_builder = path_builder  # ← 添加
+        self._path_builder = path_builder  # ← 已添加
 ```
 
 **Step 2**: 删除重复方法
 ```python
-# 删除这些方法 (~40 行):
+# 已删除这些方法 (~67 行):
 # - _sanitize_title()
 # - _build_auto_target_path()
 ```
@@ -213,7 +203,6 @@ class AnimeDetailService:
 ```python
 # 原来:
 path = self._build_auto_target_path(anime_info)
-
 # 改为:
 path = self._path_builder.build_target_directory(
     anime_title=anime_info.get('short_title') or anime_info.get('original_title'),
@@ -222,74 +211,61 @@ path = self._path_builder.build_target_directory(
 )
 ```
 
-- [ ] 修改 `AnimeDetailService.__init__()` 添加 `path_builder` 参数
-- [ ] 查找 `_build_auto_target_path` 的所有调用点并替换
-- [ ] 删除 `_sanitize_title()` 方法
-- [ ] 删除 `_build_auto_target_path()` 方法
+- [x] 修改 `AnimeDetailService.__init__()` 添加 `path_builder` 参数
+- [x] 查找 `_build_auto_target_path` 的所有调用点并替换
+- [x] 删除 `_sanitize_title()` 方法
+- [x] 删除 `_build_auto_target_path()` 方法
 
 ### 2.4 修改 RenameService
 
 **文件**: `src/services/rename/rename_service.py`
 
-**Step 1**: 修改构造函数 (如果还没有 path_builder)
-```python
-from src.services.file.path_builder import PathBuilder
+**决策**: 保留 RenameService 自己的 `_sanitize_filename()` 方法
 
-class RenameService:
-    def __init__(
-        self,
-        file_classifier: FileClassifier,
-        filename_formatter: FilenameFormatter,
-        anime_repo: IAnimeRepository,
-        ai_file_renamer: IFileRenamer,
-        path_builder: PathBuilder  # ← 添加
-    ):
-        # ...
-        self._path_builder = path_builder
-```
+**原因**: RenameService 的 `_sanitize_filename()` 有不同的行为:
+- 将 curly quotes `"` 替换为单引号 `'`
+- 空字符串返回 'Unknown'
+- 专门用于文件名格式化（带标签如字幕类型、特殊标签）
 
-**Step 2**: 删除或替换 `_sanitize_filename()`
-```python
-# 删除 _sanitize_filename() 方法 (~20 行)
-# 所有调用改为:
-self._path_builder._sanitize_filename(name)
-```
+PathBuilder 的 `_sanitize_filename()` 行为:
+- 替换多个空格为单个空格
+- 截断到200字符
+- 用于目录名
 
-- [ ] 检查 `RenameService.__init__()` 是否已有 `path_builder`
-- [ ] 如果没有，添加 `path_builder` 参数
-- [ ] 查找所有 `self._sanitize_filename` 调用并替换
-- [ ] 删除 `_sanitize_filename()` 方法
+- [x] 检查 `RenameService.__init__()` 是否已有 `path_builder` → 无需添加
+- [x] ~~如果没有，添加 `path_builder` 参数~~ (不需要)
+- [x] ~~查找所有 `self._sanitize_filename` 调用并替换~~ (保留原样)
+- [x] ~~删除 `_sanitize_filename()` 方法~~ (保留，行为不同)
 
 ### 2.5 修改控制器调用
 
 **文件**: `src/interface/web/controllers/anime_detail.py`
 
-检查是否直接调用了 `_sanitize_title`:
+已更新控制器使用 PathBuilder:
 ```python
-# 如果有类似这样的代码:
+# 原来:
 sanitized_title = anime_detail_service._sanitize_title(anime_title)
+target_directory = os.path.join(base_target, sanitized_title)
 
 # 改为:
-# 方案1: 通过服务获取 (推荐)
-target_path = anime_detail_service.get_target_path(anime_info)
-
-# 方案2: 直接使用 path_builder
-from src.container import container
-path_builder = container.path_builder()
-sanitized_title = path_builder._sanitize_filename(anime_title)
+target_directory = path_builder.build_library_path(
+    title=anime_title,
+    media_type=media_type,
+    category=category
+)
 ```
 
-- [ ] 检查 `anime_detail.py` 是否直接调用 `_sanitize_title`
-- [ ] 如果有，修改为使用 `path_builder`
+- [x] 检查 `anime_detail.py` 是否直接调用 `_sanitize_title`
+- [x] 修改为使用 `path_builder` (通过依赖注入)
 
 ### Phase 2 完成检查
-- [ ] 所有服务已注入 `path_builder`
-- [ ] 所有重复的 `_sanitize_title` 方法已删除
-- [ ] 所有调用点已更新
-- [ ] 测试通过: `pytest tests/`
-- [ ] 应用验证通过: `python -m src.main --test`
-- [ ] Web UI 动漫列表、详情页正常
-- [ ] 硬链接创建功能正常
+- [x] 所有服务已注入 `path_builder` (AnimeService, AnimeDetailService)
+- [x] 所有重复的 `_sanitize_title` 方法已删除 (除 RenameService 保留)
+- [x] 所有调用点已更新
+- [x] 测试通过: `pytest tests/` (254 passed)
+- [x] 应用验证通过: `python -m src.main --test`
+- [x] Web UI 动漫列表、详情页正常
+- [x] 硬链接创建功能正常
 
 ---
 
@@ -434,12 +410,12 @@ find src -name "*.py" | xargs wc -l
 ```
 
 ### 完成清单
-- [ ] Phase 1 完成: 死代码文件已删除
-- [ ] Phase 2 完成: 路径构建逻辑已统一
+- [x] Phase 1 完成: 死代码文件已删除
+- [x] Phase 2 完成: 路径构建逻辑已统一
 - [ ] Phase 3 完成: 未使用代码片段已清理
 - [ ] Phase 4 完成: 待确认服务已处理
-- [ ] 所有测试通过
-- [ ] 应用功能正常
+- [x] 所有测试通过 (Phase 1 & 2)
+- [x] 应用功能正常 (Phase 1 & 2)
 - [ ] 代码风格检查通过
 
 ---

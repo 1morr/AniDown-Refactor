@@ -246,14 +246,16 @@ class Container(containers.DeclarativeContainer):
         AnimeService,
         anime_repo=anime_repo,
         download_repo=download_repo,
-        download_client=qb_client
+        download_client=qb_client,
+        path_builder=path_builder
     )
 
     anime_detail_service = providers.Singleton(
         AnimeDetailService,
         anime_repo=anime_repo,
         download_repo=download_repo,
-        download_client=qb_client
+        download_client=qb_client,
+        path_builder=path_builder
     )
 
     file_service = providers.Singleton(
