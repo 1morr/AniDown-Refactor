@@ -35,13 +35,13 @@ Phase 4: 统一依赖注入模式 (高风险)
 | `RSSFetchError` | - | 未使用 |
 
 **步骤**:
-- [ ] 1.1.1 打开 `src/core/exceptions.py`
-- [ ] 1.1.2 删除 `AIRateLimitError` 类定义
-- [ ] 1.1.3 删除 `TorrentNotFoundError` 类定义
-- [ ] 1.1.4 删除 `ConfigError` 类定义
-- [ ] 1.1.5 删除 `RSSFetchError` 类定义
-- [ ] 1.1.6 更新 `__all__` 列表，移除已删除的类
-- [ ] 1.1.7 搜索全局确认无其他引用
+- [x] 1.1.1 打开 `src/core/exceptions.py`
+- [x] 1.1.2 删除 `AIRateLimitError` 类定义
+- [x] 1.1.3 删除 `TorrentNotFoundError` 类定义
+- [x] 1.1.4 删除 `ConfigError` 类定义
+- [x] 1.1.5 删除 `RSSFetchError` 类定义
+- [x] 1.1.6 更新 `__all__` 列表，移除已删除的类
+- [x] 1.1.7 搜索全局确认无其他引用
 
 ### 1.2 删除空目录
 
@@ -52,15 +52,15 @@ Phase 4: 统一依赖注入模式 (高风险)
 - `__all__ = []` (空导出)
 
 **步骤**:
-- [ ] 1.2.1 确认目录内容仅有空的 `__init__.py`
-- [ ] 1.2.2 检查是否有其他文件导入此模块
-- [ ] 1.2.3 删除整个 `src/services/download/` 目录
+- [x] 1.2.1 确认目录内容仅有空的 `__init__.py`
+- [x] 1.2.2 检查是否有其他文件导入此模块
+- [x] 1.2.3 删除整个 `src/services/download/` 目录
 
-### Phase 1 验证
+### Phase 1 验证 ✅ 已完成
 
-- [ ] 运行 `ruff check src/` 确认无语法错误
-- [ ] 运行 `pytest tests/` 确认测试通过
-- [ ] 运行 `python -m src.main --test` 确认应用启动正常
+- [x] 运行 `ruff check src/` 确认无语法错误 (预存在的 lint 错误不影响)
+- [x] 运行 `pytest tests/` 确认测试通过 (235 passed)
+- [x] 运行 `python -m src.main --test` 确认应用启动正常
 
 ---
 

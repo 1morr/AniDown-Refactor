@@ -53,24 +53,6 @@ class AIError(AniDownError):
         super().__init__(message, code or 'AI_ERROR', context)
 
 
-class AIRateLimitError(AIError):
-    """
-    Exception raised when AI API rate limit is exceeded.
-
-    Attributes:
-        retry_after: Suggested wait time in seconds before retrying.
-    """
-
-    def __init__(
-        self,
-        message: str,
-        retry_after: Optional[float] = None,
-        context: Optional[Dict[str, Any]] = None
-    ):
-        super().__init__(message, 'AI_RATE_LIMITED', context)
-        self.retry_after = retry_after
-
-
 class AICircuitBreakerError(AIError):
     """
     Exception raised when the circuit breaker is open.
@@ -156,27 +138,6 @@ class TorrentAddError(DownloadError):
         self.torrent_url = torrent_url
 
 
-class TorrentNotFoundError(DownloadError):
-    """
-    Exception raised when a torrent cannot be found.
-
-    Attributes:
-        hash_id: The hash of the torrent that was not found.
-    """
-
-    def __init__(
-        self,
-        message: str,
-        hash_id: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None
-    ):
-        ctx = context or {}
-        if hash_id:
-            ctx['hash_id'] = hash_id
-        super().__init__(message, 'TORRENT_NOT_FOUND', ctx)
-        self.hash_id = hash_id
-
-
 # File operation exceptions
 
 class FileOperationError(AniDownError):
@@ -218,18 +179,6 @@ class HardlinkError(FileOperationError):
 
 
 # Configuration exceptions
-
-class ConfigError(AniDownError):
-    """Base exception for configuration errors."""
-
-    def __init__(
-        self,
-        message: str,
-        code: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None
-    ):
-        super().__init__(message, code or 'CONFIG_ERROR', context)
-
 
 # Database exceptions
 
@@ -303,17 +252,6 @@ class RSSError(AniDownError):
         self.feed_url = feed_url
 
 
-class RSSFetchError(RSSError):
-    """Exception raised when fetching RSS feed fails."""
-
-    def __init__(
-        self,
-        message: str,
-        feed_url: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None
-    ):
-        super().__init__(message, feed_url, context)
-        self.code = 'RSS_FETCH_ERROR'
 
 
 # Anime info exceptions
