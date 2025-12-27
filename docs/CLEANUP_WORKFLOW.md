@@ -12,7 +12,7 @@
 |-------|------|--------|-------------|----------|------|
 | 1 | 删除死代码文件 | 🔴 高 | ~800 行 | 低 | ✅ 已完成 |
 | 2 | 统一路径构建逻辑 | 🔴 高 | ~110 行 | 中 | ✅ 已完成 |
-| 3 | 清理未使用的代码片段 | 🟠 中 | ~50 行 | 低 | ⏳ 待开始 |
+| 3 | 清理未使用的代码片段 | 🟠 中 | ~120 行 | 低 | ✅ 已完成 |
 | 4 | 待确认服务处理 | 🟡 低 | ~200 行 | 低 | ⏳ 待开始 |
 
 **总计**: 删除约 1160+ 行冗余代码
@@ -269,48 +269,35 @@ target_directory = path_builder.build_library_path(
 
 ---
 
-## Phase 3: 清理未使用的代码片段 🟠
+## Phase 3: 清理未使用的代码片段 🟠 ✅ 已完成
 
 **风险等级**: 低 (只删除未使用的类定义)
-**预计时间**: 10 分钟
+**完成日期**: 2025-12-28
 
 ### 3.1 清理未使用的异常类
 
 **文件**: `src/core/exceptions.py`
 
 ```python
-# 删除这些类:
-class RSSParseError(AniDownError):
-    """RSS 解析错误"""
-    pass
-
-class ConfigValidationError(AniDownError):
-    """配置验证错误"""
-    pass
-
-class RecordNotFoundError(AniDownError):
-    """记录未找到错误"""
-    pass
+# 已删除这些类:
+class RSSParseError(ParseError):       # ~19 行 ✅
+class ConfigValidationError(ConfigError): # ~24 行 ✅
+class RecordNotFoundError(DatabaseError): # ~24 行 ✅
 ```
 
-**验证步骤**:
-```bash
-grep -r "RSSParseError" src/ --include="*.py"
-grep -r "ConfigValidationError" src/ --include="*.py"
-grep -r "RecordNotFoundError" src/ --include="*.py"
-```
+同时更新了 `src/core/__init__.py` 移除这些类的导出。
 
-- [ ] 验证这些异常类没有被使用
-- [ ] 删除 `RSSParseError` 类
-- [ ] 删除 `ConfigValidationError` 类
-- [ ] 删除 `RecordNotFoundError` 类
+- [x] 验证这些异常类没有被使用
+- [x] 删除 `RSSParseError` 类
+- [x] 删除 `ConfigValidationError` 类
+- [x] 删除 `RecordNotFoundError` 类
 
 ### 3.2 清理未使用的值对象
 
 **文件**: `src/core/domain/value_objects.py`
 
 ```python
-# 删除 FilePath 类 (~30 行)
+# 已删除 FilePath 类 (~56 行) ✅
 @dataclass(frozen=True)
 class FilePath:
     """文件路径值对象"""
@@ -318,19 +305,19 @@ class FilePath:
     # ...
 ```
 
-**验证步骤**:
-```bash
-grep -r "FilePath" src/ --include="*.py" | grep -v "value_objects.py"
-```
+同时更新了:
+- `src/core/domain/__init__.py` 移除 FilePath 导出
+- `src/core/domain/value_objects.py` 移除未使用的 `import os`
 
-- [ ] 验证 `FilePath` 没有被使用
-- [ ] 删除 `FilePath` 类
+- [x] 验证 `FilePath` 没有被使用
+- [x] 删除 `FilePath` 类
 
 ### Phase 3 完成检查
-- [ ] 未使用的异常类已删除
-- [ ] 未使用的值对象已删除
-- [ ] 测试通过: `pytest tests/`
-- [ ] 代码风格检查: `ruff check src/`
+- [x] 未使用的异常类已删除 (~67 行)
+- [x] 未使用的值对象已删除 (~56 行)
+- [x] 测试通过: `pytest tests/` (254 passed, 1 skipped)
+- [x] 应用验证通过: `python -m src.main --test`
+- [ ] 代码风格检查: `ruff check src/` (存在预存问题，非本次修改引入)
 
 ---
 
@@ -412,11 +399,11 @@ find src -name "*.py" | xargs wc -l
 ### 完成清单
 - [x] Phase 1 完成: 死代码文件已删除
 - [x] Phase 2 完成: 路径构建逻辑已统一
-- [ ] Phase 3 完成: 未使用代码片段已清理
+- [x] Phase 3 完成: 未使用代码片段已清理
 - [ ] Phase 4 完成: 待确认服务已处理
-- [x] 所有测试通过 (Phase 1 & 2)
-- [x] 应用功能正常 (Phase 1 & 2)
-- [ ] 代码风格检查通过
+- [x] 所有测试通过 (Phase 1, 2 & 3)
+- [x] 应用功能正常 (Phase 1, 2 & 3)
+- [ ] 代码风格检查通过 (存在预存问题)
 
 ---
 

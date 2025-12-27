@@ -5,7 +5,6 @@ Contains immutable value objects representing domain concepts without identity.
 Value objects are compared by their attributes, not by identity.
 """
 
-import os
 import re
 from dataclasses import dataclass
 from enum import Enum
@@ -172,61 +171,3 @@ class SubtitleGroup:
         if not self.name:
             return ''
         return f'[{self.name}]'
-
-
-@dataclass(frozen=True)
-class FilePath:
-    """
-    File path value object.
-
-    Represents a file system path with utility properties.
-
-    Attributes:
-        path: The full file path.
-    """
-    path: str
-
-    @property
-    def filename(self) -> str:
-        """Return the file name (with extension)."""
-        return os.path.basename(self.path)
-
-    @property
-    def stem(self) -> str:
-        """Return the file name without extension."""
-        name = self.filename
-        if '.' in name:
-            return name.rsplit('.', 1)[0]
-        return name
-
-    @property
-    def extension(self) -> str:
-        """Return the file extension (with dot, lowercase)."""
-        _, ext = os.path.splitext(self.path)
-        return ext.lower()
-
-    @property
-    def directory(self) -> str:
-        """Return the parent directory path."""
-        return os.path.dirname(self.path)
-
-    @property
-    def exists(self) -> bool:
-        """Check if the file exists."""
-        return os.path.exists(self.path)
-
-    @property
-    def is_video(self) -> bool:
-        """Check if this is a video file."""
-        video_extensions = {'.mkv', '.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm'}
-        return self.extension in video_extensions
-
-    @property
-    def is_subtitle(self) -> bool:
-        """Check if this is a subtitle file."""
-        subtitle_extensions = {'.ass', '.srt', '.sub', '.ssa', '.vtt'}
-        return self.extension in subtitle_extensions
-
-    def __str__(self) -> str:
-        """Return the path as string."""
-        return self.path

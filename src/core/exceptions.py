@@ -231,32 +231,6 @@ class ConfigError(AniDownError):
         super().__init__(message, code or 'CONFIG_ERROR', context)
 
 
-class ConfigValidationError(ConfigError):
-    """
-    Exception raised when configuration validation fails.
-
-    Attributes:
-        field_name: Name of the field that failed validation.
-        field_value: The invalid value.
-    """
-
-    def __init__(
-        self,
-        message: str,
-        field_name: Optional[str] = None,
-        field_value: Optional[Any] = None,
-        context: Optional[Dict[str, Any]] = None
-    ):
-        ctx = context or {}
-        if field_name:
-            ctx['field_name'] = field_name
-        if field_value is not None:
-            ctx['field_value'] = str(field_value)
-        super().__init__(message, 'CONFIG_VALIDATION_ERROR', ctx)
-        self.field_name = field_name
-        self.field_value = field_value
-
-
 # Database exceptions
 
 class DatabaseError(AniDownError):
@@ -271,32 +245,6 @@ class DatabaseError(AniDownError):
         super().__init__(message, code or 'DATABASE_ERROR', context)
 
 
-class RecordNotFoundError(DatabaseError):
-    """
-    Exception raised when a database record cannot be found.
-
-    Attributes:
-        table_name: Name of the table.
-        record_id: ID of the record that was not found.
-    """
-
-    def __init__(
-        self,
-        message: str,
-        table_name: Optional[str] = None,
-        record_id: Optional[Any] = None,
-        context: Optional[Dict[str, Any]] = None
-    ):
-        ctx = context or {}
-        if table_name:
-            ctx['table_name'] = table_name
-        if record_id is not None:
-            ctx['record_id'] = str(record_id)
-        super().__init__(message, 'RECORD_NOT_FOUND', ctx)
-        self.table_name = table_name
-        self.record_id = record_id
-
-
 # Parse exceptions
 
 class ParseError(AniDownError):
@@ -309,27 +257,6 @@ class ParseError(AniDownError):
         context: Optional[Dict[str, Any]] = None
     ):
         super().__init__(message, code or 'PARSE_ERROR', context)
-
-
-class RSSParseError(ParseError):
-    """
-    Exception raised when RSS feed parsing fails.
-
-    Attributes:
-        feed_url: URL of the RSS feed that failed to parse.
-    """
-
-    def __init__(
-        self,
-        message: str,
-        feed_url: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None
-    ):
-        ctx = context or {}
-        if feed_url:
-            ctx['feed_url'] = feed_url
-        super().__init__(message, 'RSS_PARSE_ERROR', ctx)
-        self.feed_url = feed_url
 
 
 class TitleParseError(ParseError):
