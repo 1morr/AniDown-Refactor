@@ -104,32 +104,32 @@ Phase 4: 统一依赖注入模式 (高风险)
 - [ ] 2.1.7 删除 `src/services/anime_detail_service.py`
 - [ ] 2.1.8 更新 `src/services/__init__.py` 导出
 
-### 2.2 合并 FileService 和 HardlinkService
+### 2.2 合并 HardlinkService 到 FileService
 
 **当前文件**:
 - `src/services/file_service.py` - FileService
 - `src/services/file/hardlink_service.py` - HardlinkService
 
-**目标**: 统一到 `HardlinkService`
+**目标**: 统一到 `FileService` (因为不只处理硬链接，还可能操作原文件)
 
 **功能映射**:
 | 来源服务 | 方法 | 处理方式 |
 |----------|------|----------|
-| FileService | `create_hardlink()` | 使用 HardlinkService.create() |
-| FileService | `delete_hardlink()` | 使用 HardlinkService.delete_by_torrent() |
-| FileService | `rename_hardlink()` | 迁移到 HardlinkService |
-| FileService | `convert_path()` | 迁移到 HardlinkService |
-| HardlinkService | `create()` | 保留 |
-| HardlinkService | `_create_link()` | 保留 |
-| HardlinkService | `delete_by_torrent()` | 保留 |
+| FileService | `create_hardlink()` | 保留，整合 HardlinkService.create() 逻辑 |
+| FileService | `delete_hardlink()` | 保留，整合 HardlinkService.delete_by_torrent() 逻辑 |
+| FileService | `rename_hardlink()` | 保留 |
+| FileService | `convert_path()` | 保留 |
+| HardlinkService | `create()` | 迁移到 FileService |
+| HardlinkService | `_create_link()` | 迁移到 FileService |
+| HardlinkService | `delete_by_torrent()` | 迁移到 FileService |
 
 **步骤**:
-- [ ] 2.2.1 分析 FileService 所有方法的完整实现
+- [ ] 2.2.1 分析 HardlinkService 所有方法的完整实现
 - [ ] 2.2.2 识别 FileService 和 HardlinkService 的功能重叠
-- [ ] 2.2.3 将 FileService 独有方法迁移到 HardlinkService
+- [ ] 2.2.3 将 HardlinkService 方法迁移到 FileService
 - [ ] 2.2.4 更新 `src/container.py` 中的 provider
-- [ ] 2.2.5 更新所有使用 FileService 的地方
-- [ ] 2.2.6 删除 `src/services/file_service.py`
+- [ ] 2.2.5 更新所有使用 HardlinkService 的地方
+- [ ] 2.2.6 删除 `src/services/file/hardlink_service.py`
 - [ ] 2.2.7 更新相关导出
 
 ### Phase 2 验证
@@ -285,7 +285,7 @@ class DiscordNotifier:
 ┌─────────────────────────────────────────────────────────────────┐
 │  Phase 2: 合并重复服务                                           │
 │  - AnimeService ← AnimeDetailService                            │
-│  - HardlinkService ← FileService                                 │
+│  - FileService ← HardlinkService                                 │
 │  ✓ 检查点: ruff + pytest + --test + 功能测试                     │
 └─────────────────────────────────────────────────────────────────┘
           │
