@@ -24,17 +24,10 @@ from src.infrastructure.database.session import DatabaseSessionManager
 # External Adapters
 from src.infrastructure.downloader.qbit_adapter import QBitAdapter
 from src.infrastructure.metadata.tvdb_adapter import TVDBAdapter
-from src.infrastructure.notification.discord.ai_usage_notifier import DiscordAIUsageNotifier
-from src.infrastructure.notification.discord.download_notifier import DiscordDownloadNotifier
-from src.infrastructure.notification.discord.error_notifier import DiscordErrorNotifier
-from src.infrastructure.notification.discord.hardlink_notifier import DiscordHardlinkNotifier
-from src.infrastructure.notification.discord.rss_notifier import DiscordRSSNotifier
 
 # Discord Notification Components
+from src.infrastructure.notification.discord.discord_notifier import DiscordNotifier
 from src.infrastructure.notification.discord.webhook_client import DiscordWebhookClient
-from src.infrastructure.notification.discord.webhook_received_notifier import (
-    DiscordWebhookReceivedNotifier,
-)
 
 # Repositories
 from src.infrastructure.repositories.anime_repository import AnimeRepository
@@ -178,31 +171,20 @@ class Container(containers.DeclarativeContainer):
     )
 
     # ===== Notification Components =====
+    # 统一的 Discord 通知器（实现所有通知接口）
     discord_webhook = providers.Singleton(DiscordWebhookClient)
-    rss_notifier = providers.Singleton(
-        DiscordRSSNotifier,
+    discord_notifier = providers.Singleton(
+        DiscordNotifier,
         webhook_client=discord_webhook
     )
-    download_notifier = providers.Singleton(
-        DiscordDownloadNotifier,
-        webhook_client=discord_webhook
-    )
-    hardlink_notifier = providers.Singleton(
-        DiscordHardlinkNotifier,
-        webhook_client=discord_webhook
-    )
-    error_notifier = providers.Singleton(
-        DiscordErrorNotifier,
-        webhook_client=discord_webhook
-    )
-    ai_usage_notifier = providers.Singleton(
-        DiscordAIUsageNotifier,
-        webhook_client=discord_webhook
-    )
-    webhook_received_notifier = providers.Singleton(
-        DiscordWebhookReceivedNotifier,
-        webhook_client=discord_webhook
-    )
+
+    # 为向后兼容，提供别名（指向同一实例）
+    rss_notifier = discord_notifier
+    download_notifier = discord_notifier
+    hardlink_notifier = discord_notifier
+    error_notifier = discord_notifier
+    ai_usage_notifier = discord_notifier
+    webhook_received_notifier = discord_notifier
 
     # ===== File Services =====
     path_builder = providers.Singleton(

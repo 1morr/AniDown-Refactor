@@ -120,77 +120,90 @@ Phase 4: 统一依赖注入模式 (高风险)
 **预计影响**: 减少 5-6 个文件  
 **依赖**: Phase 2 完成
 
-### 3.1 分析当前通知器结构
+### 3.1 分析当前通知器结构 ✅ 已完成
 
-**当前文件** (`src/infrastructure/notification/discord/`):
-| 文件 | 类 | 职责 |
-|------|-----|------|
-| `webhook_client.py` | DiscordWebhookClient | 基础 HTTP 发送 |
-| `embed_builder.py` | EmbedBuilder | 构建 Embed 对象 |
-| `rss_notifier.py` | RSSNotifier | RSS 相关通知 |
-| `download_notifier.py` | DownloadNotifier | 下载相关通知 |
-| `hardlink_notifier.py` | HardlinkNotifier | 硬链接相关通知 |
-| `error_notifier.py` | ErrorNotifier | 错误通知 |
-| `ai_usage_notifier.py` | AIUsageNotifier | AI 使用量通知 |
-| `webhook_received_notifier.py` | WebhookReceivedNotifier | Webhook 接收通知 |
+**原始文件** (`src/infrastructure/notification/discord/`):
+| 文件 | 类 | 职责 | 状态 |
+|------|-----|------|------|
+| `webhook_client.py` | DiscordWebhookClient | 基础 HTTP 发送 | ✅ 保留 |
+| `embed_builder.py` | EmbedBuilder | 构建 Embed 对象 | ✅ 保留 |
+| ~~`rss_notifier.py`~~ | ~~RSSNotifier~~ | RSS 相关通知 | ❌ 已删除 |
+| ~~`download_notifier.py`~~ | ~~DownloadNotifier~~ | 下载相关通知 | ❌ 已删除 |
+| ~~`hardlink_notifier.py`~~ | ~~HardlinkNotifier~~ | 硬链接相关通知 | ❌ 已删除 |
+| ~~`error_notifier.py`~~ | ~~ErrorNotifier~~ | 错误通知 | ❌ 已删除 |
+| ~~`ai_usage_notifier.py`~~ | ~~AIUsageNotifier~~ | AI 使用量通知 | ❌ 已删除 |
+| ~~`webhook_received_notifier.py`~~ | ~~WebhookReceivedNotifier~~ | Webhook 接收通知 | ❌ 已删除 |
+| `discord_notifier.py` | DiscordNotifier | **统一通知器** | ✅ 新增 |
 
-### 3.2 设计整合方案
+### 3.2 整合实施 ✅ 已完成
 
-**目标结构**:
+**新结构**:
 ```
 discord/
 ├── webhook_client.py      # 保留：基础客户端
 ├── embed_builder.py       # 保留：Embed 构建器
-└── notifier.py            # 新建：统一通知器
+├── discord_notifier.py    # 新建：统一通知器
+└── __init__.py            # 更新：导出新类和向后兼容别名
 ```
 
-**新 DiscordNotifier 类设计**:
+**DiscordNotifier 类实现**:
 ```python
-class DiscordNotifier:
-    '''统一 Discord 通知服务'''
+class DiscordNotifier(
+    IRSSNotifier,
+    IDownloadNotifier,
+    IHardlinkNotifier,
+    IErrorNotifier,
+    IAIUsageNotifier,
+    IWebhookNotifier
+):
+    '''统一 Discord 通知器，实现所有通知接口'''
     
-    # RSS 通知
-    def notify_rss_added(...)
-    def notify_rss_filtered(...)
+    # IRSSNotifier 实现
+    def notify_processing_start(...)
+    def notify_processing_complete(...)
+    def notify_download_task(...)
+    def notify_processing_interrupted(...)
     
-    # 下载通知
-    def notify_download_started(...)
-    def notify_download_completed(...)
-    def notify_download_error(...)
+    # IDownloadNotifier 实现
+    def notify_download_start(...)
+    def notify_download_complete(...)
+    def notify_download_failed(...)
     
-    # 硬链接通知
+    # IHardlinkNotifier 实现
     def notify_hardlink_created(...)
-    def notify_hardlink_deleted(...)
+    def notify_hardlink_failed(...)
     
-    # 错误通知
+    # IErrorNotifier 实现
     def notify_error(...)
+    def notify_warning(...)
     
-    # AI 通知
+    # IAIUsageNotifier 实现
     def notify_ai_usage(...)
     
-    # Webhook 通知
+    # IWebhookNotifier 实现
     def notify_webhook_received(...)
 ```
 
-**步骤**:
-- [ ] 3.2.1 创建 `notifier.py` 新文件
-- [ ] 3.2.2 实现 DiscordNotifier 类，整合所有通知方法
-- [ ] 3.2.3 更新 `src/container.py` 使用新的 DiscordNotifier
-- [ ] 3.2.4 更新所有引用旧通知器的代码
-- [ ] 3.2.5 删除旧的通知器文件:
-  - [ ] `rss_notifier.py`
-  - [ ] `download_notifier.py`
-  - [ ] `hardlink_notifier.py`
-  - [ ] `error_notifier.py`
-  - [ ] `ai_usage_notifier.py`
-  - [ ] `webhook_received_notifier.py`
-- [ ] 3.2.6 更新 `__init__.py` 导出
+**已完成步骤**:
+- [x] 3.2.1 创建 `discord_notifier.py` 新文件
+- [x] 3.2.2 实现 DiscordNotifier 类，实现所有 6 个通知接口
+- [x] 3.2.3 更新 `src/container.py` 使用新的 DiscordNotifier
+- [x] 3.2.4 更新 `__init__.py` 导出（包含向后兼容别名）
+- [x] 3.2.5 更新测试文件使用新的 DiscordNotifier
+- [x] 3.2.6 删除旧的通知器文件:
+  - [x] `rss_notifier.py`
+  - [x] `download_notifier.py`
+  - [x] `hardlink_notifier.py`
+  - [x] `error_notifier.py`
+  - [x] `ai_usage_notifier.py`
+  - [x] `webhook_received_notifier.py`
 
-### Phase 3 验证
+### Phase 3 验证 ✅ 已完成
 
-- [ ] 运行 `ruff check src/` 确认无语法错误
-- [ ] 运行 `pytest tests/` 确认测试通过
-- [ ] 手动测试各类 Discord 通知是否正常发送
+- [x] 运行 `ruff check src/infrastructure/notification/discord/` 确认无语法错误
+- [x] 运行 `pytest tests/unit/test_discord_notification.py` 确认测试通过 (23 passed)
+- [x] 运行 `pytest tests/` 确认所有测试通过 (261 passed)
+- [x] 运行 `python -m src.main --test` 确认应用启动正常
 
 ---
 
