@@ -13,7 +13,7 @@
 | 1 | 删除死代码文件 | 🔴 高 | ~800 行 | 低 | ✅ 已完成 |
 | 2 | 统一路径构建逻辑 | 🔴 高 | ~110 行 | 中 | ✅ 已完成 |
 | 3 | 清理未使用的代码片段 | 🟠 中 | ~120 行 | 低 | ✅ 已完成 |
-| 4 | 待确认服务处理 | 🟡 低 | ~200 行 | 低 | ⏳ 待开始 |
+| 4 | 待确认服务处理 | 🟡 低 | 集成清理 | 低 | ✅ 已完成 |
 
 **总计**: 删除约 1160+ 行冗余代码
 
@@ -321,47 +321,54 @@ class FilePath:
 
 ---
 
-## Phase 4: 待确认服务处理 🟡
+## Phase 4: 待确认服务处理 🟡 ✅ 已完成
 
 **风险等级**: 低
-**预计时间**: 15 分钟
+**完成日期**: 2025-12-28
 
 ### 4.1 评估 ai_debug_service
 
 **文件**: `src/services/ai_debug_service.py`
 
-**当前状态**: 注册到容器但从未通过 `container.ai_debug_service()` 获取
+**检查结果**: ✅ 正在被使用
 
-**检查**:
-```bash
-grep -r "ai_debug_service" src/ --include="*.py"
-grep -r "AIDebugService" src/ --include="*.py"
-```
+使用位置:
+- `main.py` - 通过 `--debug` 参数启用
+- `title_parser.py` - 记录 AI 标题解析交互
+- `file_renamer.py` - 记录 AI 文件重命名交互
+- `subtitle_matcher.py` - 记录 AI 字幕匹配交互
+- `ai_test.py` - 测试页面和日志查看功能
 
-**决策**:
-- [ ] 如果有使用计划 → 保留
-- [ ] 如果确定不需要 → 删除文件并从 `container.py` 移除注册
+**决策**: ✅ 保留 - 服务正在多处使用
 
 ### 4.2 评估 log_rotation_service
 
 **文件**: `src/services/log_rotation_service.py`
 
-**当前状态**: 注册到容器但从未通过 `container.log_rotation_service()` 获取
+**检查结果**: 服务已实现但未集成到应用启动流程
 
-**检查**:
-```bash
-grep -r "log_rotation_service" src/ --include="*.py"
-grep -r "LogRotationService" src/ --include="*.py"
+**分析**:
+- `main.py` 已使用日期格式日志文件名 (`anidown_{date}.log`)，每天自动创建新文件
+- 但缺少旧日志清理功能，日志会无限积累
+
+**决策**: ✅ 集成 - 在 `main.py` 启动时调用清理旧日志
+
+**修改**:
+```python
+# main.py 第 28-31 行
+# 清理旧日志文件（保留最近 5 天）
+from src.services.log_rotation_service import LogRotationService
+log_rotation = LogRotationService(log_file=log_file, max_days=5)
+log_rotation.cleanup_old_logs()
 ```
 
-**决策**:
-- [ ] 如果有使用计划 → 保留
-- [ ] 如果确定不需要 → 删除文件并从 `container.py` 移除注册
+- [x] 在 `main.py` 中集成 `LogRotationService.cleanup_old_logs()`
+- [x] 保留旧日志最多 5 天
 
 ### Phase 4 完成检查
-- [ ] 已评估所有待确认服务
-- [ ] 做出保留/删除决策
-- [ ] 测试通过: `pytest tests/`
+- [x] 已评估所有待确认服务
+- [x] 做出保留/集成决策
+- [x] 测试通过: `pytest tests/`
 
 ---
 
@@ -400,9 +407,9 @@ find src -name "*.py" | xargs wc -l
 - [x] Phase 1 完成: 死代码文件已删除
 - [x] Phase 2 完成: 路径构建逻辑已统一
 - [x] Phase 3 完成: 未使用代码片段已清理
-- [ ] Phase 4 完成: 待确认服务已处理
-- [x] 所有测试通过 (Phase 1, 2 & 3)
-- [x] 应用功能正常 (Phase 1, 2 & 3)
+- [x] Phase 4 完成: 待确认服务已处理（保留并集成）
+- [x] 所有测试通过
+- [x] 应用功能正常
 - [ ] 代码风格检查通过 (存在预存问题)
 
 ---

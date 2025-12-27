@@ -25,6 +25,11 @@ os.makedirs(log_path, exist_ok=True)
 today = datetime.now().strftime('%Y-%m-%d')
 log_file = os.path.join(log_path, f'anidown_{today}.log')
 
+# 清理旧日志文件（保留最近 5 天）
+from src.services.log_rotation_service import LogRotationService
+log_rotation = LogRotationService(log_file=log_file, max_days=5)
+log_rotation.cleanup_old_logs()
+
 # 配置日志 - 修復 Windows 控制台 UTF-8 編碼問題
 stream_handler = logging.StreamHandler(sys.stdout)
 stream_handler.setStream(open(sys.stdout.fileno(), mode='w', encoding='utf-8', buffering=1))
