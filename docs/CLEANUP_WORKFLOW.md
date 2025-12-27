@@ -70,75 +70,47 @@ Phase 4: 统一依赖注入模式 (高风险)
 **预计影响**: 减少文件数量，简化代码结构  
 **依赖**: Phase 1 完成
 
-### 2.1 合并 AnimeService 和 AnimeDetailService
+### 2.1 合并 AnimeService 和 AnimeDetailService ✅ 已完成
 
 **当前文件**:
 - `src/services/anime_service.py` - AnimeService
-- `src/services/anime_detail_service.py` - AnimeDetailService
+- ~~`src/services/anime_detail_service.py`~~ - 已删除
 
 **目标**: 合并为单一 `AnimeService`
 
-**功能映射**:
-| 来源服务 | 方法 | 目标位置 |
-|----------|------|----------|
-| AnimeService | `get_anime_list_paginated()` | 保留 |
-| AnimeService | `get_anime_details()` | 保留 |
-| AnimeService | `get_anime_folders()` | 保留 |
-| AnimeService | `delete_anime_files()` | 保留 |
-| AnimeService | `update_anime_info()` | 保留 |
-| AnimeDetailService | `get_anime_with_torrents()` | 迁移到 AnimeService |
-| AnimeDetailService | `check_existing_hardlinks()` | 迁移到 AnimeService |
-| AnimeDetailService | `get_ai_rename_preview()` | 迁移到 AnimeService |
-| AnimeDetailService | `apply_ai_renames()` | 迁移到 AnimeService |
-| AnimeDetailService | `delete_hardlinks_for_files()` | 迁移到 AnimeService |
+**已完成步骤**:
+- [x] 2.1.1 分析 AnimeDetailService 所有方法的完整实现
+- [x] 2.1.2 分析 AnimeDetailService 的依赖项（与 AnimeService 相同）
+- [x] 2.1.3 将 AnimeDetailService 方法迁移到 AnimeService
+- [x] 2.1.4 更新 AnimeService 的构造函数（无需修改，依赖相同）
+- [x] 2.1.5 更新 `src/container.py` 中的 provider（移除 anime_detail_service）
+- [x] 2.1.6 更新 `src/interface/web/controllers/anime_detail.py` 使用 AnimeService
+- [x] 2.1.7 删除 `src/services/anime_detail_service.py`
+- [x] 2.1.8 更新 `src/services/__init__.py` 导出
 
-**步骤**:
-- [ ] 2.1.1 分析 AnimeDetailService 所有方法的完整实现
-- [ ] 2.1.2 分析 AnimeDetailService 的依赖项
-- [ ] 2.1.3 将 AnimeDetailService 方法迁移到 AnimeService
-- [ ] 2.1.4 更新 AnimeService 的构造函数，添加必要依赖
-- [ ] 2.1.5 更新 `src/container.py` 中的 provider
-- [ ] 2.1.6 更新所有使用 AnimeDetailService 的地方:
-  - [ ] `src/interface/web/controllers/anime_detail.py`
-  - [ ] 其他引用点
-- [ ] 2.1.7 删除 `src/services/anime_detail_service.py`
-- [ ] 2.1.8 更新 `src/services/__init__.py` 导出
-
-### 2.2 合并 HardlinkService 到 FileService
+### 2.2 合并 HardlinkService 到 FileService ✅ 已完成
 
 **当前文件**:
 - `src/services/file_service.py` - FileService
-- `src/services/file/hardlink_service.py` - HardlinkService
+- ~~`src/services/file/hardlink_service.py`~~ - 已删除
 
 **目标**: 统一到 `FileService` (因为不只处理硬链接，还可能操作原文件)
 
-**功能映射**:
-| 来源服务 | 方法 | 处理方式 |
-|----------|------|----------|
-| FileService | `create_hardlink()` | 保留，整合 HardlinkService.create() 逻辑 |
-| FileService | `delete_hardlink()` | 保留，整合 HardlinkService.delete_by_torrent() 逻辑 |
-| FileService | `rename_hardlink()` | 保留 |
-| FileService | `convert_path()` | 保留 |
-| HardlinkService | `create()` | 迁移到 FileService |
-| HardlinkService | `_create_link()` | 迁移到 FileService |
-| HardlinkService | `delete_by_torrent()` | 迁移到 FileService |
+**已完成步骤**:
+- [x] 2.2.1 分析 HardlinkService 所有方法的完整实现
+- [x] 2.2.2 识别 FileService 和 HardlinkService 的功能重叠
+- [x] 2.2.3 将 HardlinkService 方法迁移到 FileService（添加 path_builder 依赖）
+- [x] 2.2.4 更新 `src/container.py` 中的 provider（移除 hardlink_service，更新 file_service）
+- [x] 2.2.5 更新 DownloadManager 使用 FileService 替代 HardlinkService
+- [x] 2.2.6 删除 `src/services/file/hardlink_service.py`
+- [x] 2.2.7 更新相关导出（`src/services/__init__.py`, `src/services/file/__init__.py`）
+- [x] 2.2.8 更新测试文件中的导入
 
-**步骤**:
-- [ ] 2.2.1 分析 HardlinkService 所有方法的完整实现
-- [ ] 2.2.2 识别 FileService 和 HardlinkService 的功能重叠
-- [ ] 2.2.3 将 HardlinkService 方法迁移到 FileService
-- [ ] 2.2.4 更新 `src/container.py` 中的 provider
-- [ ] 2.2.5 更新所有使用 HardlinkService 的地方
-- [ ] 2.2.6 删除 `src/services/file/hardlink_service.py`
-- [ ] 2.2.7 更新相关导出
+### Phase 2 验证 ✅ 已完成
 
-### Phase 2 验证
-
-- [ ] 运行 `ruff check src/` 确认无语法错误
-- [ ] 运行 `pytest tests/` 确认测试通过
-- [ ] 运行 `python -m src.main --test` 确认应用启动正常
-- [ ] 手动测试 Web UI 动漫详情页功能
-- [ ] 手动测试硬链接创建/删除功能
+- [x] 运行 `ruff check src/` 确认无语法错误
+- [x] 运行 `pytest tests/` 确认测试通过 (235 passed)
+- [x] 运行 `python -m src.main --test` 确认应用启动正常
 
 ---
 

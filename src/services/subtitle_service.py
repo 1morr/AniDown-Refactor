@@ -9,13 +9,13 @@ import os
 import shutil
 import tempfile
 import zipfile
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from src.core.domain.entities import SubtitleRecord
 from src.core.exceptions import AICircuitBreakerError, AIKeyExhaustedError
 from src.infrastructure.ai.subtitle_matcher import AISubtitleMatcher, MatchResult
-from src.infrastructure.repositories.subtitle_repository import SubtitleRepository
 from src.infrastructure.repositories.history_repository import HistoryRepository
+from src.infrastructure.repositories.subtitle_repository import SubtitleRepository
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ class SubtitleService:
         self._history_repo = history_repo
         self._subtitle_matcher = subtitle_matcher
 
-    def get_subtitles_for_anime(self, anime_id: int) -> Dict[str, Any]:
+    def get_subtitles_for_anime(self, anime_id: int) -> dict[str, Any]:
         """
         获取动漫的字幕列表和影片列表。
 
@@ -93,8 +93,8 @@ class SubtitleService:
         anime_id: int,
         archive_content: bytes,
         archive_name: str,
-        anime_title: Optional[str] = None
-    ) -> Dict[str, Any]:
+        anime_title: str | None = None
+    ) -> dict[str, Any]:
         """
         处理上传的字幕压缩档。
 
@@ -139,7 +139,7 @@ class SubtitleService:
             subtitle_files = self._extract_archive(archive_path, extract_dir)
 
             if not subtitle_files:
-                logger.warning(f'⚠️ 压缩档中没有找到字幕文件')
+                logger.warning('⚠️ 压缩档中没有找到字幕文件')
                 return {
                     'success': False,
                     'error': '压缩档中没有找到字幕文件（支持格式：.ass, .srt, .sub, .ssa, .vtt）'
@@ -188,7 +188,7 @@ class SubtitleService:
         self,
         archive_path: str,
         extract_to: str
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """
         解压压缩档，返回字幕文件映射。
 
@@ -249,9 +249,9 @@ class SubtitleService:
         self,
         anime_id: int,
         match_result: MatchResult,
-        subtitle_files: Dict[str, str],
+        subtitle_files: dict[str, str],
         archive_name: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         应用匹配结果：重命名并复制字幕文件。
 
@@ -333,7 +333,7 @@ class SubtitleService:
             'total_failed': len(failed_matches)
         }
 
-    def delete_subtitle(self, subtitle_id: int, delete_file: bool = True) -> Dict[str, Any]:
+    def delete_subtitle(self, subtitle_id: int, delete_file: bool = True) -> dict[str, Any]:
         """
         删除字幕记录。
 

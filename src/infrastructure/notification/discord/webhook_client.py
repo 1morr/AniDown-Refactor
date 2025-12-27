@@ -7,7 +7,7 @@ Discord Webhook 客户端模块。
 import logging
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import requests
 
@@ -25,8 +25,8 @@ class WebhookResponse:
         error_message: 错误消息（失败时）
     """
     success: bool
-    status_code: Optional[int] = None
-    error_message: Optional[str] = None
+    status_code: int | None = None
+    error_message: str | None = None
 
 
 class DiscordWebhookClient:
@@ -66,12 +66,12 @@ class DiscordWebhookClient:
             timeout: 请求超时时间（秒），默认 10 秒
         """
         self._timeout = timeout
-        self._webhooks: Dict[str, str] = {}
+        self._webhooks: dict[str, str] = {}
         self._enabled = True
 
     def configure(
         self,
-        webhooks: Dict[str, str],
+        webhooks: dict[str, str],
         enabled: bool = True
     ) -> None:
         """
@@ -90,11 +90,11 @@ class DiscordWebhookClient:
 
     def send(
         self,
-        embeds: List[Dict[str, Any]],
+        embeds: list[dict[str, Any]],
         channel_type: str = 'default',
-        content: Optional[str] = None,
-        username: Optional[str] = None,
-        avatar_url: Optional[str] = None
+        content: str | None = None,
+        username: str | None = None,
+        avatar_url: str | None = None
     ) -> WebhookResponse:
         """
         发送消息到 Discord（带重试机制）。
@@ -127,7 +127,7 @@ class DiscordWebhookClient:
                 error_message=f'Webhook not configured for: {channel_type}'
             )
 
-        payload: Dict[str, Any] = {}
+        payload: dict[str, Any] = {}
 
         if content:
             payload['content'] = content
@@ -147,7 +147,7 @@ class DiscordWebhookClient:
     def _send_with_retry(
         self,
         webhook_url: str,
-        payload: Dict[str, Any],
+        payload: dict[str, Any],
         channel_type: str
     ) -> WebhookResponse:
         """
@@ -166,8 +166,8 @@ class DiscordWebhookClient:
         Returns:
             WebhookResponse: 响应结果
         """
-        last_error: Optional[str] = None
-        last_status_code: Optional[int] = None
+        last_error: str | None = None
+        last_status_code: int | None = None
 
         for attempt in range(self.MAX_RETRIES + 1):
             try:
@@ -203,7 +203,7 @@ class DiscordWebhookClient:
                         continue
                     else:
                         logger.error(
-                            f'❌ Discord Rate Limit，已达最大重试次数'
+                            '❌ Discord Rate Limit，已达最大重试次数'
                         )
                         return WebhookResponse(
                             success=False,

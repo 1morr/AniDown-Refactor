@@ -5,7 +5,7 @@ Web 接口模块。
 """
 
 from .controllers import ai_queue_bp
-from .utils import APIResponse, handle_api_errors, WebLogger
+from .utils import APIResponse, WebLogger, handle_api_errors
 
 __all__ = [
     'ai_queue_bp',

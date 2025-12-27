@@ -3,18 +3,13 @@
 
 处理应用程序配置的管理和更新
 """
-from flask import Blueprint, render_template, request, redirect, url_for, flash
 import json
 import os
 
-from src.core.config import (
-    config, AppConfig, RSSFeed, OpenAIConfig, LanguagePriorityConfig
-)
-from src.interface.web.utils import (
-    APIResponse,
-    handle_api_errors,
-    WebLogger
-)
+from flask import Blueprint, flash, redirect, render_template, request, url_for
+
+from src.core.config import AppConfig, LanguagePriorityConfig, OpenAIConfig, RSSFeed, config
+from src.interface.web.utils import APIResponse, WebLogger, handle_api_errors
 from src.services.config_reloader import config_reloader, reload_config
 
 config_bp = Blueprint('config', __name__)
@@ -408,7 +403,7 @@ def update_config():
             message = f'配置已保存，部分组件重新加载失败 ({success_count}/{total_count})。{restart_msg}'
     else:
         if success_count == total_count:
-            message = f'配置已保存并实时生效'
+            message = '配置已保存并实时生效'
         else:
             failed_components = [k for k, v in reload_results.items() if not v]
             message = f'配置已保存，部分组件重新加载失败: {", ".join(failed_components)}'

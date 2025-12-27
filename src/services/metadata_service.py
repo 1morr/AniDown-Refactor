@@ -6,7 +6,7 @@ Provides anime metadata fetching and caching functionality.
 
 import json
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 from src.core.config import config
 from src.core.interfaces import IMetadataClient
@@ -31,7 +31,7 @@ class MetadataService:
         """
         self._metadata_client = metadata_client
 
-    def get_tvdb_data_for_anime(self, anime_name: str) -> Optional[Dict[str, Any]]:
+    def get_tvdb_data_for_anime(self, anime_name: str) -> dict[str, Any] | None:
         """
         Get TVDB data for an anime by name.
 
@@ -87,7 +87,7 @@ class MetadataService:
     def get_tvdb_data_by_id(
         self,
         series_id: int
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Get TVDB data by series ID.
 
@@ -138,8 +138,8 @@ class MetadataService:
 
     def _simplify_if_needed(
         self,
-        ai_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        ai_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Simplify AI data if it exceeds maximum length.
 
@@ -163,7 +163,7 @@ class MetadataService:
 
 
 # Global metadata service instance
-_metadata_service: Optional[MetadataService] = None
+_metadata_service: MetadataService | None = None
 
 
 def get_metadata_service() -> MetadataService:

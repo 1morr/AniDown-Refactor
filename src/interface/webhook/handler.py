@@ -5,14 +5,13 @@ Handles qBittorrent webhook callbacks for torrent events.
 """
 
 import logging
-from typing import Dict, Any
+from datetime import UTC
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify, request
 
 from src.services.queue.webhook_queue import (
-    get_webhook_queue,
     WebhookPayload,
-    WebhookQueueWorker,
+    get_webhook_queue,
 )
 
 logger = logging.getLogger(__name__)
@@ -50,7 +49,7 @@ def create_webhook_blueprint(prefix: str = '/webhook') -> Blueprint:
             hash_id = data.get('hash', '')
             torrent_name = data.get('name', data.get('torrent_name', '未知'))
 
-            logger.info(f'📨 收到 qBittorrent webhook')
+            logger.info('📨 收到 qBittorrent webhook')
             logger.info(f'  事件类型: {event_type}')
             logger.info(f'  种子Hash: {hash_id[:8]}...' if hash_id else '  种子Hash: (空)')
             logger.info(f'  种子名称: {torrent_name}')
@@ -80,12 +79,12 @@ def create_webhook_blueprint(prefix: str = '/webhook') -> Blueprint:
 
             logger.info(f'✅ 已将事件加入队列 (queue_id: {queued_event.queue_id})')
 
-            from datetime import datetime, timezone
+            from datetime import datetime
             return jsonify({
                 'success': True,
                 'queued': True,
                 'queue_id': queued_event.queue_id,
-                'received_at_utc': datetime.now(timezone.utc).isoformat(),
+                'received_at_utc': datetime.now(UTC).isoformat(),
                 'queue_len': queue_worker.qsize()
             }), 202
 

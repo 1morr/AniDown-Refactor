@@ -8,7 +8,7 @@ OpenAI API 客户端模块。
 import logging
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import requests
 
@@ -28,9 +28,9 @@ class APIResponse:
         response_time_ms: 响应时间（毫秒）
     """
     success: bool
-    content: Optional[str] = None
-    error_code: Optional[int] = None
-    error_message: Optional[str] = None
+    content: str | None = None
+    error_code: int | None = None
+    error_message: str | None = None
     response_time_ms: int = 0
 
 
@@ -67,9 +67,9 @@ class OpenAIClient:
         base_url: str,
         api_key: str,
         model: str,
-        messages: List[Dict[str, str]],
-        response_format: Optional[Dict[str, Any]] = None,
-        extra_params: Optional[Dict[str, Any]] = None
+        messages: list[dict[str, str]],
+        response_format: dict[str, Any] | None = None,
+        extra_params: dict[str, Any] | None = None
     ) -> APIResponse:
         """
         发送 API 请求。
@@ -92,7 +92,7 @@ class OpenAIClient:
             'Content-Type': 'application/json'
         }
 
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             'model': model,
             'messages': messages,
             'temperature': 0.1

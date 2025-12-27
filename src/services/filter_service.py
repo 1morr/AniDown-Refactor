@@ -6,7 +6,8 @@ Provides content filtering functionality using keywords and regular expressions.
 
 import logging
 import re
-from typing import Dict, Any, List, Pattern
+from re import Pattern
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -20,13 +21,13 @@ class FilterService:
 
     def __init__(self):
         """Initialize the filter service."""
-        self._compiled_regex_cache: Dict[str, Pattern] = {}
+        self._compiled_regex_cache: dict[str, Pattern] = {}
 
     def apply_keyword_filter(
         self,
-        items: List[Dict[str, Any]],
+        items: list[dict[str, Any]],
         blocked_keywords: str
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Apply keyword filter to a list of items.
 
@@ -69,9 +70,9 @@ class FilterService:
 
     def apply_regex_filter(
         self,
-        items: List[Dict[str, Any]],
+        items: list[dict[str, Any]],
         blocked_regex: str
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Apply regular expression filter to a list of items.
 
@@ -155,7 +156,7 @@ class FilterService:
 
         return False
 
-    def _compile_regex_patterns(self, patterns_str: str) -> List[Pattern]:
+    def _compile_regex_patterns(self, patterns_str: str) -> list[Pattern]:
         """
         Compile regex patterns from a newline-separated string.
 

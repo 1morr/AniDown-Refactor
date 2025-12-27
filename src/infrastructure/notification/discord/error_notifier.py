@@ -5,9 +5,9 @@ Discord 错误通知实现模块。
 """
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
-from src.core.interfaces.notifications import IErrorNotifier, ErrorNotification
+from src.core.interfaces.notifications import ErrorNotification, IErrorNotifier
 
 from .embed_builder import EmbedBuilder
 from .webhook_client import DiscordWebhookClient
@@ -33,7 +33,7 @@ class DiscordErrorNotifier(IErrorNotifier):
     def __init__(
         self,
         webhook_client: DiscordWebhookClient,
-        embed_builder: Optional[EmbedBuilder] = None,
+        embed_builder: EmbedBuilder | None = None,
         default_channel: str = 'rss'
     ):
         """
@@ -78,7 +78,7 @@ class DiscordErrorNotifier(IErrorNotifier):
     def notify_warning(
         self,
         message: str,
-        context: Optional[Dict[str, Any]] = None
+        context: dict[str, Any] | None = None
     ) -> None:
         """
         发送警告通知。
@@ -131,8 +131,8 @@ class DiscordErrorNotifier(IErrorNotifier):
         self,
         error_type: str,
         error_message: str,
-        context: Optional[Dict[str, Any]] = None,
-        channel_type: Optional[str] = None
+        context: dict[str, Any] | None = None,
+        channel_type: str | None = None
     ) -> None:
         """
         发送详细的错误通知。
@@ -168,7 +168,7 @@ class DiscordErrorNotifier(IErrorNotifier):
 
     def _determine_channel(
         self,
-        context: Optional[Dict[str, Any]]
+        context: dict[str, Any] | None
     ) -> str:
         """
         根据上下文确定发送频道。

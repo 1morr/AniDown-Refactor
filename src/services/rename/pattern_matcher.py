@@ -7,7 +7,6 @@ Provides regex-based pattern matching for episode and season extraction.
 import logging
 import re
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +27,8 @@ class EpisodeMatch:
     """
     episode: int
     season: int = 1
-    version: Optional[str] = None
-    special: Optional[str] = None
+    version: str | None = None
+    special: str | None = None
     match_text: str = ''
 
     @property
@@ -53,7 +52,7 @@ class PatternMatcher:
     """
 
     # Episode patterns (ordered by specificity)
-    EPISODE_PATTERNS: List[Tuple[str, str]] = [
+    EPISODE_PATTERNS: list[tuple[str, str]] = [
         # S01E05 or S1E5 format
         (r'[Ss](\d{1,2})[Ee](\d{1,4})', 'season_episode'),
         # - 05 - or [05] format (common in fansubs)
@@ -72,7 +71,7 @@ class PatternMatcher:
     ]
 
     # Season patterns
-    SEASON_PATTERNS: List[Tuple[str, str]] = [
+    SEASON_PATTERNS: list[tuple[str, str]] = [
         # Season 2 or Season2 or S2
         (r'[Ss]eason\s*(\d{1,2})', 'season_word'),
         (r'[Ss](\d{1,2})[Ee]', 'season_prefix'),
@@ -86,7 +85,7 @@ class PatternMatcher:
     ]
 
     # Special episode patterns
-    SPECIAL_PATTERNS: List[Tuple[str, str]] = [
+    SPECIAL_PATTERNS: list[tuple[str, str]] = [
         (r'[Ss][Pp](\d{1,2})', 'sp_number'),
         (r'[Ss]pecial\s*(\d{1,2})?', 'special_word'),
         (r'[Oo][Aa][Dd]\s*(\d{1,2})?', 'oad'),
@@ -120,7 +119,7 @@ class PatternMatcher:
             (re.compile(pattern), name) for pattern, name in self.SPECIAL_PATTERNS
         ]
 
-    def extract_episode(self, filename: str) -> Optional[EpisodeMatch]:
+    def extract_episode(self, filename: str) -> EpisodeMatch | None:
         """
         Extract episode information from a filename.
 
@@ -153,7 +152,7 @@ class PatternMatcher:
         self,
         match: re.Match,
         pattern_name: str
-    ) -> Optional[EpisodeMatch]:
+    ) -> EpisodeMatch | None:
         """
         Parse a regex match into an EpisodeMatch.
 
@@ -194,7 +193,7 @@ class PatternMatcher:
         except (ValueError, IndexError):
             return None
 
-    def _extract_season(self, filename: str) -> Optional[int]:
+    def _extract_season(self, filename: str) -> int | None:
         """
         Extract season number from filename.
 
@@ -218,7 +217,7 @@ class PatternMatcher:
                     continue
         return None
 
-    def _match_special(self, filename: str) -> Optional[EpisodeMatch]:
+    def _match_special(self, filename: str) -> EpisodeMatch | None:
         """
         Match special episode patterns.
 

@@ -5,8 +5,8 @@ Discord Embed 构建器模块。
 """
 
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -52,9 +52,9 @@ class EmbedBuilder:
     def _base_embed(
         self,
         title: str,
-        description: Optional[str] = None,
+        description: str | None = None,
         color: int = COLOR_INFO
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         创建基础 Embed 结构。
 
@@ -66,10 +66,10 @@ class EmbedBuilder:
         Returns:
             Embed 字典
         """
-        embed: Dict[str, Any] = {
+        embed: dict[str, Any] = {
             'title': title,
             'color': color,
-            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'timestamp': datetime.now(UTC).isoformat(),
             'footer': {
                 'text': self._app_name
             }
@@ -82,9 +82,9 @@ class EmbedBuilder:
 
     def _add_fields(
         self,
-        embed: Dict[str, Any],
-        fields: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        embed: dict[str, Any],
+        fields: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """
         添加字段到 Embed。
 
@@ -104,8 +104,8 @@ class EmbedBuilder:
         self,
         trigger_type: str,
         rss_url: str,
-        title: Optional[str] = None
-    ) -> Dict[str, Any]:
+        title: str | None = None
+    ) -> dict[str, Any]:
         """
         构建 RSS 处理开始通知 Embed。
 
@@ -139,8 +139,8 @@ class EmbedBuilder:
         self,
         success_count: int,
         total_count: int,
-        failed_items: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        failed_items: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """
         构建 RSS 处理完成通知 Embed。
 
@@ -202,10 +202,10 @@ class EmbedBuilder:
         self,
         anime_title: str,
         season: int,
-        episode: Optional[int],
+        episode: int | None,
         subtitle_group: str,
         hash_id: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         构建下载开始通知 Embed。
 
@@ -242,10 +242,10 @@ class EmbedBuilder:
         self,
         anime_title: str,
         season: int,
-        episode: Optional[int],
+        episode: int | None,
         subtitle_group: str,
         hash_id: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         构建下载完成通知 Embed。
 
@@ -280,8 +280,8 @@ class EmbedBuilder:
         self,
         anime_title: str,
         error_message: str,
-        hash_id: Optional[str] = None
-    ) -> Dict[str, Any]:
+        hash_id: str | None = None
+    ) -> dict[str, Any]:
         """
         构建下载失败通知 Embed。
 
@@ -322,7 +322,7 @@ class EmbedBuilder:
         subtitle_count: int,
         target_dir: str,
         rename_method: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         构建硬链接创建通知 Embed。
 
@@ -359,9 +359,9 @@ class EmbedBuilder:
         self,
         anime_title: str,
         error_message: str,
-        source_path: Optional[str] = None,
-        target_path: Optional[str] = None
-    ) -> Dict[str, Any]:
+        source_path: str | None = None,
+        target_path: str | None = None
+    ) -> dict[str, Any]:
         """
         构建硬链接失败通知 Embed。
 
@@ -408,8 +408,8 @@ class EmbedBuilder:
         self,
         error_type: str,
         error_message: str,
-        context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        context: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         构建错误通知 Embed。
 
@@ -444,8 +444,8 @@ class EmbedBuilder:
         self,
         warning_type: str,
         warning_message: str,
-        context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        context: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         构建警告通知 Embed。
 
@@ -533,7 +533,7 @@ class EmbedBuilder:
         project_name: str,
         context: str,
         operation: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         构建 AI 使用通知 Embed。
 
@@ -574,8 +574,8 @@ class EmbedBuilder:
         subtitle_group: str,
         download_path: str,
         season: int = 1,
-        episode: Optional[int] = None
-    ) -> Dict[str, Any]:
+        episode: int | None = None
+    ) -> dict[str, Any]:
         """
         构建 RSS 下载任务通知 Embed（即时发送）。
 
@@ -623,8 +623,8 @@ class EmbedBuilder:
         total_count: int,
         attempt_count: int,
         status: str,
-        failed_items: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        failed_items: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """
         构建增强版 RSS 处理完成通知 Embed。
 
@@ -706,7 +706,7 @@ class EmbedBuilder:
         processed_count: int,
         total_count: int,
         reason: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         构建 RSS 处理中断通知 Embed。
 
@@ -742,7 +742,7 @@ class EmbedBuilder:
         save_path: str,
         content_path: str,
         torrent_name: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         构建 Webhook 接收通知 Embed。
 
@@ -789,8 +789,8 @@ class EmbedBuilder:
         rename_method: str,
         video_count: int,
         subtitle_count: int,
-        rename_examples: List[str]
-    ) -> Dict[str, Any]:
+        rename_examples: list[str]
+    ) -> dict[str, Any]:
         """
         构建详细硬链接成功通知 Embed。
 

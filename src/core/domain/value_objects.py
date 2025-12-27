@@ -8,7 +8,6 @@ Value objects are compared by their attributes, not by identity.
 import re
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 
 class DownloadStatus(Enum):
@@ -123,7 +122,7 @@ class AnimeTitle:
     """
     original: str
     short: str
-    full: Optional[str] = None
+    full: str | None = None
 
     @property
     def display_name(self) -> str:

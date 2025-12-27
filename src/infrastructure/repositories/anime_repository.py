@@ -6,9 +6,9 @@ Contains the AnimeRepository class implementing IAnimeRepository interface.
 
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from difflib import SequenceMatcher
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from sqlalchemy import or_
 
@@ -20,7 +20,6 @@ from src.core.domain.value_objects import (
     SeasonInfo,
     SubtitleGroup,
 )
-from src.core.exceptions import DatabaseError
 from src.core.interfaces.repositories import IAnimeRepository
 from src.infrastructure.database.models import AnimeInfo, AnimePattern
 from src.infrastructure.database.session import db_manager
@@ -60,7 +59,7 @@ class AnimeRepository(IAnimeRepository):
             updated_at=row.updated_at
         )
 
-    def _to_dict(self, row: AnimeInfo) -> Dict[str, Any]:
+    def _to_dict(self, row: AnimeInfo) -> dict[str, Any]:
         """将数据库行转换为字典"""
         return {
             'id': row.id,
@@ -78,7 +77,7 @@ class AnimeRepository(IAnimeRepository):
 
     # ==================== IAnimeRepository Interface ====================
 
-    def get_by_id(self, anime_id: int) -> Optional[AnimeInfoEntity]:
+    def get_by_id(self, anime_id: int) -> AnimeInfoEntity | None:
         """根据ID查找动漫信息"""
         with db_manager.session() as session:
             anime = session.query(AnimeInfo).filter_by(id=anime_id).first()
@@ -86,7 +85,7 @@ class AnimeRepository(IAnimeRepository):
                 return self._to_entity(anime)
             return None
 
-    def get_by_title(self, title: str) -> Optional[AnimeInfoEntity]:
+    def get_by_title(self, title: str) -> AnimeInfoEntity | None:
         """根据标题查找动漫信息（模糊匹配）"""
         with db_manager.session() as session:
             anime = session.query(AnimeInfo).filter_by(original_title=title).first()
@@ -97,9 +96,9 @@ class AnimeRepository(IAnimeRepository):
     def get_by_core_info(
         self,
         title: str,
-        subtitle_group: Optional[str] = None,
-        season: Optional[int] = None
-    ) -> Optional[AnimeInfoEntity]:
+        subtitle_group: str | None = None,
+        season: int | None = None
+    ) -> AnimeInfoEntity | None:
         """根据动漫核心信息查找动漫信息"""
         clean_title = self._clean_title_for_matching(title)
 
@@ -145,7 +144,7 @@ class AnimeRepository(IAnimeRepository):
 
             return None
 
-    def get_all(self, limit: int = 100, offset: int = 0) -> List[AnimeInfoEntity]:
+    def get_all(self, limit: int = 100, offset: int = 0) -> list[AnimeInfoEntity]:
         """获取所有动漫（分页）"""
         with db_manager.session() as session:
             anime_list = session.query(AnimeInfo).order_by(
@@ -212,7 +211,7 @@ class AnimeRepository(IAnimeRepository):
             if anime.tvdb_id is not None:
                 db_anime.tvdb_id = anime.tvdb_id
 
-            db_anime.updated_at = datetime.now(timezone.utc)
+            db_anime.updated_at = datetime.now(UTC)
             return True
 
     def delete(self, anime_id: int) -> bool:
@@ -252,7 +251,7 @@ class AnimeRepository(IAnimeRepository):
             session.flush()
             return anime.id
 
-    def get_anime_by_title(self, title: str) -> Optional[Dict[str, Any]]:
+    def get_anime_by_title(self, title: str) -> dict[str, Any] | None:
         """根据标题查找动漫信息（遗留方法，返回字典）"""
         with db_manager.session() as session:
             anime = session.query(AnimeInfo).filter_by(original_title=title).first()
@@ -260,7 +259,7 @@ class AnimeRepository(IAnimeRepository):
                 return self._to_dict(anime)
             return None
 
-    def get_anime_by_id(self, anime_id: int) -> Optional[Dict[str, Any]]:
+    def get_anime_by_id(self, anime_id: int) -> dict[str, Any] | None:
         """根据ID查找动漫信息（遗留方法，返回字典）"""
         with db_manager.session() as session:
             anime = session.query(AnimeInfo).filter_by(id=anime_id).first()
@@ -268,7 +267,7 @@ class AnimeRepository(IAnimeRepository):
                 return self._to_dict(anime)
             return None
 
-    def get_anime_by_core_info(self, title: str) -> Optional[Dict[str, Any]]:
+    def get_anime_by_core_info(self, title: str) -> dict[str, Any] | None:
         """根据动漫核心信息查找动漫信息（遗留方法，返回字典）"""
         entity = self.get_by_core_info(title)
         if entity:
@@ -311,11 +310,11 @@ class AnimeRepository(IAnimeRepository):
             anime = session.query(AnimeInfo).filter_by(id=anime_id).first()
             if anime:
                 anime.tvdb_id = tvdb_id
-                anime.updated_at = datetime.now(timezone.utc)
+                anime.updated_at = datetime.now(UTC)
                 return True
             return False
 
-    def insert_patterns(self, anime_id: int, patterns: Dict[str, str]) -> int:
+    def insert_patterns(self, anime_id: int, patterns: dict[str, str]) -> int:
         """插入或更新正则模式"""
         with db_manager.session() as session:
             existing = session.query(AnimePattern).filter_by(anime_id=anime_id).first()
@@ -324,7 +323,7 @@ class AnimeRepository(IAnimeRepository):
                 for key, value in patterns.items():
                     if hasattr(existing, key):
                         setattr(existing, key, value)
-                existing.updated_at = datetime.now(timezone.utc)
+                existing.updated_at = datetime.now(UTC)
                 return existing.id
             else:
                 pattern = AnimePattern(anime_id=anime_id, **patterns)
@@ -332,7 +331,7 @@ class AnimeRepository(IAnimeRepository):
                 session.flush()
                 return pattern.id
 
-    def get_patterns(self, anime_id: int) -> Optional[Dict[str, str]]:
+    def get_patterns(self, anime_id: int) -> dict[str, str] | None:
         """获取正则模式"""
         with db_manager.session() as session:
             pattern = session.query(AnimePattern).filter_by(anime_id=anime_id).first()
@@ -361,10 +360,10 @@ class AnimeRepository(IAnimeRepository):
         """统计最近新增动漫数量"""
         from datetime import timedelta
         with db_manager.session() as session:
-            cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+            cutoff = datetime.now(UTC) - timedelta(hours=hours)
             return session.query(AnimeInfo).filter(AnimeInfo.created_at >= cutoff).count()
 
-    def get_recent_anime(self, limit: int = 10) -> List[Dict[str, Any]]:
+    def get_recent_anime(self, limit: int = 10) -> list[dict[str, Any]]:
         """获取最近新增动漫"""
         with db_manager.session() as session:
             anime_list = session.query(AnimeInfo).order_by(
@@ -372,7 +371,7 @@ class AnimeRepository(IAnimeRepository):
             ).limit(limit).all()
             return [self._to_dict(anime) for anime in anime_list]
 
-    def get_patterns_by_anime_id(self, anime_id: int) -> Optional[Dict[str, Any]]:
+    def get_patterns_by_anime_id(self, anime_id: int) -> dict[str, Any] | None:
         """获取动漫的正则模式对象"""
         with db_manager.session() as session:
             pattern = session.query(AnimePattern).filter_by(anime_id=anime_id).first()

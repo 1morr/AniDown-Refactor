@@ -6,14 +6,15 @@ providing access to various history records.
 """
 
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
-from sqlalchemy import func, or_
+from sqlalchemy import or_
 
 from src.core.domain.entities import HardlinkRecord
 from src.core.interfaces.repositories import IHardlinkRepository
 from src.infrastructure.database.models import (
+    AnimeInfo,
     DownloadHistory,
     DownloadStatus,
     Hardlink,
@@ -22,7 +23,6 @@ from src.infrastructure.database.models import (
     RssProcessingDetail,
     RssProcessingHistory,
     TorrentFile,
-    AnimeInfo,
 )
 from src.infrastructure.database.session import db_manager
 
@@ -46,7 +46,7 @@ class HistoryRepository(IHardlinkRepository):
 
     # ==================== IHardlinkRepository Interface ====================
 
-    def get_by_id(self, hardlink_id: int) -> Optional[HardlinkRecord]:
+    def get_by_id(self, hardlink_id: int) -> HardlinkRecord | None:
         """根据ID获取硬链接"""
         with db_manager.session() as session:
             hardlink = session.query(Hardlink).filter_by(id=hardlink_id).first()
@@ -54,7 +54,7 @@ class HistoryRepository(IHardlinkRepository):
                 return self._to_entity(hardlink)
             return None
 
-    def get_by_torrent_hash(self, hash_id: str) -> List[HardlinkRecord]:
+    def get_by_torrent_hash(self, hash_id: str) -> list[HardlinkRecord]:
         """根据torrent hash获取硬链接"""
         with db_manager.session() as session:
             hardlinks = session.query(Hardlink).filter_by(
@@ -62,7 +62,7 @@ class HistoryRepository(IHardlinkRepository):
             ).order_by(Hardlink.created_at.desc()).all()
             return [self._to_entity(hl) for hl in hardlinks]
 
-    def get_by_anime_id(self, anime_id: int) -> List[HardlinkRecord]:
+    def get_by_anime_id(self, anime_id: int) -> list[HardlinkRecord]:
         """根据anime ID获取硬链接"""
         with db_manager.session() as session:
             hardlinks = session.query(Hardlink).filter_by(
@@ -114,7 +114,7 @@ class HistoryRepository(IHardlinkRepository):
         file_size: int = None,
         anime_id: int = None,
         torrent_hash: str = None
-    ) -> Optional[int]:
+    ) -> int | None:
         """插入硬链接记录"""
         with db_manager.session() as session:
             existing = session.query(Hardlink).filter_by(
@@ -232,7 +232,7 @@ class HistoryRepository(IHardlinkRepository):
                 if status:
                     history.status = status
                     if status in ['completed', 'failed']:
-                        history.completed_at = datetime.now(timezone.utc)
+                        history.completed_at = datetime.now(UTC)
                 return True
             return False
 
@@ -271,7 +271,7 @@ class HistoryRepository(IHardlinkRepository):
                 # 检查是否所有项目都已处理完成
                 if history.items_attempted and history.items_processed >= history.items_attempted:
                     history.status = 'completed'
-                    history.completed_at = datetime.now(timezone.utc)
+                    history.completed_at = datetime.now(UTC)
                 return True
             return False
 
@@ -308,12 +308,12 @@ class HistoryRepository(IHardlinkRepository):
                 status='processing'
             ).update({
                 'status': 'interrupted',
-                'completed_at': datetime.now(timezone.utc)
+                'completed_at': datetime.now(UTC)
             })
             logger.info(f'📋 标记了 {result} 条 processing 状态的历史记录为 interrupted')
             return result
 
-    def mark_history_interrupted(self, history_ids: List[int]) -> int:
+    def mark_history_interrupted(self, history_ids: list[int]) -> int:
         """
         将指定的历史记录标记为 interrupted。
 
@@ -337,7 +337,7 @@ class HistoryRepository(IHardlinkRepository):
                 RssProcessingHistory.status == 'processing'
             ).update({
                 'status': 'interrupted',
-                'completed_at': datetime.now(timezone.utc)
+                'completed_at': datetime.now(UTC)
             }, synchronize_session=False)
             logger.info(f'📋 标记了 {result} 条历史记录为 interrupted')
             return result
@@ -393,7 +393,7 @@ class HistoryRepository(IHardlinkRepository):
         with db_manager.session() as session:
             return session.query(Hardlink).count()
 
-    def get_last_rss_check_time(self) -> Optional[datetime]:
+    def get_last_rss_check_time(self) -> datetime | None:
         """获取上次RSS检查时间"""
         with db_manager.session() as session:
             history = session.query(RssProcessingHistory).order_by(
@@ -403,7 +403,7 @@ class HistoryRepository(IHardlinkRepository):
                 return history.created_at
             return None
 
-    def get_download_history_by_hash(self, hash_id: str) -> Optional[Dict[str, Any]]:
+    def get_download_history_by_hash(self, hash_id: str) -> dict[str, Any] | None:
         """根据hash获取下载历史记录"""
         with db_manager.session() as session:
             history = session.query(DownloadHistory).filter_by(hash_id=hash_id).first()
@@ -442,7 +442,7 @@ class HistoryRepository(IHardlinkRepository):
             result = session.query(DownloadHistory).delete()
             return result
 
-    def get_hardlinks_by_hash(self, hash_id: str) -> List[Dict[str, Any]]:
+    def get_hardlinks_by_hash(self, hash_id: str) -> list[dict[str, Any]]:
         """根据hash获取硬链接（返回字典）"""
         with db_manager.session() as session:
             hardlinks = session.query(Hardlink).filter_by(
@@ -459,7 +459,7 @@ class HistoryRepository(IHardlinkRepository):
                 'created_at': hl.created_at
             } for hl in hardlinks]
 
-    def get_torrent_files_data_by_hash(self, hash_id: str) -> Dict[str, Any]:
+    def get_torrent_files_data_by_hash(self, hash_id: str) -> dict[str, Any]:
         """根据hash获取torrent文件信息"""
         with db_manager.session() as session:
             download_info = session.query(DownloadStatus).filter_by(hash_id=hash_id).first()
@@ -515,7 +515,7 @@ class HistoryRepository(IHardlinkRepository):
                 'files': files_data
             }
 
-    def get_hardlink_by_id(self, hardlink_id: int) -> Optional[Hardlink]:
+    def get_hardlink_by_id(self, hardlink_id: int) -> Hardlink | None:
         """根据ID获取硬链接（返回ORM对象）"""
         with db_manager.session() as session:
             return session.query(Hardlink).filter_by(id=hardlink_id).first()
@@ -533,7 +533,7 @@ class HistoryRepository(IHardlinkRepository):
                 return True
             return False
 
-    def get_all_hardlinks(self) -> List[Dict[str, Any]]:
+    def get_all_hardlinks(self) -> list[dict[str, Any]]:
         """获取所有硬链接"""
         with db_manager.session() as session:
             hardlinks = session.query(Hardlink).order_by(Hardlink.created_at.desc()).all()
@@ -555,7 +555,7 @@ class HistoryRepository(IHardlinkRepository):
         search: str = '',
         sort_column: str = 'deleted_at',
         sort_order: str = 'desc'
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """获取分页的下载历史记录"""
         with db_manager.session() as session:
             query = session.query(DownloadHistory, AnimeInfo.media_type).outerjoin(
@@ -617,19 +617,19 @@ class HistoryRepository(IHardlinkRepository):
                 'per_page': per_page
             }
 
-    def get_rss_processing_history(self, limit: int = 10) -> List[RssProcessingHistory]:
+    def get_rss_processing_history(self, limit: int = 10) -> list[RssProcessingHistory]:
         """获取RSS处理历史"""
         with db_manager.session() as session:
             return session.query(RssProcessingHistory).order_by(
                 RssProcessingHistory.created_at.desc()
             ).limit(limit).all()
 
-    def get_rss_processing_history_by_id(self, history_id: int) -> Optional[RssProcessingHistory]:
+    def get_rss_processing_history_by_id(self, history_id: int) -> RssProcessingHistory | None:
         """根据ID获取RSS处理历史"""
         with db_manager.session() as session:
             return session.query(RssProcessingHistory).filter_by(id=history_id).first()
 
-    def get_rss_processing_details(self, history_id: int) -> List[RssProcessingDetail]:
+    def get_rss_processing_details(self, history_id: int) -> list[RssProcessingDetail]:
         """获取RSS处理详情"""
         with db_manager.session() as session:
             return session.query(RssProcessingDetail).filter_by(history_id=history_id).all()
@@ -641,7 +641,7 @@ class HistoryRepository(IHardlinkRepository):
             result = session.query(RssProcessingHistory).filter_by(id=history_id).delete()
             return result > 0
 
-    def get_manual_upload_history(self, limit: int = 20) -> List[Dict[str, Any]]:
+    def get_manual_upload_history(self, limit: int = 20) -> list[dict[str, Any]]:
         """获取手动上传历史"""
         with db_manager.session() as session:
             records = session.query(ManualUploadHistory).order_by(
@@ -660,7 +660,7 @@ class HistoryRepository(IHardlinkRepository):
                 'created_at': record.created_at.isoformat() if record.created_at else None
             } for record in records]
 
-    def get_rss_history_stats(self, history_id: int) -> Optional[Dict[str, Any]]:
+    def get_rss_history_stats(self, history_id: int) -> dict[str, Any] | None:
         """获取RSS历史统计信息"""
         with db_manager.session() as session:
             record = session.query(RssProcessingHistory).filter_by(id=history_id).first()
@@ -674,7 +674,7 @@ class HistoryRepository(IHardlinkRepository):
                 'status': record.status or 'unknown'
             }
 
-    def get_rss_detail_stats(self, history_id: int) -> Dict[str, int]:
+    def get_rss_detail_stats(self, history_id: int) -> dict[str, int]:
         """获取RSS详情统计（按状态分组）"""
         with db_manager.session() as session:
             details = session.query(RssProcessingDetail).filter_by(history_id=history_id).all()
@@ -687,7 +687,7 @@ class HistoryRepository(IHardlinkRepository):
 
     def get_rss_details_by_status(
         self, history_id: int, status: str
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """获取指定状态的RSS详情"""
         with db_manager.session() as session:
             details = session.query(RssProcessingDetail).filter_by(
@@ -703,7 +703,7 @@ class HistoryRepository(IHardlinkRepository):
                 for d in details
             ]
 
-    def get_hardlink_attempts_stats(self) -> Dict[str, int]:
+    def get_hardlink_attempts_stats(self) -> dict[str, int]:
         """获取硬链接尝试统计"""
         with db_manager.session() as session:
             total = session.query(HardlinkAttempt).count()
@@ -721,7 +721,7 @@ class HistoryRepository(IHardlinkRepository):
         per_page: int,
         search: str = '',
         success_filter: bool = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """获取分页的硬链接尝试记录"""
         with db_manager.session() as session:
             query = session.query(HardlinkAttempt)

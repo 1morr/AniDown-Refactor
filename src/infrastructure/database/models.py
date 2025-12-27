@@ -5,8 +5,15 @@ Contains SQLAlchemy ORM models for the AniDown application.
 """
 
 from sqlalchemy import (
-    Column, Integer, String, Text, Float, ForeignKey,
-    TIMESTAMP, UniqueConstraint, Index, func
+    TIMESTAMP,
+    Column,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    Text,
+    UniqueConstraint,
+    func,
 )
 from sqlalchemy.orm import declarative_base, relationship
 

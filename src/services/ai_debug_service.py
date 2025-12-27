@@ -8,9 +8,9 @@ import json
 import logging
 import os
 from collections import deque
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Deque, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ class AIDebugService:
 
     def __init__(
         self,
-        debug_dir: Optional[str] = None,
+        debug_dir: str | None = None,
         max_logs: int = DEFAULT_MAX_LOGS
     ):
         """
@@ -46,7 +46,7 @@ class AIDebugService:
 
         self._max_logs = max_logs
         self._enabled = False
-        self._log_files: Deque[Path] = deque(maxlen=max_logs)
+        self._log_files: deque[Path] = deque(maxlen=max_logs)
 
     @property
     def is_enabled(self) -> bool:
@@ -83,20 +83,20 @@ class AIDebugService:
 
     def log_ai_interaction(
         self,
-        operation: Optional[str] = None,
-        input_data: Optional[Dict[str, Any]] = None,
-        output_data: Optional[Any] = None,
-        model: Optional[str] = None,
-        response_time_ms: Optional[float] = None,
-        key_id: Optional[str] = None,
+        operation: str | None = None,
+        input_data: dict[str, Any] | None = None,
+        output_data: Any | None = None,
+        model: str | None = None,
+        response_time_ms: float | None = None,
+        key_id: str | None = None,
         success: bool = True,
-        error_message: Optional[str] = None,
+        error_message: str | None = None,
         # Legacy parameters for backward compatibility
-        system_prompt: Optional[str] = None,
-        user_prompt: Optional[str] = None,
-        ai_response: Optional[Dict[str, Any]] = None,
-        context: Optional[Dict[str, Any]] = None,
-        error: Optional[str] = None
+        system_prompt: str | None = None,
+        user_prompt: str | None = None,
+        ai_response: dict[str, Any] | None = None,
+        context: dict[str, Any] | None = None,
+        error: str | None = None
     ) -> None:
         """
         Log an AI interaction.
@@ -132,7 +132,7 @@ class AIDebugService:
             if operation is not None:
                 # New-style call
                 log_data = {
-                    'timestamp': datetime.now(timezone.utc).isoformat(),
+                    'timestamp': datetime.now(UTC).isoformat(),
                     'operation': operation,
                     'model': model,
                     'key_id': key_id,
@@ -145,7 +145,7 @@ class AIDebugService:
             else:
                 # Legacy call
                 log_data = {
-                    'timestamp': datetime.now(timezone.utc).isoformat(),
+                    'timestamp': datetime.now(UTC).isoformat(),
                     'model': model,
                     'system_prompt': system_prompt,
                     'user_prompt': user_prompt,
@@ -167,7 +167,7 @@ class AIDebugService:
         except Exception as e:
             logger.error(f'❌ 记录AI交互失败: {e}', exc_info=True)
 
-    def get_latest_logs(self, count: int = 10) -> List[str]:
+    def get_latest_logs(self, count: int = 10) -> list[str]:
         """
         Get the latest log file paths.
 
@@ -188,7 +188,7 @@ class AIDebugService:
 
         return [str(f) for f in log_files[:count]]
 
-    def read_log(self, log_file: str) -> Optional[Dict[str, Any]]:
+    def read_log(self, log_file: str) -> dict[str, Any] | None:
         """
         Read a log file.
 
@@ -199,7 +199,7 @@ class AIDebugService:
             Log data dictionary if successful, None otherwise.
         """
         try:
-            with open(log_file, 'r', encoding='utf-8') as f:
+            with open(log_file, encoding='utf-8') as f:
                 return json.load(f)
         except Exception as e:
             logger.error(f'❌ 读取日志文件失败 {log_file}: {e}')
@@ -249,7 +249,7 @@ class AIDebugService:
 
 
 # Global AI debug service instance
-_ai_debug_service: Optional[AIDebugService] = None
+_ai_debug_service: AIDebugService | None = None
 
 
 def get_ai_debug_service() -> AIDebugService:

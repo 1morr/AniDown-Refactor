@@ -3,21 +3,17 @@
 
 处理数据库表查看、SQL 执行等功能
 """
-from flask import Blueprint, render_template, request
-from dependency_injector.wiring import inject, Provide
 import time
-from datetime import datetime, timezone
-from sqlalchemy import text, inspect
+from datetime import UTC, datetime
+
+from dependency_injector.wiring import Provide, inject
+from flask import Blueprint, render_template, request
+from sqlalchemy import inspect, text
 
 from src.container import Container
-from src.infrastructure.database.session import DatabaseSessionManager
 from src.infrastructure.database.models import SqlQueryHistory
-from src.interface.web.utils import (
-    APIResponse,
-    handle_api_errors,
-    validate_json,
-    WebLogger
-)
+from src.infrastructure.database.session import DatabaseSessionManager
+from src.interface.web.utils import APIResponse, WebLogger, handle_api_errors, validate_json
 
 database_bp = Blueprint('database', __name__)
 logger = WebLogger(__name__)
@@ -135,7 +131,7 @@ def execute_sql_api(
                                     dt = datetime.strptime(dt_str, "%Y-%m-%d %H:%M:%S.%f")
                                 else:
                                     dt = datetime.strptime(dt_str, "%Y-%m-%d %H:%M:%S")
-                                dt = dt.replace(tzinfo=timezone.utc)
+                                dt = dt.replace(tzinfo=UTC)
                                 row[idx] = dt
                             except (ValueError, TypeError):
                                 pass
@@ -344,7 +340,7 @@ def _get_table_data_paginated(
                                 dt = datetime.strptime(dt_str, "%Y-%m-%d %H:%M:%S.%f")
                             else:
                                 dt = datetime.strptime(dt_str, "%Y-%m-%d %H:%M:%S")
-                            dt = dt.replace(tzinfo=timezone.utc)
+                            dt = dt.replace(tzinfo=UTC)
                             row[idx] = dt
                         except (ValueError, TypeError):
                             pass

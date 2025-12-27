@@ -5,8 +5,9 @@ Provides queue processing for RSS feed processing events.
 """
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 from src.services.queue.queue_worker import QueueEvent, QueueWorker
 
@@ -30,10 +31,10 @@ class RSSPayload:
     """
     rss_url: str
     trigger_type: str = 'scheduled'
-    anime_id: Optional[int] = None
-    title: Optional[str] = None
-    items: List[Dict[str, Any]] = field(default_factory=list)
-    extra_data: Dict[str, Any] = field(default_factory=dict)
+    anime_id: int | None = None
+    title: str | None = None
+    items: list[dict[str, Any]] = field(default_factory=list)
+    extra_data: dict[str, Any] = field(default_factory=dict)
 
     def get_display_name(self) -> str:
         """获取用于显示的名称"""
@@ -62,7 +63,7 @@ class RSSItemPayload:
     hash_id: str = ''
     rss_url: str = ''
     media_type: str = 'anime'
-    extra_data: Dict[str, Any] = field(default_factory=dict)
+    extra_data: dict[str, Any] = field(default_factory=dict)
 
     def get_display_name(self) -> str:
         """获取用于显示的名称"""
@@ -99,7 +100,7 @@ class RSSQueueWorker(QueueWorker[RSSPayload]):
             max_failures: Maximum consecutive failures.
         """
         super().__init__(name=name, max_failures=max_failures)
-        self._handlers: Dict[str, Callable] = {}
+        self._handlers: dict[str, Callable] = {}
 
         # 分类统计：Feed级别 vs Item级别
         self._feed_success: int = 0
@@ -202,7 +203,7 @@ class RSSQueueWorker(QueueWorker[RSSPayload]):
             payload=payload
         )
 
-    def enqueue_manual_check(self, rss_url: str, title: Optional[str] = None) -> int:
+    def enqueue_manual_check(self, rss_url: str, title: str | None = None) -> int:
         """
         Enqueue a manual RSS check.
 
@@ -254,7 +255,7 @@ class RSSQueueWorker(QueueWorker[RSSPayload]):
     def enqueue_single_feed(
         self,
         rss_url: str,
-        items: List[Dict[str, Any]],
+        items: list[dict[str, Any]],
         trigger_type: str = 'manual'
     ) -> int:
         """
@@ -285,7 +286,7 @@ class RSSQueueWorker(QueueWorker[RSSPayload]):
         hash_id: str = '',
         rss_url: str = '',
         media_type: str = 'anime',
-        extra_data: Dict[str, Any] = None
+        extra_data: dict[str, Any] = None
     ) -> int:
         """
         将单个 RSS 项目加入队列。
@@ -314,7 +315,7 @@ class RSSQueueWorker(QueueWorker[RSSPayload]):
             payload=payload
         )
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """
         Get worker status with enhanced display names.
 
@@ -361,7 +362,7 @@ class RSSQueueWorker(QueueWorker[RSSPayload]):
 
 # Global RSS queue instance (singleton pattern)
 # Public variable for legacy API compatibility
-rss_queue_worker: Optional[RSSQueueWorker] = None
+rss_queue_worker: RSSQueueWorker | None = None
 
 
 def get_rss_queue() -> RSSQueueWorker:
@@ -380,10 +381,10 @@ def get_rss_queue() -> RSSQueueWorker:
 
 
 def init_rss_queue(
-    scheduled_handler: Optional[Callable[[RSSPayload], None]] = None,
-    manual_handler: Optional[Callable[[RSSPayload], None]] = None,
-    fixed_handler: Optional[Callable[[RSSPayload], None]] = None,
-    item_handler: Optional[Callable[[RSSItemPayload], None]] = None
+    scheduled_handler: Callable[[RSSPayload], None] | None = None,
+    manual_handler: Callable[[RSSPayload], None] | None = None,
+    fixed_handler: Callable[[RSSPayload], None] | None = None,
+    item_handler: Callable[[RSSItemPayload], None] | None = None
 ) -> RSSQueueWorker:
     """
     Initialize the global RSS queue with handlers.

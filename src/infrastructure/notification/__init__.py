@@ -5,11 +5,11 @@
 """
 
 from src.infrastructure.notification.discord import (
-    DiscordWebhookClient,
-    EmbedBuilder,
-    DiscordRSSNotifier,
     DiscordDownloadNotifier,
     DiscordHardlinkNotifier,
+    DiscordRSSNotifier,
+    DiscordWebhookClient,
+    EmbedBuilder,
 )
 
 __all__ = [

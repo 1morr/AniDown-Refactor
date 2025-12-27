@@ -4,23 +4,20 @@ AI/队列状态控制器模块。
 提供 AI Key 使用情况、队列状态和熔断器状态的监控和管理 API。
 """
 
-import logging
-from typing import Any, Dict, Optional
 
 from flask import Blueprint, render_template, request
 
-from src.interface.web.utils import APIResponse, handle_api_errors, WebLogger
-from src.infrastructure.ai.key_pool import (
-    get_pool, get_all_pools, get_pool_for_purpose, get_pools_grouped_by_name
-)
 from src.infrastructure.ai.circuit_breaker import (
-    get_breaker, get_all_breakers, get_breaker_for_purpose, get_breakers_grouped_by_name
+    get_breaker,
+    get_breaker_for_purpose,
+    get_breakers_grouped_by_name,
 )
+from src.infrastructure.ai.key_pool import get_pool, get_pool_for_purpose, get_pools_grouped_by_name
 from src.infrastructure.repositories.ai_key_repository import ai_key_repository
 from src.infrastructure.repositories.history_repository import HistoryRepository
-from src.services.queue.webhook_queue import get_webhook_queue
+from src.interface.web.utils import APIResponse, WebLogger, handle_api_errors
 from src.services.queue.rss_queue import get_rss_queue
-
+from src.services.queue.webhook_queue import get_webhook_queue
 
 logger = WebLogger(__name__)
 
@@ -670,7 +667,7 @@ def get_key_stats(purpose: str, key_id: str):
 
     logger.api_success(
         f'/api/ai-queue/key/{purpose}/{key_id}/stats',
-        f'获取统计信息成功'
+        '获取统计信息成功'
     )
 
     return APIResponse.success(data=stats)

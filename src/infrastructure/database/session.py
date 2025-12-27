@@ -5,14 +5,14 @@ Contains the DatabaseSessionManager class for handling database connections
 and session management using SQLAlchemy.
 """
 
-import os
 import logging
+import os
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Generator
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, scoped_session, Session
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.orm import Session, scoped_session, sessionmaker
 
 from src.core.exceptions import DatabaseError
 from src.infrastructure.database.models import Base

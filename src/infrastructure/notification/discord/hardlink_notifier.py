@@ -5,9 +5,8 @@ Discord 硬链接通知实现模块。
 """
 
 import logging
-from typing import Optional
 
-from src.core.interfaces.notifications import IHardlinkNotifier, HardlinkNotification
+from src.core.interfaces.notifications import HardlinkNotification, IHardlinkNotifier
 
 from .embed_builder import EmbedBuilder
 from .webhook_client import DiscordWebhookClient
@@ -40,7 +39,7 @@ class DiscordHardlinkNotifier(IHardlinkNotifier):
     def __init__(
         self,
         webhook_client: DiscordWebhookClient,
-        embed_builder: Optional[EmbedBuilder] = None
+        embed_builder: EmbedBuilder | None = None
     ):
         """
         初始化硬链接通知器。
@@ -85,8 +84,8 @@ class DiscordHardlinkNotifier(IHardlinkNotifier):
         self,
         notification: HardlinkNotification,
         error_message: str,
-        source_path: Optional[str] = None,
-        target_path: Optional[str] = None
+        source_path: str | None = None,
+        target_path: str | None = None
     ) -> None:
         """
         通知硬链接创建失败。

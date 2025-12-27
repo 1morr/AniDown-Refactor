@@ -4,11 +4,10 @@ Configuration module.
 Contains Pydantic-based configuration classes for the AniDown application.
 """
 
-import os
 import json
-from typing import List, Optional, Union
+import os
 
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class RSSFeed(BaseModel):
@@ -25,7 +24,7 @@ class RSSConfig(BaseModel):
 
     model_config = ConfigDict(validate_assignment=True)
 
-    fixed_urls: List[Union[str, RSSFeed]] = []  # 兼容旧格式和新格式
+    fixed_urls: list[str | RSSFeed] = []  # 兼容旧格式和新格式
     check_interval: int = Field(default=3600, ge=60)
 
     @field_validator('fixed_urls', mode='before')
@@ -45,7 +44,7 @@ class RSSConfig(BaseModel):
                 result.append(item)
         return result
 
-    def get_feeds(self) -> List[RSSFeed]:
+    def get_feeds(self) -> list[RSSFeed]:
         """获取 RSS Feed 列表，统一转换为 RSSFeed 对象"""
         feeds = []
         for item in self.fixed_urls:
@@ -65,8 +64,8 @@ class DiscordConfig(BaseModel):
     """Discord 通知配置"""
 
     enabled: bool = False
-    rss_webhook_url: Optional[str] = ''
-    hardlink_webhook_url: Optional[str] = ''
+    rss_webhook_url: str | None = ''
+    hardlink_webhook_url: str | None = ''
 
 
 class QBitTorrentConfig(BaseModel):
@@ -107,7 +106,7 @@ class OpenAIConfig(BaseModel):
 
         name: str  # Pool 唯一名称
         base_url: str = 'https://api.openai.com/v1'
-        api_keys: List['OpenAIConfig.KeyPoolEntry'] = Field(default_factory=list)
+        api_keys: list['OpenAIConfig.KeyPoolEntry'] = Field(default_factory=list)
 
     class TaskConfig(BaseModel):
         """任务特定的 AI 配置"""
@@ -148,7 +147,7 @@ class OpenAIConfig(BaseModel):
         max_backoff_seconds: int = Field(default=300, ge=0, le=3600)
 
     # 独立 Key Pool 列表
-    key_pools: List[KeyPoolDefinition] = Field(default_factory=list)
+    key_pools: list[KeyPoolDefinition] = Field(default_factory=list)
 
     # 标题解析
     title_parse: TaskConfig = Field(default_factory=TaskConfig)
@@ -161,7 +160,7 @@ class OpenAIConfig(BaseModel):
     rate_limits: RateLimitConfig = Field(default_factory=RateLimitConfig)
 
     # 语言优先级配置（用于标题解析时选择首选语言）
-    language_priorities: List[LanguagePriorityConfig] = Field(
+    language_priorities: list[LanguagePriorityConfig] = Field(
         default_factory=lambda: [
             LanguagePriorityConfig(name='中文'),
             LanguagePriorityConfig(name='English'),
@@ -266,7 +265,7 @@ class AppConfig(BaseModel):
             config_path = os.getenv('CONFIG_PATH', 'config.json')
 
         if os.path.exists(config_path):
-            with open(config_path, 'r', encoding='utf-8') as f:
+            with open(config_path, encoding='utf-8') as f:
                 config_data = json.load(f)
             return cls(**config_data)
 

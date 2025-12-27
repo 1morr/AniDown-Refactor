@@ -5,9 +5,8 @@ Discord 下载通知实现模块。
 """
 
 import logging
-from typing import Optional
 
-from src.core.interfaces.notifications import IDownloadNotifier, DownloadNotification
+from src.core.interfaces.notifications import DownloadNotification, IDownloadNotifier
 
 from .embed_builder import EmbedBuilder
 from .webhook_client import DiscordWebhookClient
@@ -35,7 +34,7 @@ class DiscordDownloadNotifier(IDownloadNotifier):
     def __init__(
         self,
         webhook_client: DiscordWebhookClient,
-        embed_builder: Optional[EmbedBuilder] = None
+        embed_builder: EmbedBuilder | None = None
     ):
         """
         初始化下载通知器。

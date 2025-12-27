@@ -5,8 +5,9 @@ Provides queue processing for webhook events (e.g., qBittorrent completion notif
 """
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Optional
+from typing import Any
 
 from src.services.queue.queue_worker import QueueEvent, QueueWorker
 
@@ -33,7 +34,7 @@ class WebhookPayload:
     category: str = ''
     status: str = ''
     save_path: str = ''
-    extra_data: Dict[str, Any] = None
+    extra_data: dict[str, Any] = None
 
     def __post_init__(self):
         if self.extra_data is None:
@@ -61,8 +62,8 @@ class WebhookQueueWorker(QueueWorker[WebhookPayload]):
         self,
         name: str = 'WebhookQueue',
         max_failures: int = 5,
-        download_manager: Optional[Any] = None,
-        discord_client: Optional[Any] = None
+        download_manager: Any | None = None,
+        discord_client: Any | None = None
     ):
         """
         Initialize the webhook queue worker.
@@ -74,7 +75,7 @@ class WebhookQueueWorker(QueueWorker[WebhookPayload]):
             discord_client: Discord client for notifications.
         """
         super().__init__(name=name, max_failures=max_failures)
-        self._handlers: Dict[str, Callable[[WebhookPayload], None]] = {}
+        self._handlers: dict[str, Callable[[WebhookPayload], None]] = {}
         self._download_manager = download_manager
         self._discord_client = discord_client
 
@@ -131,7 +132,7 @@ class WebhookQueueWorker(QueueWorker[WebhookPayload]):
         event: QueueEvent[WebhookPayload] = None,
         event_type: str = None,
         hash_id: str = None,
-        payload: Dict[str, Any] = None
+        payload: dict[str, Any] = None
     ) -> QueueEvent[WebhookPayload]:
         """
         Add an event to the queue.
@@ -233,7 +234,7 @@ class WebhookQueueWorker(QueueWorker[WebhookPayload]):
 
 # Global webhook queue instance (singleton pattern)
 # Public variable for legacy API compatibility
-webhook_queue_worker: Optional[WebhookQueueWorker] = None
+webhook_queue_worker: WebhookQueueWorker | None = None
 
 
 def get_webhook_queue() -> WebhookQueueWorker:
@@ -252,9 +253,9 @@ def get_webhook_queue() -> WebhookQueueWorker:
 
 
 def init_webhook_queue(
-    download_manager: Optional[Any] = None,
-    discord_client: Optional[Any] = None,
-    completion_handler: Optional[Callable[[WebhookPayload], None]] = None
+    download_manager: Any | None = None,
+    discord_client: Any | None = None,
+    completion_handler: Callable[[WebhookPayload], None] | None = None
 ) -> WebhookQueueWorker:
     """
     Initialize the global webhook queue with handlers.

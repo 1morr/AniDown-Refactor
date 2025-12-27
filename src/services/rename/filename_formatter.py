@@ -7,7 +7,6 @@ Provides filename formatting for media library organization.
 import logging
 import os
 import re
-from typing import Optional
 
 from src.services.rename.pattern_matcher import EpisodeMatch
 
@@ -29,9 +28,9 @@ class FilenameFormatter:
 
     def __init__(
         self,
-        tv_format: Optional[str] = None,
-        movie_format: Optional[str] = None,
-        special_format: Optional[str] = None
+        tv_format: str | None = None,
+        movie_format: str | None = None,
+        special_format: str | None = None
     ):
         """
         Initialize the filename formatter.
@@ -118,7 +117,7 @@ class FilenameFormatter:
         self,
         title: str,
         extension: str,
-        year: Optional[int] = None
+        year: int | None = None
     ) -> str:
         """
         Format a movie filename.
@@ -151,7 +150,7 @@ class FilenameFormatter:
         season: int,
         episode: int,
         extension: str,
-        version: Optional[str] = None
+        version: str | None = None
     ) -> str:
         """
         Format a filename with explicit season and episode numbers.
@@ -182,7 +181,7 @@ class FilenameFormatter:
         self,
         video_filename: str,
         subtitle_extension: str,
-        language: Optional[str] = None
+        language: str | None = None
     ) -> str:
         """
         Format a subtitle filename to match its video file.

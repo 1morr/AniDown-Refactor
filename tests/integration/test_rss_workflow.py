@@ -168,7 +168,7 @@ class TestRSSWithAIProcessing:
         from src.services.rss_service import RSSService
         from src.services.filter_service import FilterService
         from src.services.rename.rename_service import RenameService
-        from src.services.file.hardlink_service import HardlinkService
+        from src.services.file_service import FileService
         from src.services.file.path_builder import PathBuilder
         from src.services.metadata_service import MetadataService
         from src.services.rename.file_classifier import FileClassifier
@@ -190,8 +190,8 @@ class TestRSSWithAIProcessing:
             file_classifier=file_classifier,
             filename_formatter=filename_formatter
         )
-        hardlink_service = HardlinkService(
-            hardlink_repo=history_repo,
+        file_service = FileService(
+            history_repo=history_repo,
             path_builder=path_builder
         )
         metadata_service = MagicMock()
@@ -206,7 +206,7 @@ class TestRSSWithAIProcessing:
             rss_service=rss_service,
             filter_service=filter_service,
             rename_service=rename_service,
-            hardlink_service=hardlink_service,
+            hardlink_service=file_service,
             path_builder=path_builder,
             metadata_service=metadata_service,
         )

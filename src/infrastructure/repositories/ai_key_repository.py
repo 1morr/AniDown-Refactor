@@ -5,8 +5,8 @@ Contains the AIKeyRepository class for managing AI API key usage logging.
 """
 
 import logging
-from datetime import datetime, timezone, timedelta
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from sqlalchemy import desc
 from sqlalchemy.exc import SQLAlchemyError
@@ -19,10 +19,10 @@ logger = logging.getLogger(__name__)
 
 def _utc_date_str() -> str:
     """获取当前 UTC 日期字符串"""
-    return datetime.now(timezone.utc).date().isoformat()
+    return datetime.now(UTC).date().isoformat()
 
 
-def _expand_purpose_to_all_related(purpose: str) -> List[str]:
+def _expand_purpose_to_all_related(purpose: str) -> list[str]:
     """
     将 purpose 扩展为所有相关的用途标识列表。
 
@@ -37,9 +37,7 @@ def _expand_purpose_to_all_related(purpose: str) -> List[str]:
     Returns:
         所有相关的用途标识列表
     """
-    from src.infrastructure.ai.key_pool import (
-        _purpose_to_pool, _named_pools, _pools_lock
-    )
+    from src.infrastructure.ai.key_pool import _named_pools, _pools_lock, _purpose_to_pool
 
     purposes = [purpose]  # 始终包含原始 purpose
 
@@ -78,12 +76,12 @@ class AIKeyRepository:
         anime_title: str = '',
         context_summary: str = '',
         success: bool = True,
-        error_code: Optional[int] = None,
+        error_code: int | None = None,
         error_message: str = '',
         response_time_ms: int = 0,
         rpm_at_call: int = 0,
         rpd_at_call: int = 0,
-    ) -> Optional[int]:
+    ) -> int | None:
         """
         记录一次 AI Key 使用
 
@@ -159,7 +157,7 @@ class AIKeyRepository:
         key_id: str,
         limit: int = 100,
         offset: int = 0,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         获取指定 Key 的使用历史
 
@@ -211,7 +209,7 @@ class AIKeyRepository:
         self,
         purpose: str,
         key_id: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         获取指定 Key 的使用统计信息
 
@@ -229,7 +227,8 @@ class AIKeyRepository:
             purposes = _expand_purpose_to_all_related(purpose)
 
             with db_manager.session() as session:
-                from sqlalchemy import func as sql_func, distinct
+                from sqlalchemy import distinct
+                from sqlalchemy import func as sql_func
 
                 # 总调用次数和成功/失败次数
                 total_calls = (
@@ -295,7 +294,7 @@ class AIKeyRepository:
                 )
 
                 # 今日调用次数
-                today = datetime.now(timezone.utc).date().isoformat()
+                today = datetime.now(UTC).date().isoformat()
                 today_calls = (
                     session.query(sql_func.count(AIKeyUsageLog.id))
                     .filter(
@@ -412,7 +411,7 @@ class AIKeyRepository:
             logger.error(f'Failed to increment daily count: {e}')
             return 0
 
-    def get_all_daily_counts(self, date_utc: str = None) -> Dict[tuple, int]:
+    def get_all_daily_counts(self, date_utc: str = None) -> dict[tuple, int]:
         """
         获取指定日期所有 Key 的请求计数
 
@@ -451,7 +450,7 @@ class AIKeyRepository:
             删除的记录数
         """
         try:
-            cutoff = datetime.now(timezone.utc) - timedelta(days=days_to_keep)
+            cutoff = datetime.now(UTC) - timedelta(days=days_to_keep)
             with db_manager.session() as session:
                 deleted = (
                     session.query(AIKeyUsageLog)
@@ -475,7 +474,7 @@ class AIKeyRepository:
             删除的记录数
         """
         try:
-            cutoff_date = (datetime.now(timezone.utc) - timedelta(days=days_to_keep)).date().isoformat()
+            cutoff_date = (datetime.now(UTC) - timedelta(days=days_to_keep)).date().isoformat()
             with db_manager.session() as session:
                 deleted = (
                     session.query(AIKeyDailyCount)

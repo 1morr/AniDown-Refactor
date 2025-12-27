@@ -3,31 +3,33 @@ AI 测试工具控制器
 
 提供 AI 提示词测试和调试功能
 """
-from flask import (
-    Blueprint, render_template, request, redirect,
-    url_for, flash, Response, stream_with_context
-)
-from dependency_injector.wiring import inject, Provide
 import json
 from datetime import datetime
 
-from src.core.config import config
+from dependency_injector.wiring import Provide, inject
+from flask import (
+    Blueprint,
+    Response,
+    flash,
+    redirect,
+    render_template,
+    request,
+    stream_with_context,
+    url_for,
+)
+
 from src.container import Container
+from src.core.config import config
 from src.infrastructure.ai.prompts import (
-    TITLE_PARSE_SYSTEM_PROMPT,
+    MULTI_FILE_RENAME_STANDARD_PROMPT,
     MULTI_FILE_RENAME_WITH_TVDB_PROMPT,
-    MULTI_FILE_RENAME_STANDARD_PROMPT
+    TITLE_PARSE_SYSTEM_PROMPT,
 )
-from src.services.rss_service import RSSService
-from src.services.metadata_service import MetadataService
-from src.services.ai_debug_service import ai_debug_service
 from src.infrastructure.metadata.tvdb_adapter import TVDBAdapter
-from src.interface.web.utils import (
-    APIResponse,
-    handle_api_errors,
-    validate_json,
-    WebLogger
-)
+from src.interface.web.utils import APIResponse, WebLogger, handle_api_errors, validate_json
+from src.services.ai_debug_service import ai_debug_service
+from src.services.metadata_service import MetadataService
+from src.services.rss_service import RSSService
 
 ai_test_bp = Blueprint('ai_test', __name__)
 logger = WebLogger(__name__)
@@ -197,7 +199,6 @@ def process_ai_test(
 
         # 尝试解析JSON响应
         try:
-            import re
             # 清理markdown代码块
             if ai_content.startswith('```json'):
                 ai_content = ai_content[7:]

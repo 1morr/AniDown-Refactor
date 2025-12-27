@@ -5,7 +5,7 @@ Contains the SubtitleRepository class for managing subtitle file records.
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from src.core.domain.entities import SubtitleRecord
 from src.infrastructure.database.models import SubtitleFile
@@ -33,7 +33,7 @@ class SubtitleRepository:
             updated_at=row.updated_at
         )
 
-    def _to_dict(self, row: SubtitleFile) -> Dict[str, Any]:
+    def _to_dict(self, row: SubtitleFile) -> dict[str, Any]:
         """将数据库行转换为字典"""
         return {
             'id': row.id,
@@ -49,7 +49,7 @@ class SubtitleRepository:
             'updated_at': row.updated_at.isoformat() if row.updated_at else None
         }
 
-    def get_by_id(self, subtitle_id: int) -> Optional[SubtitleRecord]:
+    def get_by_id(self, subtitle_id: int) -> SubtitleRecord | None:
         """根据ID获取字幕记录"""
         with db_manager.session() as session:
             subtitle = session.query(SubtitleFile).filter_by(id=subtitle_id).first()
@@ -57,7 +57,7 @@ class SubtitleRepository:
                 return self._to_entity(subtitle)
             return None
 
-    def get_by_anime_id(self, anime_id: int) -> List[SubtitleRecord]:
+    def get_by_anime_id(self, anime_id: int) -> list[SubtitleRecord]:
         """根据anime ID获取字幕列表"""
         with db_manager.session() as session:
             subtitles = session.query(SubtitleFile).filter_by(
@@ -65,7 +65,7 @@ class SubtitleRepository:
             ).order_by(SubtitleFile.video_file_path, SubtitleFile.language_tag).all()
             return [self._to_entity(s) for s in subtitles]
 
-    def get_by_anime_id_as_dict(self, anime_id: int) -> List[Dict[str, Any]]:
+    def get_by_anime_id_as_dict(self, anime_id: int) -> list[dict[str, Any]]:
         """根据anime ID获取字幕列表（返回字典）"""
         with db_manager.session() as session:
             subtitles = session.query(SubtitleFile).filter_by(
@@ -73,7 +73,7 @@ class SubtitleRepository:
             ).order_by(SubtitleFile.video_file_path, SubtitleFile.language_tag).all()
             return [self._to_dict(s) for s in subtitles]
 
-    def get_by_video_path(self, video_file_path: str) -> List[SubtitleRecord]:
+    def get_by_video_path(self, video_file_path: str) -> list[SubtitleRecord]:
         """根据影片路径获取字幕列表"""
         with db_manager.session() as session:
             subtitles = session.query(SubtitleFile).filter_by(
@@ -115,7 +115,7 @@ class SubtitleRepository:
             logger.info(f'✅ 保存字幕记录: {record.subtitle_path}')
             return subtitle.id
 
-    def save_batch(self, records: List[SubtitleRecord]) -> List[int]:
+    def save_batch(self, records: list[SubtitleRecord]) -> list[int]:
         """批量保存字幕记录"""
         saved_ids = []
         with db_manager.session() as session:

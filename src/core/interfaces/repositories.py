@@ -6,7 +6,6 @@ Contains abstract base classes defining contracts for data access operations.
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import List, Optional
 
 from src.core.domain.entities import AnimeInfo, DownloadRecord, HardlinkRecord
 
@@ -19,7 +18,7 @@ class IAnimeRepository(ABC):
     """
 
     @abstractmethod
-    def get_by_id(self, anime_id: int) -> Optional[AnimeInfo]:
+    def get_by_id(self, anime_id: int) -> AnimeInfo | None:
         """
         Get anime by ID.
 
@@ -32,7 +31,7 @@ class IAnimeRepository(ABC):
         pass
 
     @abstractmethod
-    def get_by_title(self, title: str) -> Optional[AnimeInfo]:
+    def get_by_title(self, title: str) -> AnimeInfo | None:
         """
         Get anime by title (fuzzy match).
 
@@ -48,9 +47,9 @@ class IAnimeRepository(ABC):
     def get_by_core_info(
         self,
         title: str,
-        subtitle_group: Optional[str] = None,
-        season: Optional[int] = None
-    ) -> Optional[AnimeInfo]:
+        subtitle_group: str | None = None,
+        season: int | None = None
+    ) -> AnimeInfo | None:
         """
         Get anime by core information (exact match).
 
@@ -65,7 +64,7 @@ class IAnimeRepository(ABC):
         pass
 
     @abstractmethod
-    def get_all(self, limit: int = 100, offset: int = 0) -> List[AnimeInfo]:
+    def get_all(self, limit: int = 100, offset: int = 0) -> list[AnimeInfo]:
         """
         Get all anime with pagination.
 
@@ -126,7 +125,7 @@ class IDownloadRepository(ABC):
     """
 
     @abstractmethod
-    def get_by_hash(self, hash_id: str) -> Optional[DownloadRecord]:
+    def get_by_hash(self, hash_id: str) -> DownloadRecord | None:
         """
         Get download record by torrent hash.
 
@@ -139,7 +138,7 @@ class IDownloadRepository(ABC):
         pass
 
     @abstractmethod
-    def get_by_id(self, record_id: int) -> Optional[DownloadRecord]:
+    def get_by_id(self, record_id: int) -> DownloadRecord | None:
         """
         Get download record by ID.
 
@@ -152,7 +151,7 @@ class IDownloadRepository(ABC):
         pass
 
     @abstractmethod
-    def get_by_anime_id(self, anime_id: int) -> List[DownloadRecord]:
+    def get_by_anime_id(self, anime_id: int) -> list[DownloadRecord]:
         """
         Get all download records for an anime.
 
@@ -165,7 +164,7 @@ class IDownloadRepository(ABC):
         pass
 
     @abstractmethod
-    def get_incomplete(self) -> List[DownloadRecord]:
+    def get_incomplete(self) -> list[DownloadRecord]:
         """
         Get all incomplete downloads.
 
@@ -175,7 +174,7 @@ class IDownloadRepository(ABC):
         pass
 
     @abstractmethod
-    def get_recent(self, limit: int = 50) -> List[DownloadRecord]:
+    def get_recent(self, limit: int = 50) -> list[DownloadRecord]:
         """
         Get recent download records.
 
@@ -205,7 +204,7 @@ class IDownloadRepository(ABC):
         self,
         hash_id: str,
         status: str,
-        completion_time: Optional[datetime] = None
+        completion_time: datetime | None = None
     ) -> bool:
         """
         Update download status.
@@ -268,7 +267,7 @@ class IHardlinkRepository(ABC):
     """
 
     @abstractmethod
-    def get_by_id(self, hardlink_id: int) -> Optional[HardlinkRecord]:
+    def get_by_id(self, hardlink_id: int) -> HardlinkRecord | None:
         """
         Get hardlink record by ID.
 
@@ -281,7 +280,7 @@ class IHardlinkRepository(ABC):
         pass
 
     @abstractmethod
-    def get_by_torrent_hash(self, hash_id: str) -> List[HardlinkRecord]:
+    def get_by_torrent_hash(self, hash_id: str) -> list[HardlinkRecord]:
         """
         Get all hardlink records for a torrent.
 
@@ -294,7 +293,7 @@ class IHardlinkRepository(ABC):
         pass
 
     @abstractmethod
-    def get_by_anime_id(self, anime_id: int) -> List[HardlinkRecord]:
+    def get_by_anime_id(self, anime_id: int) -> list[HardlinkRecord]:
         """
         Get all hardlink records for an anime.
 

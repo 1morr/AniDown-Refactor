@@ -3,23 +3,21 @@
 
 处理下载列表、状态检查、硬链接管理等功能
 """
+from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, render_template, request
-from dependency_injector.wiring import inject, Provide
 
 from src.container import Container
-from src.services.download_manager import DownloadManager
-from src.services.file_service import FileService
-from src.services.queue.webhook_queue import WebhookPayload
 from src.infrastructure.repositories.download_repository import DownloadRepository
 from src.infrastructure.repositories.history_repository import HistoryRepository
 from src.interface.web.utils import (
     APIResponse,
+    WebLogger,
     handle_api_errors,
     validate_json,
-    RequestValidator,
-    ValidationRule,
-    WebLogger
 )
+from src.services.download_manager import DownloadManager
+from src.services.file_service import FileService
+from src.services.queue.webhook_queue import WebhookPayload
 
 logger = WebLogger(__name__)
 downloads_bp = Blueprint('downloads', __name__)
@@ -448,6 +446,7 @@ def api_create_hardlinks(
 
     # 構建目標目錄
     import os
+
     from src.core.config import config
 
     anime_title = download_info['anime_title'] or 'Unknown'

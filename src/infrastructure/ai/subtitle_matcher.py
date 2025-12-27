@@ -7,7 +7,7 @@ AI 字幕匹配器模块。
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from src.core.config import config
 from src.core.exceptions import (
@@ -38,11 +38,11 @@ class SubtitleMatch:
 @dataclass
 class MatchResult:
     """完整匹配结果"""
-    matches: List[SubtitleMatch] = field(default_factory=list)
-    unmatched_subtitles: List[str] = field(default_factory=list)
-    videos_without_subtitle: List[str] = field(default_factory=list)
+    matches: list[SubtitleMatch] = field(default_factory=list)
+    unmatched_subtitles: list[str] = field(default_factory=list)
+    videos_without_subtitle: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return {
             'matches': [
@@ -59,7 +59,7 @@ class MatchResult:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'MatchResult':
+    def from_dict(cls, data: dict[str, Any]) -> 'MatchResult':
         """从字典创建"""
         matches = [
             SubtitleMatch(
@@ -101,7 +101,7 @@ class AISubtitleMatcher:
         self,
         key_pool: KeyPool,
         circuit_breaker: CircuitBreaker,
-        api_client: Optional[OpenAIClient] = None,
+        api_client: OpenAIClient | None = None,
         max_retries: int = 3
     ):
         """
@@ -120,10 +120,10 @@ class AISubtitleMatcher:
 
     def match_subtitles(
         self,
-        video_files: List[str],
-        subtitle_files: List[str],
-        anime_title: Optional[str] = None
-    ) -> Optional[MatchResult]:
+        video_files: list[str],
+        subtitle_files: list[str],
+        anime_title: str | None = None
+    ) -> MatchResult | None:
         """
         匹配影片文件和字幕文件。
 
@@ -170,10 +170,10 @@ class AISubtitleMatcher:
 
     def _call_ai(
         self,
-        video_files: List[str],
-        subtitle_files: List[str],
-        anime_title: Optional[str] = None
-    ) -> Optional[MatchResult]:
+        video_files: list[str],
+        subtitle_files: list[str],
+        anime_title: str | None = None
+    ) -> MatchResult | None:
         """
         调用 AI API 进行字幕匹配。
 
@@ -431,7 +431,7 @@ class AISubtitleMatcher:
         logger.error(f'❌ 字幕匹配在 {self._max_retries} 次尝试后失败')
         return None
 
-    def _parse_extra_body(self, extra_body: str) -> Optional[Dict[str, Any]]:
+    def _parse_extra_body(self, extra_body: str) -> dict[str, Any] | None:
         """解析 extra_body JSON 字符串"""
         if not extra_body:
             return None
@@ -440,7 +440,7 @@ class AISubtitleMatcher:
         except json.JSONDecodeError:
             return None
 
-    def _extract_retry_after(self, error_message: str) -> Optional[float]:
+    def _extract_retry_after(self, error_message: str) -> float | None:
         """从错误消息中提取 retry-after 时间"""
         import re
         # 尝试匹配常见的 retry-after 格式
@@ -457,10 +457,10 @@ class AISubtitleMatcher:
 
     def _build_user_message(
         self,
-        video_files: List[str],
-        subtitle_files: List[str],
-        anime_title: Optional[str] = None
-    ) -> Tuple[str, Dict[str, str], Dict[str, str]]:
+        video_files: list[str],
+        subtitle_files: list[str],
+        anime_title: str | None = None
+    ) -> tuple[str, dict[str, str], dict[str, str]]:
         """
         构建发送给 AI 的用户消息。
 
@@ -490,8 +490,8 @@ class AISubtitleMatcher:
     def _parse_response(
         self,
         response: str,
-        indexed_videos: Dict[str, str],
-        indexed_subtitles: Dict[str, str]
+        indexed_videos: dict[str, str],
+        indexed_subtitles: dict[str, str]
     ) -> MatchResult:
         """
         解析 AI 响应。

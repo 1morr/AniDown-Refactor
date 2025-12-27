@@ -5,7 +5,7 @@ Contains the exception hierarchy for the AniDown application.
 All custom exceptions inherit from AniDownError for consistent handling.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 class AniDownError(Exception):
@@ -24,8 +24,8 @@ class AniDownError(Exception):
     def __init__(
         self,
         message: str,
-        code: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None
+        code: str | None = None,
+        context: dict[str, Any] | None = None
     ):
         super().__init__(message)
         self.message = message
@@ -47,8 +47,8 @@ class AIError(AniDownError):
     def __init__(
         self,
         message: str,
-        code: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None
+        code: str | None = None,
+        context: dict[str, Any] | None = None
     ):
         super().__init__(message, code or 'AI_ERROR', context)
 
@@ -65,7 +65,7 @@ class AICircuitBreakerError(AIError):
         self,
         message: str,
         remaining_seconds: float,
-        context: Optional[Dict[str, Any]] = None
+        context: dict[str, Any] | None = None
     ):
         super().__init__(message, 'AI_CIRCUIT_OPEN', context)
         self.remaining_seconds = remaining_seconds
@@ -77,7 +77,7 @@ class AIKeyExhaustedError(AIError):
     def __init__(
         self,
         message: str = 'All API keys are exhausted or in cooldown',
-        context: Optional[Dict[str, Any]] = None
+        context: dict[str, Any] | None = None
     ):
         super().__init__(message, 'AI_KEYS_EXHAUSTED', context)
 
@@ -93,8 +93,8 @@ class AIResponseParseError(AIError):
     def __init__(
         self,
         message: str,
-        raw_response: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None
+        raw_response: str | None = None,
+        context: dict[str, Any] | None = None
     ):
         ctx = context or {}
         if raw_response:
@@ -111,8 +111,8 @@ class DownloadError(AniDownError):
     def __init__(
         self,
         message: str,
-        code: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None
+        code: str | None = None,
+        context: dict[str, Any] | None = None
     ):
         super().__init__(message, code or 'DOWNLOAD_ERROR', context)
 
@@ -128,8 +128,8 @@ class TorrentAddError(DownloadError):
     def __init__(
         self,
         message: str,
-        torrent_url: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None
+        torrent_url: str | None = None,
+        context: dict[str, Any] | None = None
     ):
         ctx = context or {}
         if torrent_url:
@@ -146,8 +146,8 @@ class FileOperationError(AniDownError):
     def __init__(
         self,
         message: str,
-        code: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None
+        code: str | None = None,
+        context: dict[str, Any] | None = None
     ):
         super().__init__(message, code or 'FILE_OPERATION_ERROR', context)
 
@@ -164,9 +164,9 @@ class HardlinkError(FileOperationError):
     def __init__(
         self,
         message: str,
-        source_path: Optional[str] = None,
-        target_path: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None
+        source_path: str | None = None,
+        target_path: str | None = None,
+        context: dict[str, Any] | None = None
     ):
         ctx = context or {}
         if source_path:
@@ -188,8 +188,8 @@ class DatabaseError(AniDownError):
     def __init__(
         self,
         message: str,
-        code: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None
+        code: str | None = None,
+        context: dict[str, Any] | None = None
     ):
         super().__init__(message, code or 'DATABASE_ERROR', context)
 
@@ -202,8 +202,8 @@ class ParseError(AniDownError):
     def __init__(
         self,
         message: str,
-        code: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None
+        code: str | None = None,
+        context: dict[str, Any] | None = None
     ):
         super().__init__(message, code or 'PARSE_ERROR', context)
 
@@ -219,8 +219,8 @@ class TitleParseError(ParseError):
     def __init__(
         self,
         message: str,
-        title: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None
+        title: str | None = None,
+        context: dict[str, Any] | None = None
     ):
         ctx = context or {}
         if title:
@@ -242,8 +242,8 @@ class RSSError(AniDownError):
     def __init__(
         self,
         message: str,
-        feed_url: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None
+        feed_url: str | None = None,
+        context: dict[str, Any] | None = None
     ):
         ctx = context or {}
         if feed_url:
@@ -267,8 +267,8 @@ class AnimeInfoExtractionError(AIError):
     def __init__(
         self,
         message: str,
-        title: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None
+        title: str | None = None,
+        context: dict[str, Any] | None = None
     ):
         ctx = context or {}
         if title:
