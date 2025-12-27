@@ -1,440 +1,385 @@
 # AniDown 代码清理工作流程
 
-**基于**: CODE_ANALYSIS_REPORT.md
-**创建日期**: 2025-12-28
-**目标**: 系统性清理冗余代码，统一重复实现，优化架构
+基于 `CODE_REVIEW.md` 的分析结果，本文档定义了系统化的代码清理实施计划。
+
+## 工作流程概览
+
+```
+Phase 1: 删除未使用代码 (低风险)
+    ↓
+Phase 2: 合并重复服务 (中等风险)
+    ↓
+Phase 3: 整合 Discord 通知器 (中等风险)
+    ↓
+Phase 4: 统一依赖注入模式 (高风险)
+```
 
 ---
 
-## 概览
+## Phase 1: 删除未使用代码
 
-| Phase | 名称 | 优先级 | 预计删除代码 | 风险等级 | 状态 |
-|-------|------|--------|-------------|----------|------|
-| 1 | 删除死代码文件 | 🔴 高 | ~800 行 | 低 | ✅ 已完成 |
-| 2 | 统一路径构建逻辑 | 🔴 高 | ~110 行 | 中 | ✅ 已完成 |
-| 3 | 清理未使用的代码片段 | 🟠 中 | ~120 行 | 低 | ✅ 已完成 |
-| 4 | 待确认服务处理 | 🟡 低 | 集成清理 | 低 | ✅ 已完成 |
+**风险等级**: 🟢 低  
+**预计影响**: 代码更简洁，无功能变化  
+**依赖**: 无
 
-**总计**: 删除约 1160+ 行冗余代码
-
----
-
-## Phase 1: 删除死代码文件 🔴 ✅ 已完成
-
-**风险等级**: 低 (这些文件从未被导入)
-**完成日期**: 2025-12-28
-
-### 1.1 删除未使用的处理器类
-
-这些类已完整实现，但从未被实例化。`DownloadManager` 自己实现了相同功能。
-
-```bash
-# 已删除文件
-src/services/download/rss_processor.py           # ~300 行 ✅
-src/services/download/torrent_completion_handler.py  # ~200 行 ✅
-```
-
-**验证步骤**:
-```bash
-# 确认没有导入
-grep -r "from src.services.download.rss_processor" src/
-grep -r "from src.services.download.torrent_completion_handler" src/
-grep -r "RSSProcessor" src/ --include="*.py"
-grep -r "TorrentCompletionHandler" src/ --include="*.py"
-```
-
-- [x] 运行验证命令确认无引用
-- [x] 删除 `src/services/download/rss_processor.py`
-- [x] 删除 `src/services/download/torrent_completion_handler.py`
-- [x] 运行测试: `pytest tests/`
-- [x] 运行应用验证: `python -m src.main --test`
-
-### 1.2 删除未使用的 utils 文件夹
-
-所有控制器使用 `src/interface/web/utils.py`，而不是 `utils/` 文件夹。
-
-```bash
-# 已删除文件夹
-src/interface/web/utils/                         # 整个文件夹 ~300 行 ✅
-  ├── api_response.py
-  ├── decorators.py
-  ├── logger.py
-  ├── validators.py
-  └── __init__.py
-```
-
-**验证步骤**:
-```bash
-# 确认没有从 utils/ 导入
-grep -r "from src.interface.web.utils." src/
-grep -r "from src.interface.web.utils import" src/ | grep -v "utils.py"
-```
-
-- [x] 运行验证命令确认无引用
-- [x] 删除整个 `src/interface/web/utils/` 文件夹
-- [x] 运行测试: `pytest tests/`
-- [x] 启动应用验证 Web UI 正常
-
-### Phase 1 完成检查
-- [x] 所有死代码文件已删除
-- [x] 测试通过: `pytest tests/` (254 passed)
-- [x] 应用验证通过: `python -m src.main --test`
-- [x] Web UI 正常访问
-
----
-
-## Phase 2: 统一路径构建逻辑 🔴 ✅ 已完成
-
-**风险等级**: 中 (需要修改多个服务的构造函数和方法调用)
-**完成日期**: 2025-12-28
-
-### 2.1 修改 container.py - 注入 PathBuilder
-
-**文件**: `src/container.py`
-
-```python
-# 修改 AnimeService 注入
-anime_service = providers.Singleton(
-    AnimeService,
-    anime_repo=anime_repo,
-    download_repo=download_repo,
-    download_client=qb_client,
-    path_builder=path_builder  # ← 已添加
-)
-
-# 修改 AnimeDetailService 注入
-anime_detail_service = providers.Singleton(
-    AnimeDetailService,
-    anime_repo=anime_repo,
-    download_repo=download_repo,
-    download_client=qb_client,
-    path_builder=path_builder  # ← 已添加
-)
-
-# RenameService 保持原样（其 _sanitize_filename 有不同行为）
-```
-
-- [x] 修改 `container.py` 中的 `anime_service` 定义
-- [x] 修改 `container.py` 中的 `anime_detail_service` 定义
-- [x] ~~修改 `container.py` 中的 `rename_service` 定义~~ (保留原样，见2.4说明)
-
-### 2.2 修改 AnimeService
-
-**文件**: `src/services/anime_service.py`
-
-**Step 1**: 修改构造函数
-```python
-from src.services.file.path_builder import PathBuilder
-
-class AnimeService:
-    def __init__(
-        self,
-        anime_repo: IAnimeRepository,
-        download_repo: IDownloadRepository,
-        download_client: IDownloadClient,
-        path_builder: PathBuilder  # ← 已添加
-    ):
-        self._anime_repo = anime_repo
-        self._download_repo = download_repo
-        self._download_client = download_client
-        self._path_builder = path_builder  # ← 已添加
-```
-
-**Step 2**: 删除重复方法
-```python
-# 已删除这些方法 (~86 行):
-# - _sanitize_title()
-# - _get_original_folder_path()
-# - _get_hardlink_folder_path()
-```
-
-**Step 3**: 更新调用点
-```python
-# 原来:
-path = self._get_original_folder_path(title, media_type, category)
-# 改为:
-path = self._path_builder.build_download_path(title, season, category, media_type)
-```
-
-```python
-# 原来:
-path = self._get_hardlink_folder_path(title, media_type, category)
-# 改为:
-path = self._path_builder.build_library_path(title, media_type, category)
-```
-
-- [x] 修改 `AnimeService.__init__()` 添加 `path_builder` 参数
-- [x] 查找 `_get_original_folder_path` 的所有调用点并替换
-- [x] 查找 `_get_hardlink_folder_path` 的所有调用点并替换
-- [x] 删除 `_sanitize_title()` 方法
-- [x] 删除 `_get_original_folder_path()` 方法
-- [x] 删除 `_get_hardlink_folder_path()` 方法
-
-### 2.3 修改 AnimeDetailService
-
-**文件**: `src/services/anime_detail_service.py`
-
-**Step 1**: 修改构造函数
-```python
-from src.services.file.path_builder import PathBuilder
-
-class AnimeDetailService:
-    def __init__(
-        self,
-        anime_repo: IAnimeRepository,
-        download_repo: IDownloadRepository,
-        download_client: IDownloadClient,
-        path_builder: PathBuilder  # ← 已添加
-    ):
-        self._anime_repo = anime_repo
-        self._download_repo = download_repo
-        self._download_client = download_client
-        self._path_builder = path_builder  # ← 已添加
-```
-
-**Step 2**: 删除重复方法
-```python
-# 已删除这些方法 (~67 行):
-# - _sanitize_title()
-# - _build_auto_target_path()
-```
-
-**Step 3**: 更新调用点
-```python
-# 原来:
-path = self._build_auto_target_path(anime_info)
-# 改为:
-path = self._path_builder.build_target_directory(
-    anime_title=anime_info.get('short_title') or anime_info.get('original_title'),
-    media_type=anime_info.get('media_type', 'anime'),
-    category=anime_info.get('category', 'tv')
-)
-```
-
-- [x] 修改 `AnimeDetailService.__init__()` 添加 `path_builder` 参数
-- [x] 查找 `_build_auto_target_path` 的所有调用点并替换
-- [x] 删除 `_sanitize_title()` 方法
-- [x] 删除 `_build_auto_target_path()` 方法
-
-### 2.4 修改 RenameService
-
-**文件**: `src/services/rename/rename_service.py`
-
-**决策**: 保留 RenameService 自己的 `_sanitize_filename()` 方法
-
-**原因**: RenameService 的 `_sanitize_filename()` 有不同的行为:
-- 将 curly quotes `"` 替换为单引号 `'`
-- 空字符串返回 'Unknown'
-- 专门用于文件名格式化（带标签如字幕类型、特殊标签）
-
-PathBuilder 的 `_sanitize_filename()` 行为:
-- 替换多个空格为单个空格
-- 截断到200字符
-- 用于目录名
-
-- [x] 检查 `RenameService.__init__()` 是否已有 `path_builder` → 无需添加
-- [x] ~~如果没有，添加 `path_builder` 参数~~ (不需要)
-- [x] ~~查找所有 `self._sanitize_filename` 调用并替换~~ (保留原样)
-- [x] ~~删除 `_sanitize_filename()` 方法~~ (保留，行为不同)
-
-### 2.5 修改控制器调用
-
-**文件**: `src/interface/web/controllers/anime_detail.py`
-
-已更新控制器使用 PathBuilder:
-```python
-# 原来:
-sanitized_title = anime_detail_service._sanitize_title(anime_title)
-target_directory = os.path.join(base_target, sanitized_title)
-
-# 改为:
-target_directory = path_builder.build_library_path(
-    title=anime_title,
-    media_type=media_type,
-    category=category
-)
-```
-
-- [x] 检查 `anime_detail.py` 是否直接调用 `_sanitize_title`
-- [x] 修改为使用 `path_builder` (通过依赖注入)
-
-### Phase 2 完成检查
-- [x] 所有服务已注入 `path_builder` (AnimeService, AnimeDetailService)
-- [x] 所有重复的 `_sanitize_title` 方法已删除 (除 RenameService 保留)
-- [x] 所有调用点已更新
-- [x] 测试通过: `pytest tests/` (254 passed)
-- [x] 应用验证通过: `python -m src.main --test`
-- [x] Web UI 动漫列表、详情页正常
-- [x] 硬链接创建功能正常
-
----
-
-## Phase 3: 清理未使用的代码片段 🟠 ✅ 已完成
-
-**风险等级**: 低 (只删除未使用的类定义)
-**完成日期**: 2025-12-28
-
-### 3.1 清理未使用的异常类
+### 1.1 删除未使用的异常类
 
 **文件**: `src/core/exceptions.py`
 
-```python
-# 已删除这些类:
-class RSSParseError(ParseError):       # ~19 行 ✅
-class ConfigValidationError(ConfigError): # ~24 行 ✅
-class RecordNotFoundError(DatabaseError): # ~24 行 ✅
-```
+**待删除项目**:
+| 异常类 | 行号 | 原因 |
+|--------|------|------|
+| `AIRateLimitError` | - | 仅导出，无实际使用 |
+| `TorrentNotFoundError` | - | 仅导出，无实际使用 |
+| `ConfigError` | - | 仅导出，无实际使用 |
+| `RSSFetchError` | - | 未使用 |
 
-同时更新了 `src/core/__init__.py` 移除这些类的导出。
+**步骤**:
+- [ ] 1.1.1 打开 `src/core/exceptions.py`
+- [ ] 1.1.2 删除 `AIRateLimitError` 类定义
+- [ ] 1.1.3 删除 `TorrentNotFoundError` 类定义
+- [ ] 1.1.4 删除 `ConfigError` 类定义
+- [ ] 1.1.5 删除 `RSSFetchError` 类定义
+- [ ] 1.1.6 更新 `__all__` 列表，移除已删除的类
+- [ ] 1.1.7 搜索全局确认无其他引用
 
-- [x] 验证这些异常类没有被使用
-- [x] 删除 `RSSParseError` 类
-- [x] 删除 `ConfigValidationError` 类
-- [x] 删除 `RecordNotFoundError` 类
+### 1.2 删除空目录
 
-### 3.2 清理未使用的值对象
+**目录**: `src/services/download/`
 
-**文件**: `src/core/domain/value_objects.py`
+**当前状态**:
+- 只包含 `__init__.py`
+- `__all__ = []` (空导出)
 
-```python
-# 已删除 FilePath 类 (~56 行) ✅
-@dataclass(frozen=True)
-class FilePath:
-    """文件路径值对象"""
-    path: str
-    # ...
-```
+**步骤**:
+- [ ] 1.2.1 确认目录内容仅有空的 `__init__.py`
+- [ ] 1.2.2 检查是否有其他文件导入此模块
+- [ ] 1.2.3 删除整个 `src/services/download/` 目录
 
-同时更新了:
-- `src/core/domain/__init__.py` 移除 FilePath 导出
-- `src/core/domain/value_objects.py` 移除未使用的 `import os`
+### Phase 1 验证
 
-- [x] 验证 `FilePath` 没有被使用
-- [x] 删除 `FilePath` 类
-
-### Phase 3 完成检查
-- [x] 未使用的异常类已删除 (~67 行)
-- [x] 未使用的值对象已删除 (~56 行)
-- [x] 测试通过: `pytest tests/` (254 passed, 1 skipped)
-- [x] 应用验证通过: `python -m src.main --test`
-- [ ] 代码风格检查: `ruff check src/` (存在预存问题，非本次修改引入)
+- [ ] 运行 `ruff check src/` 确认无语法错误
+- [ ] 运行 `pytest tests/` 确认测试通过
+- [ ] 运行 `python -m src.main --test` 确认应用启动正常
 
 ---
 
-## Phase 4: 待确认服务处理 🟡 ✅ 已完成
+## Phase 2: 合并重复服务
 
-**风险等级**: 低
-**完成日期**: 2025-12-28
+**风险等级**: 🟡 中等  
+**预计影响**: 减少文件数量，简化代码结构  
+**依赖**: Phase 1 完成
 
-### 4.1 评估 ai_debug_service
+### 2.1 合并 AnimeService 和 AnimeDetailService
 
-**文件**: `src/services/ai_debug_service.py`
+**当前文件**:
+- `src/services/anime_service.py` - AnimeService
+- `src/services/anime_detail_service.py` - AnimeDetailService
 
-**检查结果**: ✅ 正在被使用
+**目标**: 合并为单一 `AnimeService`
 
-使用位置:
-- `main.py` - 通过 `--debug` 参数启用
-- `title_parser.py` - 记录 AI 标题解析交互
-- `file_renamer.py` - 记录 AI 文件重命名交互
-- `subtitle_matcher.py` - 记录 AI 字幕匹配交互
-- `ai_test.py` - 测试页面和日志查看功能
+**功能映射**:
+| 来源服务 | 方法 | 目标位置 |
+|----------|------|----------|
+| AnimeService | `get_anime_list_paginated()` | 保留 |
+| AnimeService | `get_anime_details()` | 保留 |
+| AnimeService | `get_anime_folders()` | 保留 |
+| AnimeService | `delete_anime_files()` | 保留 |
+| AnimeService | `update_anime_info()` | 保留 |
+| AnimeDetailService | `get_anime_with_torrents()` | 迁移到 AnimeService |
+| AnimeDetailService | `check_existing_hardlinks()` | 迁移到 AnimeService |
+| AnimeDetailService | `get_ai_rename_preview()` | 迁移到 AnimeService |
+| AnimeDetailService | `apply_ai_renames()` | 迁移到 AnimeService |
+| AnimeDetailService | `delete_hardlinks_for_files()` | 迁移到 AnimeService |
 
-**决策**: ✅ 保留 - 服务正在多处使用
+**步骤**:
+- [ ] 2.1.1 分析 AnimeDetailService 所有方法的完整实现
+- [ ] 2.1.2 分析 AnimeDetailService 的依赖项
+- [ ] 2.1.3 将 AnimeDetailService 方法迁移到 AnimeService
+- [ ] 2.1.4 更新 AnimeService 的构造函数，添加必要依赖
+- [ ] 2.1.5 更新 `src/container.py` 中的 provider
+- [ ] 2.1.6 更新所有使用 AnimeDetailService 的地方:
+  - [ ] `src/interface/web/controllers/anime_detail.py`
+  - [ ] 其他引用点
+- [ ] 2.1.7 删除 `src/services/anime_detail_service.py`
+- [ ] 2.1.8 更新 `src/services/__init__.py` 导出
 
-### 4.2 评估 log_rotation_service
+### 2.2 合并 FileService 和 HardlinkService
 
-**文件**: `src/services/log_rotation_service.py`
+**当前文件**:
+- `src/services/file_service.py` - FileService
+- `src/services/file/hardlink_service.py` - HardlinkService
 
-**检查结果**: 服务已实现但未集成到应用启动流程
+**目标**: 统一到 `HardlinkService`
 
-**分析**:
-- `main.py` 已使用日期格式日志文件名 (`anidown_{date}.log`)，每天自动创建新文件
-- 但缺少旧日志清理功能，日志会无限积累
+**功能映射**:
+| 来源服务 | 方法 | 处理方式 |
+|----------|------|----------|
+| FileService | `create_hardlink()` | 使用 HardlinkService.create() |
+| FileService | `delete_hardlink()` | 使用 HardlinkService.delete_by_torrent() |
+| FileService | `rename_hardlink()` | 迁移到 HardlinkService |
+| FileService | `convert_path()` | 迁移到 HardlinkService |
+| HardlinkService | `create()` | 保留 |
+| HardlinkService | `_create_link()` | 保留 |
+| HardlinkService | `delete_by_torrent()` | 保留 |
 
-**决策**: ✅ 集成 - 在 `main.py` 启动时调用清理旧日志
+**步骤**:
+- [ ] 2.2.1 分析 FileService 所有方法的完整实现
+- [ ] 2.2.2 识别 FileService 和 HardlinkService 的功能重叠
+- [ ] 2.2.3 将 FileService 独有方法迁移到 HardlinkService
+- [ ] 2.2.4 更新 `src/container.py` 中的 provider
+- [ ] 2.2.5 更新所有使用 FileService 的地方
+- [ ] 2.2.6 删除 `src/services/file_service.py`
+- [ ] 2.2.7 更新相关导出
 
-**修改**:
-```python
-# main.py 第 28-31 行
-# 清理旧日志文件（保留最近 5 天）
-from src.services.log_rotation_service import LogRotationService
-log_rotation = LogRotationService(log_file=log_file, max_days=5)
-log_rotation.cleanup_old_logs()
-```
+### Phase 2 验证
 
-- [x] 在 `main.py` 中集成 `LogRotationService.cleanup_old_logs()`
-- [x] 保留旧日志最多 5 天
-
-### Phase 4 完成检查
-- [x] 已评估所有待确认服务
-- [x] 做出保留/集成决策
-- [x] 测试通过: `pytest tests/`
+- [ ] 运行 `ruff check src/` 确认无语法错误
+- [ ] 运行 `pytest tests/` 确认测试通过
+- [ ] 运行 `python -m src.main --test` 确认应用启动正常
+- [ ] 手动测试 Web UI 动漫详情页功能
+- [ ] 手动测试硬链接创建/删除功能
 
 ---
 
-## 最终验证
+## Phase 3: 整合 Discord 通知器
 
-完成所有 Phase 后，执行以下验证:
+**风险等级**: 🟡 中等  
+**预计影响**: 减少 5-6 个文件  
+**依赖**: Phase 2 完成
 
-### 功能验证
-```bash
-# 1. 代码风格检查
-ruff check src/
+### 3.1 分析当前通知器结构
 
-# 2. 运行所有测试
-pytest tests/
+**当前文件** (`src/infrastructure/notification/discord/`):
+| 文件 | 类 | 职责 |
+|------|-----|------|
+| `webhook_client.py` | DiscordWebhookClient | 基础 HTTP 发送 |
+| `embed_builder.py` | EmbedBuilder | 构建 Embed 对象 |
+| `rss_notifier.py` | RSSNotifier | RSS 相关通知 |
+| `download_notifier.py` | DownloadNotifier | 下载相关通知 |
+| `hardlink_notifier.py` | HardlinkNotifier | 硬链接相关通知 |
+| `error_notifier.py` | ErrorNotifier | 错误通知 |
+| `ai_usage_notifier.py` | AIUsageNotifier | AI 使用量通知 |
+| `webhook_received_notifier.py` | WebhookReceivedNotifier | Webhook 接收通知 |
 
-# 3. 应用启动验证
-python -m src.main --test
+### 3.2 设计整合方案
 
-# 4. 完整功能测试
-python -m src.main
-# 手动测试:
-# - RSS 订阅添加
-# - 手动上传
-# - 动漫列表查看
-# - 动漫详情查看
-# - 硬链接创建
+**目标结构**:
+```
+discord/
+├── webhook_client.py      # 保留：基础客户端
+├── embed_builder.py       # 保留：Embed 构建器
+└── notifier.py            # 新建：统一通知器
 ```
 
-### 代码统计
-```bash
-# 验证代码行数减少
-find src -name "*.py" | xargs wc -l
+**新 DiscordNotifier 类设计**:
+```python
+class DiscordNotifier:
+    '''统一 Discord 通知服务'''
+    
+    # RSS 通知
+    def notify_rss_added(...)
+    def notify_rss_filtered(...)
+    
+    # 下载通知
+    def notify_download_started(...)
+    def notify_download_completed(...)
+    def notify_download_error(...)
+    
+    # 硬链接通知
+    def notify_hardlink_created(...)
+    def notify_hardlink_deleted(...)
+    
+    # 错误通知
+    def notify_error(...)
+    
+    # AI 通知
+    def notify_ai_usage(...)
+    
+    # Webhook 通知
+    def notify_webhook_received(...)
 ```
 
-### 完成清单
-- [x] Phase 1 完成: 死代码文件已删除
-- [x] Phase 2 完成: 路径构建逻辑已统一
-- [x] Phase 3 完成: 未使用代码片段已清理
-- [x] Phase 4 完成: 待确认服务已处理（保留并集成）
-- [x] 所有测试通过
-- [x] 应用功能正常
-- [ ] 代码风格检查通过 (存在预存问题)
+**步骤**:
+- [ ] 3.2.1 创建 `notifier.py` 新文件
+- [ ] 3.2.2 实现 DiscordNotifier 类，整合所有通知方法
+- [ ] 3.2.3 更新 `src/container.py` 使用新的 DiscordNotifier
+- [ ] 3.2.4 更新所有引用旧通知器的代码
+- [ ] 3.2.5 删除旧的通知器文件:
+  - [ ] `rss_notifier.py`
+  - [ ] `download_notifier.py`
+  - [ ] `hardlink_notifier.py`
+  - [ ] `error_notifier.py`
+  - [ ] `ai_usage_notifier.py`
+  - [ ] `webhook_received_notifier.py`
+- [ ] 3.2.6 更新 `__init__.py` 导出
+
+### Phase 3 验证
+
+- [ ] 运行 `ruff check src/` 确认无语法错误
+- [ ] 运行 `pytest tests/` 确认测试通过
+- [ ] 手动测试各类 Discord 通知是否正常发送
+
+---
+
+## Phase 4: 统一依赖注入模式
+
+**风险等级**: 🔴 高  
+**预计影响**: 架构一致性提升  
+**依赖**: Phase 3 完成
+
+### 4.1 当前问题
+
+项目同时使用多种依赖管理模式：
+1. **dependency-injector Container** - 主要方式
+2. **全局单例变量** (`_xxx_service`)
+3. **工厂函数** (`get_xxx_service()`)
+
+### 4.2 目标
+
+统一使用 `dependency-injector` Container 模式。
+
+### 4.3 待清理的全局单例
+
+需要搜索并移除的模式：
+- `_xxx_service: Optional[XxxService] = None`
+- `def get_xxx_service() -> XxxService`
+- 直接导入服务类而非通过 Container
+
+**步骤**:
+- [ ] 4.3.1 搜索所有全局单例模式 (`_xxx_service`)
+- [ ] 4.3.2 搜索所有工厂函数 (`get_xxx_service`)
+- [ ] 4.3.3 列出所有受影响的文件
+- [ ] 4.3.4 逐个文件更新为使用 Container:
+  - [ ] 更新导入语句
+  - [ ] 更新服务获取方式
+  - [ ] 删除单例变量和工厂函数
+- [ ] 4.3.5 确保所有服务都通过 Container 注册
+- [ ] 4.3.6 更新文档说明依赖注入用法
+
+### Phase 4 验证
+
+- [ ] 运行 `ruff check src/` 确认无语法错误
+- [ ] 运行 `pytest tests/` 确认测试通过
+- [ ] 运行 `python -m src.main --test` 确认应用启动正常
+- [ ] 全面功能测试
+
+---
+
+## 执行顺序与检查点
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  开始清理工作流程                                                 │
+└─────────────────────────────────────────────────────────────────┘
+          │
+          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Phase 1: 删除未使用代码                                         │
+│  - 删除 4 个异常类                                                │
+│  - 删除空目录 src/services/download/                             │
+│  ✓ 检查点: ruff + pytest + --test                               │
+└─────────────────────────────────────────────────────────────────┘
+          │
+          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Phase 2: 合并重复服务                                           │
+│  - AnimeService ← AnimeDetailService                            │
+│  - HardlinkService ← FileService                                 │
+│  ✓ 检查点: ruff + pytest + --test + 功能测试                     │
+└─────────────────────────────────────────────────────────────────┘
+          │
+          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Phase 3: 整合 Discord 通知器                                    │
+│  - 7 个通知器 → 1 个统一 DiscordNotifier                         │
+│  ✓ 检查点: ruff + pytest + Discord 通知测试                      │
+└─────────────────────────────────────────────────────────────────┘
+          │
+          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Phase 4: 统一依赖注入模式                                        │
+│  - 移除全局单例                                                   │
+│  - 统一使用 Container                                            │
+│  ✓ 检查点: ruff + pytest + --test + 全面功能测试                  │
+└─────────────────────────────────────────────────────────────────┘
+          │
+          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  完成！更新文档                                                   │
+│  - 更新 CLAUDE.md                                                │
+│  - 更新 docs/ARCHITECTURE.md                                     │
+│  - 创建 CHANGELOG 条目                                           │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 预期成果
+
+### 文件变化统计
+
+| Phase | 删除文件 | 新增文件 | 修改文件 |
+|-------|----------|----------|----------|
+| 1 | 1 目录 | 0 | 1 |
+| 2 | 2 | 0 | 5-8 |
+| 3 | 6 | 1 | 5-10 |
+| 4 | 0 | 0 | 10-15 |
+| **总计** | **8-9** | **1** | **21-34** |
+
+### 代码简化
+
+| 指标 | 清理前 | 清理后 | 变化 |
+|------|--------|--------|------|
+| 服务文件数 | 19 | 16 | -3 |
+| 通知器文件数 | 8 | 3 | -5 |
+| 异常类数 | 18 | 14 | -4 |
+| 总文件数 | ~67 | ~55 | ~-12 |
 
 ---
 
 ## 回滚计划
 
-如果出现问题，可以使用 git 回滚:
+每个 Phase 完成后：
+1. 创建 Git 提交
+2. 使用有意义的提交信息标记 Phase
 
+如需回滚：
 ```bash
 # 查看提交历史
-git log --oneline -10
+git log --oneline
 
-# 回滚到指定提交
-git reset --hard <commit-hash>
-
-# 或者回滚单个文件
-git checkout <commit-hash> -- <file-path>
-```
-
-**建议**: 每完成一个 Phase 就创建一个提交:
-```bash
-git add .
-git commit -m "cleanup: Phase N - 描述"
+# 回滚到特定 Phase
+git revert <commit-hash>
 ```
 
 ---
 
-*工作流程生成: Claude Code*
+## 注意事项
+
+1. **不要跳过验证步骤** - 每个 Phase 结束后必须运行测试
+2. **保持小步提交** - 每个子任务完成后可以单独提交
+3. **备份重要文件** - 在删除前确认文件确实无用
+4. **测试覆盖** - 如果发现测试不足，先补充测试再重构
+
+---
+
+## 附录：命令参考
+
+```bash
+# 代码检查
+ruff check src/
+
+# 运行测试
+pytest tests/
+
+# 应用测试
+python -m src.main --test
+
+# 搜索引用
+grep -r "ClassName" src/
+
+# Git 提交
+git add .
+git commit -m "refactor: Phase N - description"
+```
