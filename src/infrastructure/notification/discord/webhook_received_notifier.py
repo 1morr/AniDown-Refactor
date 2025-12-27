@@ -5,7 +5,6 @@ Discord Webhook 接收通知实现模块。
 """
 
 import logging
-from typing import Optional
 
 from src.core.interfaces.notifications import IWebhookNotifier, WebhookReceivedNotification
 
@@ -34,7 +33,7 @@ class DiscordWebhookReceivedNotifier(IWebhookNotifier):
     def __init__(
         self,
         webhook_client: DiscordWebhookClient,
-        embed_builder: Optional[EmbedBuilder] = None
+        embed_builder: EmbedBuilder | None = None
     ):
         """
         初始化 Webhook 接收通知器。

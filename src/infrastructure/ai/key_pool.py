@@ -14,10 +14,11 @@ import logging
 import threading
 import time
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -129,14 +130,14 @@ class KeyUsage:
     rpd_count: int = 0
     rpd_date: str = ''
     error_count: int = 0
-    last_error: Optional[str] = None
-    last_error_type: Optional[ErrorType] = None
-    last_success_time: Optional[float] = None
-    last_response_time_ms: Optional[int] = None
+    last_error: str | None = None
+    last_error_type: ErrorType | None = None
+    last_success_time: float | None = None
+    last_response_time_ms: int | None = None
     cooldown_until: float = 0
     disabled: bool = False
-    disabled_reason: Optional[str] = None
-    disabled_at: Optional[float] = None
+    disabled_reason: str | None = None
+    disabled_at: float | None = None
     error_history: deque = field(default_factory=lambda: deque(maxlen=20))
 
 
@@ -250,11 +251,11 @@ class KeyPool:
             purpose: Key Pool 用途标识（如 'title_parse', 'multi_file_rename'）
         """
         self._purpose = purpose
-        self._keys: Dict[str, KeySpec] = {}
-        self._usage: Dict[str, KeyUsage] = {}
+        self._keys: dict[str, KeySpec] = {}
+        self._usage: dict[str, KeyUsage] = {}
         self._lock = threading.Lock()
         self._rr_index = 0
-        self._on_key_disabled: Optional[Callable[[str, str, str], None]] = None
+        self._on_key_disabled: Callable[[str, str, str], None] | None = None
         # 用于中断等待的事件
         self._wait_interrupt_event = threading.Event()
 
@@ -275,7 +276,7 @@ class KeyPool:
         """
         self._on_key_disabled = callback
 
-    def configure(self, keys: List[KeySpec]) -> None:
+    def configure(self, keys: list[KeySpec]) -> None:
         """
         配置 Key 池。
 
@@ -299,7 +300,7 @@ class KeyPool:
         self,
         wait_for_rpm: bool = True,
         wait_for_rpd: bool = False
-    ) -> Optional[KeyReservation]:
+    ) -> KeyReservation | None:
         """
         预留一个可用的 Key。
 
@@ -363,7 +364,7 @@ class KeyPool:
 
         return None
 
-    def _try_reserve(self) -> Optional[KeyReservation]:
+    def _try_reserve(self) -> KeyReservation | None:
         """
         尝试预留一个可用的 Key（内部方法）。
 
@@ -400,7 +401,7 @@ class KeyPool:
 
                 # 检查 RPD
                 if spec.rpd_limit > 0:
-                    today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+                    today = datetime.now(UTC).strftime('%Y-%m-%d')
                     if usage.rpd_date != today:
                         usage.rpd_count = 0
                         usage.rpd_date = today
@@ -438,7 +439,7 @@ class KeyPool:
                 extra_body=spec.extra_body
             )
 
-    def _calculate_wait_time(self) -> Optional[Dict[str, Any]]:
+    def _calculate_wait_time(self) -> dict[str, Any] | None:
         """
         计算等待时间（RPM 或 RPD）。
 
@@ -484,7 +485,7 @@ class KeyPool:
 
                 # 检查 RPD（先检查）
                 if spec.rpd_limit > 0:
-                    today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+                    today = datetime.now(UTC).strftime('%Y-%m-%d')
                     if usage.rpd_date == today and usage.rpd_count >= spec.rpd_limit:
                         rpd_blocked_count += 1
                         continue
@@ -540,7 +541,7 @@ class KeyPool:
         Returns:
             距离 UTC 午夜的秒数
         """
-        now_utc = datetime.now(timezone.utc)
+        now_utc = datetime.now(UTC)
         tomorrow_utc = now_utc.replace(
             hour=0, minute=0, second=0, microsecond=0
         ) + timedelta(days=1)
@@ -549,7 +550,7 @@ class KeyPool:
     def report_success(
         self,
         key_id: str,
-        response_time_ms: Optional[int] = None
+        response_time_ms: int | None = None
     ) -> None:
         """
         报告请求成功。
@@ -577,9 +578,9 @@ class KeyPool:
         self,
         key_id: str,
         error_message: str,
-        status_code: Optional[int] = None,
-        error_type: Optional[ErrorType] = None,
-        retry_after: Optional[float] = None
+        status_code: int | None = None,
+        error_type: ErrorType | None = None,
+        retry_after: float | None = None
     ) -> None:
         """
         报告请求错误。
@@ -846,7 +847,7 @@ class KeyPool:
                 return True
             return False
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """
         获取 Key Pool 完整状态。
 
@@ -891,7 +892,7 @@ class KeyPool:
                 # 计算 RPD 是否达到限制
                 rpd_blocked = False
                 rpd_count = usage.rpd_count
-                today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+                today = datetime.now(UTC).strftime('%Y-%m-%d')
 
                 if spec.rpd_limit > 0:
                     if usage.rpd_date == today:
@@ -924,7 +925,7 @@ class KeyPool:
                     'cooldown_until_utc': (
                         datetime.fromtimestamp(
                             usage.cooldown_until,
-                            tz=timezone.utc
+                            tz=UTC
                         ).isoformat()
                         if cooldown_remaining > 0 else None
                     ),
@@ -933,7 +934,7 @@ class KeyPool:
                     'disabled_at_utc': (
                         datetime.fromtimestamp(
                             usage.disabled_at,
-                            tz=timezone.utc
+                            tz=UTC
                         ).isoformat()
                         if usage.disabled_at else None
                     ),
@@ -985,7 +986,7 @@ class KeyPool:
         """
         from src.infrastructure.repositories.ai_key_repository import ai_key_repository
 
-        today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+        today = datetime.now(UTC).strftime('%Y-%m-%d')
 
         with self._lock:
             restored_count = 0
@@ -1017,16 +1018,16 @@ class KeyPool:
 
 
 # 全局 Key Pool 实例（按用途）
-_pools: Dict[str, KeyPool] = {}
+_pools: dict[str, KeyPool] = {}
 _pools_lock = threading.Lock()
 
 # 命名 Key Pool 注册表
-_named_pools: Dict[str, KeyPool] = {}
+_named_pools: dict[str, KeyPool] = {}
 # 任务用途到 Pool 名称的映射
-_purpose_to_pool: Dict[str, str] = {}
+_purpose_to_pool: dict[str, str] = {}
 
 
-def get_pool(purpose: str) -> Optional[KeyPool]:
+def get_pool(purpose: str) -> KeyPool | None:
     """
     获取指定用途的 Key Pool。
 
@@ -1052,7 +1053,7 @@ def register_pool(pool: KeyPool) -> None:
         logger.info(f'🔑 注册 Key Pool: {pool.purpose}')
 
 
-def get_all_pools() -> Dict[str, KeyPool]:
+def get_all_pools() -> dict[str, KeyPool]:
     """
     获取所有已注册的 Key Pool。
 
@@ -1076,7 +1077,7 @@ def register_named_pool(pool: KeyPool, pool_name: str) -> None:
         logger.info(f'🔑 注册命名 Key Pool: {pool_name}')
 
 
-def get_named_pool(pool_name: str) -> Optional[KeyPool]:
+def get_named_pool(pool_name: str) -> KeyPool | None:
     """
     获取指定名称的命名 Key Pool。
 
@@ -1090,7 +1091,7 @@ def get_named_pool(pool_name: str) -> Optional[KeyPool]:
         return _named_pools.get(pool_name)
 
 
-def get_all_named_pools() -> Dict[str, KeyPool]:
+def get_all_named_pools() -> dict[str, KeyPool]:
     """
     获取所有已注册的命名 Key Pool。
 
@@ -1114,7 +1115,7 @@ def bind_purpose_to_pool(purpose: str, pool_name: str) -> None:
         logger.info(f'🔗 绑定任务 {purpose} → Pool "{pool_name}"')
 
 
-def get_pool_for_purpose(purpose: str) -> Optional[KeyPool]:
+def get_pool_for_purpose(purpose: str) -> KeyPool | None:
     """
     获取任务用途或 Pool 名称对应的 Key Pool。
 
@@ -1149,7 +1150,7 @@ def get_pool_for_purpose(purpose: str) -> Optional[KeyPool]:
         return _pools.get(purpose)
 
 
-def get_pools_grouped_by_name() -> Dict[str, Dict[str, Any]]:
+def get_pools_grouped_by_name() -> dict[str, dict[str, Any]]:
     """
     获取按 Pool 名称分组的 Key Pool 信息（用于 UI 显示）。
 
@@ -1206,7 +1207,7 @@ def get_pools_grouped_by_name() -> Dict[str, Dict[str, Any]]:
         return result
 
 
-def get_purpose_to_pool_mapping() -> Dict[str, str]:
+def get_purpose_to_pool_mapping() -> dict[str, str]:
     """
     获取任务用途到 Pool 名称的映射。
 

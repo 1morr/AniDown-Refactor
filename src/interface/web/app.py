@@ -3,11 +3,12 @@ Flask 应用工厂
 
 创建和配置 Flask 应用实例
 """
+from datetime import UTC, datetime
+
 from flask import Flask, request
 from flask.json.provider import DefaultJSONProvider
-from datetime import datetime, timezone
+
 from src.container import Container
-from src.core.config import config
 from src.core.utils.timezone_utils import format_datetime_iso
 
 # 导入蓝图
@@ -31,7 +32,7 @@ class CustomJSONProvider(DefaultJSONProvider):
         if isinstance(obj, datetime):
             # 如果datetime没有时区信息，假设它是UTC
             if obj.tzinfo is None:
-                obj = obj.replace(tzinfo=timezone.utc)
+                obj = obj.replace(tzinfo=UTC)
             # 返回ISO 8601格式的字符串，包含时区信息
             return obj.isoformat()
         return super().default(obj)

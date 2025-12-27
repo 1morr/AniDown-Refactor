@@ -4,25 +4,25 @@ RSS 处理控制器
 处理 RSS feed 解析、过滤和处理等功能
 """
 import re
-from flask import Blueprint, render_template, request
-from dependency_injector.wiring import inject, Provide
 
-from src.core.config import config
+from dependency_injector.wiring import Provide, inject
+from flask import Blueprint, render_template, request
+
 from src.container import Container
-from src.services.download_manager import DownloadManager
-from src.services.rss_service import RSSService
-from src.services.queue.rss_queue import get_rss_queue, RSSQueueWorker, RSSPayload
-from src.infrastructure.repositories.history_repository import HistoryRepository
+from src.core.config import config
 from src.infrastructure.repositories.download_repository import DownloadRepository
-from src.infrastructure.notification.discord.webhook_client import DiscordWebhookClient
+from src.infrastructure.repositories.history_repository import HistoryRepository
 from src.interface.web.utils import (
     APIResponse,
-    handle_api_errors,
-    validate_json,
     RequestValidator,
     ValidationRule,
-    WebLogger
+    WebLogger,
+    handle_api_errors,
+    validate_json,
 )
+from src.services.download_manager import DownloadManager
+from src.services.queue.rss_queue import RSSPayload, RSSQueueWorker, get_rss_queue
+from src.services.rss_service import RSSService
 
 rss_bp = Blueprint('rss', __name__)
 logger = WebLogger(__name__)
@@ -170,8 +170,8 @@ def get_rss_history_api(
     logger.api_request(f"获取RSS历史 - limit:{limit}")
 
     # 在 session 内部处理数据转换
-    from src.infrastructure.database.session import db_manager
     from src.infrastructure.database.models import RssProcessingHistory
+    from src.infrastructure.database.session import db_manager
 
     with db_manager.session() as session:
         history_objects = session.query(RssProcessingHistory).order_by(
@@ -210,8 +210,8 @@ def get_rss_history_detail_api(
 
     logger.api_request(f"获取RSS历史详情 - ID:{history_id}")
 
+    from src.infrastructure.database.models import RssProcessingDetail, RssProcessingHistory
     from src.infrastructure.database.session import db_manager
-    from src.infrastructure.database.models import RssProcessingHistory, RssProcessingDetail
 
     with db_manager.session() as session:
         history = session.query(RssProcessingHistory).filter_by(id=history_id).first()
@@ -450,6 +450,7 @@ def fetch_all_bangumi_rss_api(
     """API: 从配置的RSS链接中提取所有番组RSS (仅支持Mikan)"""
     import requests
     from bs4 import BeautifulSoup
+
     from src.core.config import RSSFeed
     from src.core.interfaces.notifications import RSSNotification
 

@@ -3,10 +3,9 @@ AI提示词配置文件
 将所有AI交互的提示词集中管理，便于维护和更新
 """
 
-from typing import List, Optional
 
 
-def get_title_parse_system_prompt(language_priorities: Optional[List[str]] = None) -> str:
+def get_title_parse_system_prompt(language_priorities: list[str] | None = None) -> str:
     """
     获取标题解析的系统提示词。
 

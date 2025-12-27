@@ -8,7 +8,6 @@ import glob
 import logging
 import os
 from datetime import datetime, timedelta
-from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +49,7 @@ class LogRotationService:
         """Get the maximum days to keep logs."""
         return self._max_days
 
-    def rotate_log(self) -> Optional[str]:
+    def rotate_log(self) -> str | None:
         """
         Rotate the current log file.
 
@@ -126,7 +125,7 @@ class LogRotationService:
         self.rotate_log()
         self.cleanup_old_logs()
 
-    def get_log_files(self) -> List[str]:
+    def get_log_files(self) -> list[str]:
         """
         Get list of all log files.
 
@@ -161,7 +160,7 @@ class LogRotationService:
 
 
 # Global log rotation service instance
-_log_rotation_service: Optional[LogRotationService] = None
+_log_rotation_service: LogRotationService | None = None
 
 
 def get_log_rotation_service(

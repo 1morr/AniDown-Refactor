@@ -11,8 +11,8 @@ import time
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, Generic, List, Optional, TypeVar
+from datetime import UTC, datetime
+from typing import Any, Generic, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -36,10 +36,10 @@ class QueueEvent(Generic[T]):
     event_type: str
     payload: T
     queue_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
-    received_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    received_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert event to dictionary representation."""
         result = {
             'queue_id': self.queue_id,
@@ -63,7 +63,7 @@ class QueueStats:
     total_processed: int = 0
     total_success: int = 0
     total_failed: int = 0
-    processing_start_time: Optional[datetime] = None
+    processing_start_time: datetime | None = None
 
     @property
     def success_rate(self) -> float:
@@ -96,11 +96,11 @@ class QueueWorker(ABC, Generic[T]):
         """
         self._name = name
         self._queue: queue.Queue[QueueEvent[T]] = queue.Queue()
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
         self._pause_event = threading.Event()
-        self._current_event: Optional[QueueEvent[T]] = None
-        self._processing_started_at: Optional[datetime] = None
+        self._current_event: QueueEvent[T] | None = None
+        self._processing_started_at: datetime | None = None
         self._consecutive_failures = 0
         self._max_failures = max_failures
         self._lock = threading.Lock()
@@ -278,7 +278,7 @@ class QueueWorker(ABC, Generic[T]):
         """
         with self._lock:
             self._current_event = event
-            self._processing_started_at = datetime.now(timezone.utc)
+            self._processing_started_at = datetime.now(UTC)
 
         try:
             logger.debug(
@@ -325,7 +325,7 @@ class QueueWorker(ABC, Generic[T]):
                     f'(max: {self._max_failures})'
                 )
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """
         Get worker status.
 
@@ -367,7 +367,7 @@ class QueueWorker(ABC, Generic[T]):
                 }
             }
 
-    def clear_queue(self) -> Dict[str, Any]:
+    def clear_queue(self) -> dict[str, Any]:
         """
         Clear all pending events from the queue.
 

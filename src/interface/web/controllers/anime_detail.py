@@ -5,19 +5,14 @@ Provides routes for anime detail page and related API endpoints.
 """
 
 import os
+
+from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, render_template, request
-from dependency_injector.wiring import inject, Provide
 
 from src.container import Container
-from src.services.anime_detail_service import AnimeDetailService
+from src.interface.web.utils import APIResponse, WebLogger, handle_api_errors, validate_json
 from src.services.anime_service import AnimeService
 from src.services.file.path_builder import PathBuilder
-from src.interface.web.utils import (
-    APIResponse,
-    handle_api_errors,
-    validate_json,
-    WebLogger
-)
 
 logger = WebLogger(__name__)
 anime_detail_bp = Blueprint('anime_detail', __name__)
@@ -46,7 +41,7 @@ def anime_detail_page(
 @handle_api_errors
 def api_get_anime_torrents(
     anime_id: int,
-    anime_detail_service: AnimeDetailService = Provide[Container.anime_detail_service]
+    anime_service: AnimeService = Provide[Container.anime_service]
 ):
     """Get all torrents with files for an anime."""
     if anime_id < 1:
@@ -54,7 +49,7 @@ def api_get_anime_torrents(
 
     logger.api_request(f'获取动漫种子列表 - ID:{anime_id}')
 
-    result = anime_detail_service.get_anime_with_torrents(anime_id)
+    result = anime_service.get_anime_with_torrents(anime_id)
 
     if not result.get('success'):
         return APIResponse.not_found(result.get('error', '获取失败'))
@@ -73,7 +68,7 @@ def api_get_anime_torrents(
 @validate_json('files')
 def api_check_existing_hardlinks(
     anime_id: int,
-    anime_detail_service: AnimeDetailService = Provide[Container.anime_detail_service]
+    anime_service: AnimeService = Provide[Container.anime_service]
 ):
     """Check if selected files have existing hardlinks."""
     if anime_id < 1:
@@ -87,7 +82,7 @@ def api_check_existing_hardlinks(
 
     logger.api_request(f'检查已存在硬链接 - ID:{anime_id}, 文件数:{len(files)}')
 
-    result = anime_detail_service.check_existing_hardlinks(anime_id, files)
+    result = anime_service.check_existing_hardlinks(anime_id, files)
 
     if not result.get('success'):
         return APIResponse.internal_error(result.get('error', '检查失败'))
@@ -106,7 +101,7 @@ def api_check_existing_hardlinks(
 @validate_json('files')
 def api_process_with_ai(
     anime_id: int,
-    anime_detail_service: AnimeDetailService = Provide[Container.anime_detail_service]
+    anime_service: AnimeService = Provide[Container.anime_service]
 ):
     """Process selected files with AI (like webhook completion)."""
     if anime_id < 1:
@@ -131,10 +126,10 @@ def api_process_with_ai(
 
     # If replace_existing, delete existing hardlinks first
     if replace_existing:
-        check_result = anime_detail_service.check_existing_hardlinks(anime_id, files)
+        check_result = anime_service.check_existing_hardlinks(anime_id, files)
         if check_result.get('success') and check_result.get('existing_files'):
             hardlink_ids = [f['hardlink_id'] for f in check_result['existing_files']]
-            anime_detail_service.delete_hardlinks_for_files(hardlink_ids)
+            anime_service.delete_hardlinks_for_files(hardlink_ids)
 
     # Process each torrent
     results = {
@@ -194,7 +189,7 @@ def api_process_with_ai(
 @validate_json('files')
 def api_create_anime_hardlinks(
     anime_id: int,
-    anime_detail_service: AnimeDetailService = Provide[Container.anime_detail_service],
+    anime_service: AnimeService = Provide[Container.anime_service],
     path_builder: PathBuilder = Provide[Container.path_builder]
 ):
     """Create hardlinks for selected files."""
@@ -210,8 +205,8 @@ def api_create_anime_hardlinks(
 
     logger.api_request(f'创建硬链接 - ID:{anime_id}, 文件数:{len(files)}')
 
-    from src.infrastructure.database.session import db_manager
     from src.infrastructure.database.models import AnimeInfo, DownloadStatus, Hardlink
+    from src.infrastructure.database.session import db_manager
 
     try:
         with db_manager.session() as session:
@@ -330,7 +325,7 @@ def api_create_anime_hardlinks(
 @validate_json('hardlink_ids')
 def api_delete_anime_hardlinks(
     anime_id: int,
-    anime_detail_service: AnimeDetailService = Provide[Container.anime_detail_service]
+    anime_service: AnimeService = Provide[Container.anime_service]
 ):
     """Delete hardlinks for selected files."""
     if anime_id < 1:
@@ -344,7 +339,7 @@ def api_delete_anime_hardlinks(
 
     logger.api_request(f'删除硬链接 - ID:{anime_id}, 数量:{len(hardlink_ids)}')
 
-    result = anime_detail_service.delete_hardlinks_for_files(hardlink_ids)
+    result = anime_service.delete_hardlinks_for_files(hardlink_ids)
 
     if not result.get('success'):
         return APIResponse.internal_error(result.get('error', '删除失败'))
@@ -375,8 +370,8 @@ def api_rename_anime_hardlinks(
 
     logger.api_request(f'重命名硬链接 - ID:{anime_id}, 数量:{len(renames)}')
 
-    from src.infrastructure.database.session import db_manager
     from src.infrastructure.database.models import Hardlink
+    from src.infrastructure.database.session import db_manager
 
     renamed = []
     failed = []
@@ -451,7 +446,7 @@ def api_rename_anime_hardlinks(
 @validate_json('files')
 def api_ai_rename_preview(
     anime_id: int,
-    anime_detail_service: AnimeDetailService = Provide[Container.anime_detail_service]
+    anime_service: AnimeService = Provide[Container.anime_service]
 ):
     """Get AI rename suggestions and compare with existing hardlinks."""
     if anime_id < 1:
@@ -465,7 +460,7 @@ def api_ai_rename_preview(
 
     logger.api_request(f'获取AI重命名预览 - ID:{anime_id}, 文件数:{len(files)}')
 
-    result = anime_detail_service.get_ai_rename_preview(anime_id, files)
+    result = anime_service.get_ai_rename_preview(anime_id, files)
 
     if not result.get('success'):
         return APIResponse.internal_error(result.get('error', '获取AI预览失败'))
@@ -484,7 +479,7 @@ def api_ai_rename_preview(
 @validate_json('items')
 def api_apply_ai_renames(
     anime_id: int,
-    anime_detail_service: AnimeDetailService = Provide[Container.anime_detail_service]
+    anime_service: AnimeService = Provide[Container.anime_service]
 ):
     """Apply selected AI rename suggestions to create/replace hardlinks."""
     if anime_id < 1:
@@ -502,7 +497,7 @@ def api_apply_ai_renames(
 
     logger.api_request(f'应用AI重命名 - ID:{anime_id}, 项目数:{len(items)}')
 
-    result = anime_detail_service.apply_ai_renames(anime_id, items, target_path)
+    result = anime_service.apply_ai_renames(anime_id, items, target_path)
 
     if not result.get('success'):
         return APIResponse.internal_error(result.get('error', '应用失败'))

@@ -4,12 +4,12 @@ AI 响应 JSON Schema 模块。
 定义用于 AI API 调用的响应格式 Schema。
 """
 
-from typing import Any, Dict
+from typing import Any
 
-ResponseFormat = Dict[str, Any]
+ResponseFormat = dict[str, Any]
 
 
-def _number_or_null(description: str) -> Dict[str, Any]:
+def _number_or_null(description: str) -> dict[str, Any]:
     """Helper to describe numeric fields that may be null or fractional."""
     return {
         'description': description,
@@ -21,7 +21,7 @@ def _number_or_null(description: str) -> Dict[str, Any]:
     }
 
 
-def _string_field(description: str) -> Dict[str, Any]:
+def _string_field(description: str) -> dict[str, Any]:
     """Helper to describe common string fields."""
     return {
         'type': 'string',

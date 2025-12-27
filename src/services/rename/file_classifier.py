@@ -7,34 +7,34 @@ Provides file classification functionality based on file extensions.
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Set
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 # File extension categories
-VIDEO_EXTENSIONS: Set[str] = {
+VIDEO_EXTENSIONS: set[str] = {
     '.mkv', '.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.ts'
 }
 
-SUBTITLE_EXTENSIONS: Set[str] = {
+SUBTITLE_EXTENSIONS: set[str] = {
     '.ass', '.srt', '.sub', '.ssa', '.vtt', '.idx', '.sup'
 }
 
-AUDIO_EXTENSIONS: Set[str] = {
+AUDIO_EXTENSIONS: set[str] = {
     '.mp3', '.flac', '.aac', '.m4a', '.ogg', '.wav', '.opus'
 }
 
-IMAGE_EXTENSIONS: Set[str] = {
+IMAGE_EXTENSIONS: set[str] = {
     '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'
 }
 
-ARCHIVE_EXTENSIONS: Set[str] = {
+ARCHIVE_EXTENSIONS: set[str] = {
     '.zip', '.rar', '.7z', '.tar', '.gz'
 }
 
 # Files to ignore
-IGNORE_PATTERNS: Set[str] = {
+IGNORE_PATTERNS: set[str] = {
     '.txt', '.nfo', '.url', '.html', '.xml', '.log', '.sfv', '.md5', '.sha1'
 }
 
@@ -86,13 +86,13 @@ class ClassificationResult:
 
     Contains all classified files organized by type.
     """
-    video_files: List[ClassifiedFile] = field(default_factory=list)
-    subtitle_files: List[ClassifiedFile] = field(default_factory=list)
-    audio_files: List[ClassifiedFile] = field(default_factory=list)
-    image_files: List[ClassifiedFile] = field(default_factory=list)
-    archive_files: List[ClassifiedFile] = field(default_factory=list)
-    other_files: List[ClassifiedFile] = field(default_factory=list)
-    ignored_files: List[ClassifiedFile] = field(default_factory=list)
+    video_files: list[ClassifiedFile] = field(default_factory=list)
+    subtitle_files: list[ClassifiedFile] = field(default_factory=list)
+    audio_files: list[ClassifiedFile] = field(default_factory=list)
+    image_files: list[ClassifiedFile] = field(default_factory=list)
+    archive_files: list[ClassifiedFile] = field(default_factory=list)
+    other_files: list[ClassifiedFile] = field(default_factory=list)
+    ignored_files: list[ClassifiedFile] = field(default_factory=list)
 
     @property
     def total_files(self) -> int:
@@ -121,12 +121,12 @@ class FileClassifier:
 
     def __init__(
         self,
-        video_extensions: Set[str] = VIDEO_EXTENSIONS,
-        subtitle_extensions: Set[str] = SUBTITLE_EXTENSIONS,
-        audio_extensions: Set[str] = AUDIO_EXTENSIONS,
-        image_extensions: Set[str] = IMAGE_EXTENSIONS,
-        archive_extensions: Set[str] = ARCHIVE_EXTENSIONS,
-        ignore_patterns: Set[str] = IGNORE_PATTERNS
+        video_extensions: set[str] = VIDEO_EXTENSIONS,
+        subtitle_extensions: set[str] = SUBTITLE_EXTENSIONS,
+        audio_extensions: set[str] = AUDIO_EXTENSIONS,
+        image_extensions: set[str] = IMAGE_EXTENSIONS,
+        archive_extensions: set[str] = ARCHIVE_EXTENSIONS,
+        ignore_patterns: set[str] = IGNORE_PATTERNS
     ):
         """
         Initialize the file classifier.
@@ -148,7 +148,7 @@ class FileClassifier:
 
     def classify_files(
         self,
-        files: List[Dict[str, Any]],
+        files: list[dict[str, Any]],
         base_directory: str = ''
     ) -> ClassificationResult:
         """
@@ -193,7 +193,7 @@ class FileClassifier:
 
     def _classify_single_file(
         self,
-        file_info: Dict[str, Any],
+        file_info: dict[str, Any],
         base_directory: str
     ) -> ClassifiedFile:
         """
@@ -273,7 +273,7 @@ class FileClassifier:
     def get_main_subtitle(
         self,
         video_file: ClassifiedFile,
-        subtitle_files: List[ClassifiedFile]
+        subtitle_files: list[ClassifiedFile]
     ) -> ClassifiedFile:
         """
         Find the main subtitle file for a video file.

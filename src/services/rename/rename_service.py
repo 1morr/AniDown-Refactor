@@ -7,7 +7,8 @@ Provides coordinated file renaming functionality for media library organization.
 import logging
 import os
 import re
-from typing import Any, Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, Optional
 
 from src.core.config import config
 from src.core.interfaces.adapters import IFileRenamer, RenameResult
@@ -19,8 +20,8 @@ from src.services.rename.file_classifier import (
 from src.services.rename.filename_formatter import FilenameFormatter
 
 if TYPE_CHECKING:
-    from src.core.interfaces.repositories import IAnimeRepository
     from src.core.interfaces.adapters import IFileRenamer as IAIFileRenamer
+    from src.core.interfaces.repositories import IAnimeRepository
 
 logger = logging.getLogger(__name__)
 
@@ -41,12 +42,12 @@ class RenameService(IFileRenamer):
 
     def __init__(
         self,
-        file_classifier: Optional[FileClassifier] = None,
-        filename_formatter: Optional[FilenameFormatter] = None,
+        file_classifier: FileClassifier | None = None,
+        filename_formatter: FilenameFormatter | None = None,
         anime_repo: Optional['IAnimeRepository'] = None,
         ai_file_renamer: Optional['IAIFileRenamer'] = None,
-        on_ai_usage: Optional[Callable[[str, str], None]] = None,
-        path_converter: Optional[Callable[[str], str]] = None
+        on_ai_usage: Callable[[str, str], None] | None = None,
+        path_converter: Callable[[str], str] | None = None
     ):
         """
         Initialize the rename service.
@@ -105,12 +106,12 @@ class RenameService(IFileRenamer):
 
     def generate_rename_mapping(
         self,
-        files: List[str],
+        files: list[str],
         category: str,
-        anime_title: Optional[str] = None,
-        folder_structure: Optional[str] = None,
-        tvdb_data: Optional[Dict[str, Any]] = None
-    ) -> Optional[RenameResult]:
+        anime_title: str | None = None,
+        folder_structure: str | None = None,
+        tvdb_data: dict[str, Any] | None = None
+    ) -> RenameResult | None:
         """
         Generate rename mapping for a list of files.
 
@@ -149,9 +150,9 @@ class RenameService(IFileRenamer):
 
     def classify_files(
         self,
-        torrent_files: List[Dict[str, Any]],
+        torrent_files: list[dict[str, Any]],
         download_directory: str
-    ) -> Tuple[List[ClassifiedFile], List[ClassifiedFile]]:
+    ) -> tuple[list[ClassifiedFile], list[ClassifiedFile]]:
         """
         Classify torrent files into video and subtitle files.
 
@@ -202,17 +203,17 @@ class RenameService(IFileRenamer):
 
     def generate_mapping(
         self,
-        video_files: List[ClassifiedFile],
-        anime_id: Optional[int],
+        video_files: list[ClassifiedFile],
+        anime_id: int | None,
         anime_title: str,
         subtitle_group: str,
         season: int,
         category: str,
         is_multi_season: bool = False,
-        tvdb_data: Optional[Dict[str, Any]] = None,
-        folder_structure: Optional[str] = None,
-        torrent_hash: Optional[str] = None
-    ) -> Optional[RenameResult]:
+        tvdb_data: dict[str, Any] | None = None,
+        folder_structure: str | None = None,
+        torrent_hash: str | None = None
+    ) -> RenameResult | None:
         """
         Generate rename mapping for classified video files.
 
@@ -270,7 +271,7 @@ class RenameService(IFileRenamer):
         if anime_id and self._anime_repo:
             db_patterns = self._anime_repo.get_patterns(anime_id)
             if db_patterns:
-                logger.debug(f'找到数据库中的正则表达式，尝试提取集数')
+                logger.debug('找到数据库中的正则表达式，尝试提取集数')
 
         # Step 3: Try regex extraction if patterns exist
         if db_patterns:
@@ -288,7 +289,7 @@ class RenameService(IFileRenamer):
 
             if can_extract_all:
                 # All files matched with regex - use database patterns
-                logger.info(f'📋 使用数据库正则表达式成功匹配所有文件')
+                logger.info('📋 使用数据库正则表达式成功匹配所有文件')
                 # 使用正则时不标记 AI 使用
                 return self._build_names_from_db_patterns(
                     video_files=video_files,
@@ -324,8 +325,8 @@ class RenameService(IFileRenamer):
     def _extract_episode_from_db_patterns(
         self,
         filename: str,
-        patterns: Dict[str, str]
-    ) -> Optional[int]:
+        patterns: dict[str, str]
+    ) -> int | None:
         """
         Extract episode number using database patterns.
 
@@ -355,13 +356,13 @@ class RenameService(IFileRenamer):
 
     def _build_names_from_db_patterns(
         self,
-        video_files: List[ClassifiedFile],
-        extracted_episodes: Dict[str, int],
+        video_files: list[ClassifiedFile],
+        extracted_episodes: dict[str, int],
         anime_title: str,
         subtitle_group: str,
         season: int,
         category: str,
-        db_patterns: Dict[str, str]
+        db_patterns: dict[str, str]
     ) -> RenameResult:
         """
         Build rename mapping using database patterns.
@@ -378,9 +379,9 @@ class RenameService(IFileRenamer):
         Returns:
             RenameResult with mappings.
         """
-        main_files: Dict[str, str] = {}
-        skipped_files: List[str] = []
-        seasons_info: Dict[str, Any] = {}
+        main_files: dict[str, str] = {}
+        skipped_files: list[str] = []
+        seasons_info: dict[str, Any] = {}
 
         for video in video_files:
             episode = extracted_episodes.get(video.name)
@@ -425,17 +426,17 @@ class RenameService(IFileRenamer):
 
     def _process_with_ai(
         self,
-        video_files: List[ClassifiedFile],
-        anime_id: Optional[int],
+        video_files: list[ClassifiedFile],
+        anime_id: int | None,
         anime_title: str,
         subtitle_group: str,
         season: int,
         category: str,
         is_multi_season: bool,
-        tvdb_data: Optional[Dict[str, Any]],
-        folder_structure: Optional[str],
-        torrent_hash: Optional[str]
-    ) -> Optional[RenameResult]:
+        tvdb_data: dict[str, Any] | None,
+        folder_structure: str | None,
+        torrent_hash: str | None
+    ) -> RenameResult | None:
         """
         Process files using AI renamer.
 
@@ -566,8 +567,8 @@ class RenameService(IFileRenamer):
 
     def _extract_patterns_from_ai_result(
         self,
-        ai_patterns: Optional[Dict[str, Any]]
-    ) -> Optional[Dict[str, str]]:
+        ai_patterns: dict[str, Any] | None
+    ) -> dict[str, str] | None:
         """
         Extract database-compatible patterns from AI result.
 
@@ -606,8 +607,8 @@ class RenameService(IFileRenamer):
     def _extract_from_regex(
         self,
         filename: str,
-        regex_pattern: Optional[str]
-    ) -> Optional[str]:
+        regex_pattern: str | None
+    ) -> str | None:
         """
         Extract value using regex pattern.
 
@@ -637,10 +638,10 @@ class RenameService(IFileRenamer):
         anime_title: str,
         subtitle_group: str,
         season: int,
-        episode: Optional[int],
+        episode: int | None,
         category: str,
-        subtitle_type: Optional[str],
-        special_tag: Optional[str],
+        subtitle_type: str | None,
+        special_tag: str | None,
         extension: str
     ) -> str:
         """
@@ -713,13 +714,13 @@ class RenameService(IFileRenamer):
 
     def _build_consistent_names_from_ai(
         self,
-        video_files: List[ClassifiedFile],
+        video_files: list[ClassifiedFile],
         ai_result: RenameResult,
         anime_title: str,
         subtitle_group: str,
         season: int,
         category: str,
-        db_patterns: Dict[str, str]
+        db_patterns: dict[str, str]
     ) -> RenameResult:
         """
         Build consistent names using AI result and database patterns.
@@ -736,7 +737,7 @@ class RenameService(IFileRenamer):
         Returns:
             RenameResult with consistent naming.
         """
-        main_files: Dict[str, str] = {}
+        main_files: dict[str, str] = {}
         skipped_files = list(ai_result.skipped_files)
         seasons_info = dict(ai_result.seasons_info)
 
@@ -783,7 +784,7 @@ class RenameService(IFileRenamer):
 
     def _convert_ai_result_to_rename_result(
         self,
-        video_files: List[ClassifiedFile],
+        video_files: list[ClassifiedFile],
         ai_result: RenameResult,
         category: str,
         is_multi_season: bool
@@ -802,7 +803,7 @@ class RenameService(IFileRenamer):
         Returns:
             Final RenameResult.
         """
-        main_files: Dict[str, str] = {}
+        main_files: dict[str, str] = {}
 
         # Build relative_path to name mapping
         path_to_name = {v.relative_path: v.name for v in video_files if v.relative_path}
@@ -861,9 +862,9 @@ class RenameService(IFileRenamer):
         self,
         classified: ClassificationResult,
         category: str,
-        anime_title: Optional[str],
-        tvdb_data: Optional[Dict[str, Any]]
-    ) -> Optional[RenameResult]:
+        anime_title: str | None,
+        tvdb_data: dict[str, Any] | None
+    ) -> RenameResult | None:
         """
         Generate rename mappings for classified files using AI.
 
@@ -907,10 +908,10 @@ class RenameService(IFileRenamer):
 
     def generate_subtitle_mapping(
         self,
-        video_files: List[ClassifiedFile],
-        subtitle_files: List[ClassifiedFile],
-        video_rename_mapping: Dict[str, str]
-    ) -> Dict[str, str]:
+        video_files: list[ClassifiedFile],
+        subtitle_files: list[ClassifiedFile],
+        video_rename_mapping: dict[str, str]
+    ) -> dict[str, str]:
         """
         Generate rename mapping for subtitle files based on video mapping.
 
@@ -922,7 +923,7 @@ class RenameService(IFileRenamer):
         Returns:
             Subtitle rename mapping (original -> new name).
         """
-        subtitle_mapping: Dict[str, str] = {}
+        subtitle_mapping: dict[str, str] = {}
 
         for video in video_files:
             if video.name not in video_rename_mapping:
@@ -942,7 +943,7 @@ class RenameService(IFileRenamer):
 
         return subtitle_mapping
 
-    def validate_mapping(self, mapping: Dict[str, str]) -> bool:
+    def validate_mapping(self, mapping: dict[str, str]) -> bool:
         """
         Validate a rename mapping for potential issues.
 

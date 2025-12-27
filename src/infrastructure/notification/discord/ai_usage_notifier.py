@@ -5,9 +5,8 @@ Discord AI 使用通知实现模块。
 """
 
 import logging
-from typing import Optional
 
-from src.core.interfaces.notifications import IAIUsageNotifier, AIUsageNotification
+from src.core.interfaces.notifications import AIUsageNotification, IAIUsageNotifier
 
 from .embed_builder import EmbedBuilder
 from .webhook_client import DiscordWebhookClient
@@ -34,7 +33,7 @@ class DiscordAIUsageNotifier(IAIUsageNotifier):
     def __init__(
         self,
         webhook_client: DiscordWebhookClient,
-        embed_builder: Optional[EmbedBuilder] = None
+        embed_builder: EmbedBuilder | None = None
     ):
         """
         初始化 AI 使用通知器。

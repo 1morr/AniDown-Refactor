@@ -11,10 +11,10 @@ import os
 import re
 import tempfile
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import UTC, datetime
+from typing import Any
 
-from src.core.config import config, RSSFeed
+from src.core.config import RSSFeed, config
 from src.core.domain.entities import AnimeInfo, DownloadRecord
 from src.core.domain.value_objects import (
     AnimeTitle,
@@ -37,7 +37,6 @@ from src.core.interfaces.adapters import (
     IRSSParser,
     ITitleParser,
     RSSItem,
-    TitleParseResult,
 )
 from src.core.interfaces.notifications import (
     AIUsageNotification,
@@ -59,7 +58,6 @@ from src.core.interfaces.repositories import (
     IDownloadRepository,
     IHardlinkRepository,
 )
-from src.services.file.hardlink_service import HardlinkService
 from src.services.file.path_builder import PathBuilder
 from src.services.file_service import FileService
 from src.services.filter_service import FilterService
@@ -86,7 +84,7 @@ class RSSProcessResult:
     new_items: int = 0
     skipped_items: int = 0
     failed_items: int = 0
-    errors: List[Dict[str, str]] = field(default_factory=list)
+    errors: list[dict[str, str]] = field(default_factory=list)
 
     @property
     def success_rate(self) -> float:
@@ -122,16 +120,15 @@ class DownloadManager:
         rss_service: IRSSParser,
         filter_service: FilterService,
         rename_service: RenameService,
-        hardlink_service: HardlinkService,
+        hardlink_service: FileService,
         path_builder: PathBuilder,
         metadata_service: MetadataService,
-        rss_notifier: Optional[IRSSNotifier] = None,
-        download_notifier: Optional[IDownloadNotifier] = None,
-        hardlink_notifier: Optional[IHardlinkNotifier] = None,
-        error_notifier: Optional[IErrorNotifier] = None,
-        ai_usage_notifier: Optional[IAIUsageNotifier] = None,
-        webhook_received_notifier: Optional[IWebhookNotifier] = None,
-        file_service: Optional[FileService] = None
+        rss_notifier: IRSSNotifier | None = None,
+        download_notifier: IDownloadNotifier | None = None,
+        hardlink_notifier: IHardlinkNotifier | None = None,
+        error_notifier: IErrorNotifier | None = None,
+        ai_usage_notifier: IAIUsageNotifier | None = None,
+        webhook_received_notifier: IWebhookNotifier | None = None
     ):
         """
         Initialize the download manager.
@@ -146,7 +143,7 @@ class DownloadManager:
             rss_service: RSS parser service.
             filter_service: Content filter service.
             rename_service: Rename coordination service.
-            hardlink_service: Hardlink creation service.
+            hardlink_service: File service for hardlink creation and file operations.
             path_builder: Path construction service.
             metadata_service: TVDB metadata service.
             rss_notifier: Optional RSS notification service.
@@ -155,7 +152,6 @@ class DownloadManager:
             error_notifier: Optional error notification service.
             ai_usage_notifier: Optional AI usage notification service.
             webhook_received_notifier: Optional webhook received notification service.
-            file_service: Optional file service for path conversion.
         """
         self._anime_repo = anime_repo
         self._download_repo = download_repo
@@ -175,7 +171,7 @@ class DownloadManager:
         self._error_notifier = error_notifier
         self._ai_usage_notifier = ai_usage_notifier
         self._webhook_received_notifier = webhook_received_notifier
-        self._file_service = file_service
+        self._file_service = hardlink_service  # FileService is now used for both
         self._file_classifier = FileClassifier()
 
         # 设置 RenameService 的 AI 使用回调，实现即时通知
@@ -183,8 +179,8 @@ class DownloadManager:
             rename_service._on_ai_usage = self._notify_rename_ai_usage
 
         # 设置 RenameService 的路径转换回调
-        if file_service and rename_service:
-            rename_service._path_converter = file_service.convert_path
+        if hardlink_service and rename_service:
+            rename_service._path_converter = hardlink_service.convert_path
 
     def _notify_rename_ai_usage(self, reason: str, project_name: str) -> None:
         """
@@ -208,10 +204,10 @@ class DownloadManager:
 
     def process_rss_feeds(
         self,
-        rss_feeds: List,
+        rss_feeds: list,
         trigger_type: str = '定时触发',
-        blocked_keywords: Optional[str] = None,
-        blocked_regex: Optional[str] = None
+        blocked_keywords: str | None = None,
+        blocked_regex: str | None = None
     ) -> RSSProcessResult:
         """
         Process RSS feeds.
@@ -250,7 +246,7 @@ class DownloadManager:
                     self._rss_notifier.notify_processing_start(
                         RSSNotification(trigger_type=trigger_type, rss_url=feed.url)
                     )
-                    logger.debug(f'✅ RSS开始通知发送成功')
+                    logger.debug('✅ RSS开始通知发送成功')
                 except Exception as e:
                     logger.warning(f'⚠️ 发送RSS开始通知失败: {e}')
         else:
@@ -341,7 +337,7 @@ class DownloadManager:
 
     def process_single_rss_item(
         self,
-        item: Dict[str, Any],
+        item: dict[str, Any],
         trigger_type: str = 'queue'
     ) -> bool:
         """
@@ -388,8 +384,8 @@ class DownloadManager:
         season: int,
         category: str,
         trigger_type: str,
-        blocked_keywords: Optional[str] = None,
-        blocked_regex: Optional[str] = None,
+        blocked_keywords: str | None = None,
+        blocked_regex: str | None = None,
         media_type: str = 'anime'
     ) -> RSSProcessResult:
         """
@@ -549,10 +545,10 @@ class DownloadManager:
 
     def _normalize_feeds(
         self,
-        feeds: List,
-        blocked_keywords: Optional[str],
-        blocked_regex: Optional[str]
-    ) -> List[RSSFeed]:
+        feeds: list,
+        blocked_keywords: str | None,
+        blocked_regex: str | None
+    ) -> list[RSSFeed]:
         """Normalize feed inputs to RSSFeed objects."""
         feed_objects = []
         for feed in feeds:
@@ -570,16 +566,16 @@ class DownloadManager:
 
     def _filter_feed_items(
         self,
-        items: List[RSSItem],
+        items: list[RSSItem],
         feed: RSSFeed,
         history_id: int
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Filter and process feed items."""
         new_items = []
 
         # 调试日志：显示过滤器配置
         if feed.blocked_keywords or feed.blocked_regex:
-            logger.info(f'🔍 过滤器已启用:')
+            logger.info('🔍 过滤器已启用:')
             if feed.blocked_keywords:
                 keywords_preview = feed.blocked_keywords.replace('\n', ', ')[:100]
                 logger.info(f'  屏蔽词: {keywords_preview}')
@@ -587,7 +583,7 @@ class DownloadManager:
                 regex_preview = feed.blocked_regex.replace('\n', ', ')[:100]
                 logger.info(f'  正则: {regex_preview}')
         else:
-            logger.debug(f'📋 未配置过滤器')
+            logger.debug('📋 未配置过滤器')
 
         for item in items:
             title = item.title
@@ -635,7 +631,7 @@ class DownloadManager:
 
         return new_items
 
-    def _process_single_item(self, item: Dict[str, Any]) -> bool:
+    def _process_single_item(self, item: dict[str, Any]) -> bool:
         """
         Process a single RSS item.
 
@@ -656,7 +652,7 @@ class DownloadManager:
         else:
             return self._process_new_anime(item, media_type)
 
-    def _process_new_anime(self, item: Dict[str, Any], media_type: str = 'anime') -> bool:
+    def _process_new_anime(self, item: dict[str, Any], media_type: str = 'anime') -> bool:
         """
         Process a new anime item.
 
@@ -756,7 +752,7 @@ class DownloadManager:
 
     def _process_existing_anime(
         self,
-        item: Dict[str, Any],
+        item: dict[str, Any],
         anime_info: AnimeInfo
     ) -> bool:
         """
@@ -834,7 +830,7 @@ class DownloadManager:
 
     # ==================== Manual Upload Processing ====================
 
-    def process_manual_upload(self, data: Dict[str, Any]) -> Tuple[bool, str]:
+    def process_manual_upload(self, data: dict[str, Any]) -> tuple[bool, str]:
         """
         Process manual upload (torrent file or magnet link).
 
@@ -960,7 +956,7 @@ class DownloadManager:
 
     def _process_torrent_upload(
         self,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         save_path: str
     ) -> str:
         """Process torrent file upload."""
@@ -991,7 +987,7 @@ class DownloadManager:
 
     def _process_magnet_upload(
         self,
-        data: Dict[str, Any],
+        data: dict[str, Any],
         save_path: str
     ) -> str:
         """Process magnet link upload."""
@@ -1015,8 +1011,8 @@ class DownloadManager:
     def handle_torrent_completed(
         self,
         hash_id: str,
-        webhook_data: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        webhook_data: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         Handle torrent download completion event.
 
@@ -1046,7 +1042,7 @@ class DownloadManager:
                 )
 
             # Update download status
-            completion_time = datetime.now(timezone.utc)
+            completion_time = datetime.now(UTC)
             self._download_repo.update_status(hash_id, 'completed', completion_time)
 
             # Get download info
@@ -1089,7 +1085,7 @@ class DownloadManager:
         self,
         hash_id: str,
         download_info: DownloadRecord,
-        torrent_files: List[Dict[str, Any]]
+        torrent_files: list[dict[str, Any]]
     ) -> int:
         """
         Create hardlinks for completed torrent files.
@@ -1327,7 +1323,7 @@ class DownloadManager:
 
     # ==================== Status Management ====================
 
-    def check_torrent_status(self, hash_id: str) -> Dict[str, Any]:
+    def check_torrent_status(self, hash_id: str) -> dict[str, Any]:
         """
         Check status of a single torrent.
 
@@ -1362,10 +1358,10 @@ class DownloadManager:
                 if torrent_info.get('completion_date', -1) != -1:
                     completion_time = datetime.fromtimestamp(
                         torrent_info['completion_date'],
-                        tz=timezone.utc
+                        tz=UTC
                     )
                 else:
-                    completion_time = datetime.now(timezone.utc)
+                    completion_time = datetime.now(UTC)
 
             # Update database
             self._download_repo.update_status(hash_id, status, completion_time)
@@ -1380,7 +1376,7 @@ class DownloadManager:
             logger.error(f'检查种子状态失败: {e}')
             return {'success': False, 'error': str(e)}
 
-    def check_all_torrents(self) -> Dict[str, Any]:
+    def check_all_torrents(self) -> dict[str, Any]:
         """
         Check status of all incomplete torrents.
 
@@ -1419,7 +1415,7 @@ class DownloadManager:
         hash_id: str,
         delete_file: bool,
         delete_hardlink: bool
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Delete a download task.
 
@@ -1534,8 +1530,8 @@ class DownloadManager:
     def handle_torrent_added(
         self,
         hash_id: str,
-        webhook_data: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        webhook_data: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Handle torrent added event."""
         try:
             logger.info(f'处理种子添加事件: {hash_id}')
@@ -1551,8 +1547,8 @@ class DownloadManager:
     def handle_torrent_error(
         self,
         hash_id: str,
-        webhook_data: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        webhook_data: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Handle torrent error event."""
         try:
             logger.error(f'处理种子错误事件: {hash_id}')
@@ -1587,8 +1583,8 @@ class DownloadManager:
     def handle_torrent_paused(
         self,
         hash_id: str,
-        webhook_data: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        webhook_data: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Handle torrent paused event."""
         try:
             logger.info(f'处理种子暂停事件: {hash_id}')
@@ -1603,7 +1599,7 @@ class DownloadManager:
 
     # ==================== Helper Methods ====================
 
-    def _find_existing_anime(self, title: str) -> Optional[AnimeInfo]:
+    def _find_existing_anime(self, title: str) -> AnimeInfo | None:
         """Find existing anime by title."""
         # Try improved matching first
         existing = self._anime_repo.get_by_core_info(title)
@@ -1615,12 +1611,12 @@ class DownloadManager:
         self,
         original_title: str,
         short_title: str,
-        long_title: Optional[str] = None,
+        long_title: str | None = None,
         subtitle_group: str = '',
         season: int = 1,
         category: str = 'tv',
         media_type: str = 'anime',
-        tvdb_id: Optional[int] = None
+        tvdb_id: int | None = None
     ) -> int:
         """Save anime information and return ID."""
         anime_info = AnimeInfo(
@@ -1637,7 +1633,7 @@ class DownloadManager:
             category=Category.MOVIE if category == 'movie' else Category.TV,
             media_type=MediaType.LIVE_ACTION if media_type == 'live_action' else MediaType.ANIME,
             tvdb_id=tvdb_id,
-            created_at=datetime.now(timezone.utc)
+            created_at=datetime.now(UTC)
         )
         return self._anime_repo.save(anime_info)
 
@@ -1677,7 +1673,7 @@ class DownloadManager:
             download_method=method,
             is_multi_season=is_multi_season,
             requires_tvdb=requires_tvdb,
-            download_time=datetime.now(timezone.utc)
+            download_time=datetime.now(UTC)
         )
         return self._download_repo.save(record)
 
@@ -1686,7 +1682,7 @@ class DownloadManager:
         torrent_hash: str,
         file_path: str,
         file_size: int,
-        anime_id: Optional[int]
+        anime_id: int | None
     ) -> None:
         """Save torrent file information."""
         # Determine file type based on extension
@@ -1713,7 +1709,7 @@ class DownloadManager:
     def _save_torrent_files_on_add(
         self,
         hash_id: str,
-        anime_id: Optional[int],
+        anime_id: int | None,
         max_retries: int = 5,
         retry_delay: float = 1.0
     ) -> None:
@@ -1757,7 +1753,7 @@ class DownloadManager:
             )
         logger.debug(f'✅ 种子文件信息保存完成: {hash_id[:8]}')
 
-    def _generate_save_path(self, ai_result: Dict[str, Any]) -> str:
+    def _generate_save_path(self, ai_result: dict[str, Any]) -> str:
         """Generate download save path."""
         clean_title = ai_result.get('anime_clean_title', 'Unknown')
         season = ai_result.get('season', 1)
@@ -1790,8 +1786,8 @@ class DownloadManager:
     def _extract_episode_from_title(
         self,
         title: str,
-        anime_id: Optional[int] = None
-    ) -> Optional[int]:
+        anime_id: int | None = None
+    ) -> int | None:
         """
         Extract episode number from title.
 
@@ -1839,7 +1835,7 @@ class DownloadManager:
         self,
         anime_title: str,
         season: int,
-        episode: Optional[int],
+        episode: int | None,
         subtitle_group: str,
         hash_id: str
     ) -> None:
@@ -1865,7 +1861,7 @@ class DownloadManager:
         subtitle_group: str,
         download_path: str,
         season: int = 1,
-        episode: Optional[int] = None
+        episode: int | None = None
     ) -> None:
         """Send download task notification (immediate, per task)."""
         if self._rss_notifier:
@@ -1888,8 +1884,8 @@ class DownloadManager:
         self,
         success_count: int,
         total_count: int,
-        failed_items: List[Dict[str, str]],
-        feed_objects: List[RSSFeed],
+        failed_items: list[dict[str, str]],
+        feed_objects: list[RSSFeed],
         attempt_count: int = 0
     ) -> None:
         """Send RSS processing completion notification with enhanced stats."""
@@ -1940,7 +1936,7 @@ class DownloadManager:
         page: int,
         per_page: int,
         **filters
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Get paginated download records."""
         # Delegate to repository
         return self._download_repo.get_downloads_paginated(page, per_page, **filters)
@@ -1949,7 +1945,7 @@ class DownloadManager:
         self,
         group_by: str,
         **filters
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Get grouped download statistics."""
         # Delegate to repository
         return self._download_repo.get_downloads_grouped(group_by, **filters)

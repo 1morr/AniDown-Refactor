@@ -3,29 +3,26 @@ Dashboard controller module.
 
 Contains the dashboard blueprint and routes for the main dashboard page.
 """
-from datetime import datetime, timezone
-from flask import Blueprint, render_template
-from dependency_injector.wiring import inject, Provide
 import os
-import psutil
+import re
 import shutil
 import threading
-import re
+from datetime import UTC, datetime
 
+import psutil
+from dependency_injector.wiring import Provide, inject
+from flask import Blueprint, render_template
+
+from src.container import Container
 from src.core.config import config
 from src.core.utils.timezone_utils import format_datetime_iso
-from src.container import Container
+from src.infrastructure.database.models import Hardlink
+from src.infrastructure.database.session import db_manager
+from src.infrastructure.downloader.qbit_adapter import QBitAdapter
 from src.infrastructure.repositories.anime_repository import AnimeRepository
 from src.infrastructure.repositories.download_repository import DownloadRepository
 from src.infrastructure.repositories.history_repository import HistoryRepository
-from src.infrastructure.downloader.qbit_adapter import QBitAdapter
-from src.infrastructure.database.session import db_manager
-from src.infrastructure.database.models import Hardlink
-from src.interface.web.utils import (
-    APIResponse,
-    handle_api_errors,
-    WebLogger
-)
+from src.interface.web.utils import APIResponse, WebLogger, handle_api_errors
 
 dashboard_bp = Blueprint('dashboard', __name__)
 logger = WebLogger(__name__)
@@ -68,7 +65,7 @@ def status_api(
         webui_active=True,
         stats=stats,
         activity=activity,
-        timestamp=datetime.now(timezone.utc).isoformat()
+        timestamp=datetime.now(UTC).isoformat()
     )
 
 

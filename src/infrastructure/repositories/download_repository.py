@@ -5,14 +5,14 @@ Contains the DownloadRepository class implementing IDownloadRepository interface
 """
 
 import logging
-from datetime import datetime, timezone, timedelta
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from sqlalchemy import case, func, or_
 
 from src.core.domain.entities import DownloadRecord
-from src.core.domain.value_objects import DownloadMethod, DownloadStatus as DLStatus, TorrentHash
-from src.core.exceptions import DatabaseError
+from src.core.domain.value_objects import DownloadMethod, TorrentHash
+from src.core.domain.value_objects import DownloadStatus as DLStatus
 from src.core.interfaces.repositories import IDownloadRepository
 from src.infrastructure.database.models import (
     AnimeInfo,
@@ -63,7 +63,7 @@ class DownloadRepository(IDownloadRepository):
             completion_time=row.completion_time
         )
 
-    def _to_dict(self, row: DownloadStatus) -> Dict[str, Any]:
+    def _to_dict(self, row: DownloadStatus) -> dict[str, Any]:
         """将数据库行转换为字典"""
         return {
             'id': row.id,
@@ -86,7 +86,7 @@ class DownloadRepository(IDownloadRepository):
 
     # ==================== IDownloadRepository Interface ====================
 
-    def get_by_hash(self, hash_id: str) -> Optional[DownloadRecord]:
+    def get_by_hash(self, hash_id: str) -> DownloadRecord | None:
         """根据hash获取下载状态"""
         with db_manager.session() as session:
             download = session.query(DownloadStatus).filter_by(hash_id=hash_id).first()
@@ -94,7 +94,7 @@ class DownloadRepository(IDownloadRepository):
                 return self._to_entity(download)
             return None
 
-    def get_by_id(self, record_id: int) -> Optional[DownloadRecord]:
+    def get_by_id(self, record_id: int) -> DownloadRecord | None:
         """根据ID获取下载状态"""
         with db_manager.session() as session:
             download = session.query(DownloadStatus).filter_by(id=record_id).first()
@@ -102,13 +102,13 @@ class DownloadRepository(IDownloadRepository):
                 return self._to_entity(download)
             return None
 
-    def get_by_anime_id(self, anime_id: int) -> List[DownloadRecord]:
+    def get_by_anime_id(self, anime_id: int) -> list[DownloadRecord]:
         """获取指定动漫的所有下载记录"""
         with db_manager.session() as session:
             downloads = session.query(DownloadStatus).filter_by(anime_id=anime_id).all()
             return [self._to_entity(dl) for dl in downloads]
 
-    def get_incomplete(self) -> List[DownloadRecord]:
+    def get_incomplete(self) -> list[DownloadRecord]:
         """获取所有未完成的下载"""
         with db_manager.session() as session:
             downloads = session.query(DownloadStatus).filter(
@@ -116,7 +116,7 @@ class DownloadRepository(IDownloadRepository):
             ).all()
             return [self._to_entity(dl) for dl in downloads]
 
-    def get_recent(self, limit: int = 50) -> List[DownloadRecord]:
+    def get_recent(self, limit: int = 50) -> list[DownloadRecord]:
         """获取最近下载记录"""
         with db_manager.session() as session:
             downloads = session.query(DownloadStatus).order_by(
@@ -149,7 +149,7 @@ class DownloadRepository(IDownloadRepository):
         self,
         hash_id: str,
         status: str,
-        completion_time: Optional[datetime] = None
+        completion_time: datetime | None = None
     ) -> bool:
         """更新下载状态"""
         with db_manager.session() as session:
@@ -158,7 +158,7 @@ class DownloadRepository(IDownloadRepository):
                 download.status = status
                 if completion_time:
                     download.completion_time = completion_time
-                download.updated_at = datetime.now(timezone.utc)
+                download.updated_at = datetime.now(UTC)
                 return True
             return False
 
@@ -182,7 +182,7 @@ class DownloadRepository(IDownloadRepository):
                 completion_time=download.completion_time,
                 is_multi_season=download.is_multi_season,
                 download_method=download.download_method,
-                deleted_at=datetime.now(timezone.utc)
+                deleted_at=datetime.now(UTC)
             )
             session.add(history)
             session.delete(download)
@@ -233,7 +233,7 @@ class DownloadRepository(IDownloadRepository):
             session.flush()
             return download.id
 
-    def get_download_status_by_hash(self, hash_id: str) -> Optional[Dict[str, Any]]:
+    def get_download_status_by_hash(self, hash_id: str) -> dict[str, Any] | None:
         """根据hash获取下载状态（遗留方法，返回字典）"""
         with db_manager.session() as session:
             download = session.query(DownloadStatus).filter_by(hash_id=hash_id).first()
@@ -257,7 +257,7 @@ class DownloadRepository(IDownloadRepository):
                     download.completion_time = completion_time
                 if download_time:
                     download.download_time = download_time
-                download.updated_at = datetime.now(timezone.utc)
+                download.updated_at = datetime.now(UTC)
                 return True
             return False
 
@@ -272,7 +272,7 @@ class DownloadRepository(IDownloadRepository):
         file_size: int = None,
         file_type: str = None,
         anime_id: int = None
-    ) -> Optional[int]:
+    ) -> int | None:
         """插入torrent文件记录"""
         with db_manager.session() as session:
             existing = session.query(TorrentFile).filter_by(
@@ -294,7 +294,7 @@ class DownloadRepository(IDownloadRepository):
             session.flush()
             return torrent_file.id
 
-    def get_torrent_files(self, torrent_hash: str) -> List[TorrentFile]:
+    def get_torrent_files(self, torrent_hash: str) -> list[TorrentFile]:
         """获取torrent的所有文件记录"""
         with db_manager.session() as session:
             return session.query(TorrentFile).filter_by(
@@ -309,12 +309,12 @@ class DownloadRepository(IDownloadRepository):
     def count_recent(self, hours: int = 24) -> int:
         """统计最近新增下载数量"""
         with db_manager.session() as session:
-            cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+            cutoff = datetime.now(UTC) - timedelta(hours=hours)
             return session.query(DownloadStatus).filter(
                 DownloadStatus.created_at >= cutoff
             ).count()
 
-    def get_recent_downloads(self, limit: int = 10) -> List[Dict[str, Any]]:
+    def get_recent_downloads(self, limit: int = 10) -> list[dict[str, Any]]:
         """获取最近下载记录（遗留方法，返回字典）"""
         with db_manager.session() as session:
             downloads = session.query(DownloadStatus).order_by(
@@ -322,7 +322,7 @@ class DownloadRepository(IDownloadRepository):
             ).limit(limit).all()
             return [self._to_dict(dl) for dl in downloads]
 
-    def get_downloads_paginated(self, page: int, per_page: int, **filters) -> Dict[str, Any]:
+    def get_downloads_paginated(self, page: int, per_page: int, **filters) -> dict[str, Any]:
         """获取分页的下载记录"""
         with db_manager.session() as session:
             query = session.query(DownloadStatus, AnimeInfo.media_type).outerjoin(
@@ -417,7 +417,7 @@ class DownloadRepository(IDownloadRepository):
                 'per_page': per_page
             }
 
-    def get_downloads_grouped(self, group_by: str, **filters) -> Dict[str, Any]:
+    def get_downloads_grouped(self, group_by: str, **filters) -> dict[str, Any]:
         """获取分组的下载统计"""
         with db_manager.session() as session:
             if group_by == 'anime_title':
@@ -534,7 +534,7 @@ class DownloadRepository(IDownloadRepository):
 
         return query
 
-    def get_incomplete_downloads(self) -> List[Dict[str, Any]]:
+    def get_incomplete_downloads(self) -> list[dict[str, Any]]:
         """获取所有未完成的下载（遗留方法，返回字典）"""
         with db_manager.session() as session:
             downloads = session.query(DownloadStatus).filter(
@@ -542,13 +542,13 @@ class DownloadRepository(IDownloadRepository):
             ).all()
             return [self._to_dict(dl) for dl in downloads]
 
-    def get_all_downloads(self) -> List[Dict[str, Any]]:
+    def get_all_downloads(self) -> list[dict[str, Any]]:
         """获取所有下载记录（遗留方法，返回字典）"""
         with db_manager.session() as session:
             downloads = session.query(DownloadStatus).all()
             return [self._to_dict(dl) for dl in downloads]
 
-    def get_completed_downloads_without_hardlinks(self) -> List[Dict[str, Any]]:
+    def get_completed_downloads_without_hardlinks(self) -> list[dict[str, Any]]:
         """获取已完成但没有硬链接的下载"""
         with db_manager.session() as session:
             hardlink_hashes = session.query(Hardlink.torrent_hash).distinct().subquery()
@@ -559,7 +559,7 @@ class DownloadRepository(IDownloadRepository):
             ).all()
             return [self._to_dict(dl) for dl in downloads]
 
-    def get_downloads_by_group(self, group_by: str, group_name: str) -> List[Dict[str, Any]]:
+    def get_downloads_by_group(self, group_by: str, group_name: str) -> list[dict[str, Any]]:
         """根据分组获取下载记录"""
         with db_manager.session() as session:
             query = session.query(DownloadStatus)

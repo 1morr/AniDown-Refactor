@@ -10,8 +10,31 @@ from dependency_injector import containers, providers
 
 from src.core.config import config
 
+# AI Components
+from src.infrastructure.ai.api_client import OpenAIClient
+from src.infrastructure.ai.circuit_breaker import CircuitBreaker
+from src.infrastructure.ai.file_renamer import AIFileRenamer
+from src.infrastructure.ai.key_pool import KeyPool
+from src.infrastructure.ai.subtitle_matcher import AISubtitleMatcher
+from src.infrastructure.ai.title_parser import AITitleParser
+
 # Database
 from src.infrastructure.database.session import DatabaseSessionManager
+
+# External Adapters
+from src.infrastructure.downloader.qbit_adapter import QBitAdapter
+from src.infrastructure.metadata.tvdb_adapter import TVDBAdapter
+from src.infrastructure.notification.discord.ai_usage_notifier import DiscordAIUsageNotifier
+from src.infrastructure.notification.discord.download_notifier import DiscordDownloadNotifier
+from src.infrastructure.notification.discord.error_notifier import DiscordErrorNotifier
+from src.infrastructure.notification.discord.hardlink_notifier import DiscordHardlinkNotifier
+from src.infrastructure.notification.discord.rss_notifier import DiscordRSSNotifier
+
+# Discord Notification Components
+from src.infrastructure.notification.discord.webhook_client import DiscordWebhookClient
+from src.infrastructure.notification.discord.webhook_received_notifier import (
+    DiscordWebhookReceivedNotifier,
+)
 
 # Repositories
 from src.infrastructure.repositories.anime_repository import AnimeRepository
@@ -19,49 +42,26 @@ from src.infrastructure.repositories.download_repository import DownloadReposito
 from src.infrastructure.repositories.history_repository import HistoryRepository
 from src.infrastructure.repositories.subtitle_repository import SubtitleRepository
 
-# External Adapters
-from src.infrastructure.downloader.qbit_adapter import QBitAdapter
-from src.infrastructure.metadata.tvdb_adapter import TVDBAdapter
-
-# AI Components
-from src.infrastructure.ai.api_client import OpenAIClient
-from src.infrastructure.ai.key_pool import KeyPool
-from src.infrastructure.ai.circuit_breaker import CircuitBreaker
-from src.infrastructure.ai.title_parser import AITitleParser
-from src.infrastructure.ai.file_renamer import AIFileRenamer
-from src.infrastructure.ai.subtitle_matcher import AISubtitleMatcher
-
-# Discord Notification Components
-from src.infrastructure.notification.discord.webhook_client import DiscordWebhookClient
-from src.infrastructure.notification.discord.rss_notifier import DiscordRSSNotifier
-from src.infrastructure.notification.discord.download_notifier import DiscordDownloadNotifier
-from src.infrastructure.notification.discord.hardlink_notifier import DiscordHardlinkNotifier
-from src.infrastructure.notification.discord.error_notifier import DiscordErrorNotifier
-from src.infrastructure.notification.discord.ai_usage_notifier import DiscordAIUsageNotifier
-from src.infrastructure.notification.discord.webhook_received_notifier import DiscordWebhookReceivedNotifier
+# Utility Services
+from src.services.ai_debug_service import AIDebugService
+from src.services.anime_service import AnimeService
+from src.services.download_manager import DownloadManager
 
 # File Services
 from src.services.file.path_builder import PathBuilder
-from src.services.file.hardlink_service import HardlinkService
+from src.services.file_service import FileService
+
+# Core Services
+from src.services.filter_service import FilterService
+from src.services.log_rotation_service import LogRotationService
+from src.services.metadata_service import MetadataService
 
 # Rename Services
 from src.services.rename.file_classifier import FileClassifier
 from src.services.rename.filename_formatter import FilenameFormatter
 from src.services.rename.rename_service import RenameService
-
-# Core Services
-from src.services.filter_service import FilterService
-from src.services.metadata_service import MetadataService
-from src.services.anime_service import AnimeService
-from src.services.anime_detail_service import AnimeDetailService
 from src.services.rss_service import RSSService
-from src.services.download_manager import DownloadManager
-from src.services.file_service import FileService
 from src.services.subtitle_service import SubtitleService
-
-# Utility Services
-from src.services.ai_debug_service import AIDebugService
-from src.services.log_rotation_service import LogRotationService
 
 
 class Container(containers.DeclarativeContainer):
@@ -211,12 +211,6 @@ class Container(containers.DeclarativeContainer):
         library_root=config.link_target_path
     )
 
-    hardlink_service = providers.Singleton(
-        HardlinkService,
-        hardlink_repo=history_repo,
-        path_builder=path_builder
-    )
-
     # ===== Rename Services =====
     file_classifier = providers.Singleton(FileClassifier)
     filename_formatter = providers.Singleton(FilenameFormatter)
@@ -250,17 +244,10 @@ class Container(containers.DeclarativeContainer):
         path_builder=path_builder
     )
 
-    anime_detail_service = providers.Singleton(
-        AnimeDetailService,
-        anime_repo=anime_repo,
-        download_repo=download_repo,
-        download_client=qb_client,
-        path_builder=path_builder
-    )
-
     file_service = providers.Singleton(
         FileService,
-        history_repo=history_repo
+        history_repo=history_repo,
+        path_builder=path_builder
     )
 
     subtitle_service = providers.Singleton(
@@ -282,7 +269,7 @@ class Container(containers.DeclarativeContainer):
         rss_service=rss_service,
         filter_service=filter_service,
         rename_service=rename_service,
-        hardlink_service=hardlink_service,
+        hardlink_service=file_service,
         path_builder=path_builder,
         metadata_service=metadata_service,
         rss_notifier=rss_notifier,
@@ -290,8 +277,7 @@ class Container(containers.DeclarativeContainer):
         hardlink_notifier=hardlink_notifier,
         error_notifier=error_notifier,
         ai_usage_notifier=ai_usage_notifier,
-        webhook_received_notifier=webhook_received_notifier,
-        file_service=file_service
+        webhook_received_notifier=webhook_received_notifier
     )
 
     # ===== Utility Services =====

@@ -1,20 +1,20 @@
 """
 动漫管理页面控制器 - Anime Management Controller
 """
+from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, render_template, request
-from dependency_injector.wiring import inject, Provide
 
 from src.container import Container
-from src.services.anime_service import AnimeService
-from src.services.subtitle_service import SubtitleService
 from src.interface.web.utils import (
     APIResponse,
-    handle_api_errors,
-    validate_json,
     RequestValidator,
     ValidationRule,
-    WebLogger
+    WebLogger,
+    handle_api_errors,
+    validate_json,
 )
+from src.services.anime_service import AnimeService
+from src.services.subtitle_service import SubtitleService
 
 logger = WebLogger(__name__)
 anime_bp = Blueprint('anime', __name__)

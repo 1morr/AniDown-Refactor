@@ -13,9 +13,9 @@
 import logging
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -67,9 +67,9 @@ class CircuitBreaker:
     def __init__(
         self,
         purpose: str,
-        open_duration: Optional[float] = None,
-        half_open_max_probes: Optional[int] = None,
-        success_threshold: Optional[int] = None
+        open_duration: float | None = None,
+        half_open_max_probes: int | None = None,
+        success_threshold: int | None = None
     ):
         """
         初始化熔断器。
@@ -91,8 +91,8 @@ class CircuitBreaker:
         self._state = BreakerState.CLOSED
         self._open_until: float = 0
         self._trip_count: int = 0
-        self._last_trip_time: Optional[float] = None
-        self._last_trip_reason: Optional[str] = None
+        self._last_trip_time: float | None = None
+        self._last_trip_reason: str | None = None
 
         # 半开状态计数
         self._probe_count: int = 0
@@ -161,7 +161,7 @@ class CircuitBreaker:
                 if self._probe_success_count >= self._success_threshold:
                     self._transition_to_closed()
 
-    def report_failure(self, reason: Optional[str] = None) -> None:
+    def report_failure(self, reason: str | None = None) -> None:
         """
         报告请求失败。
 
@@ -180,8 +180,8 @@ class CircuitBreaker:
 
     def trip(
         self,
-        duration: Optional[float] = None,
-        reason: Optional[str] = None
+        duration: float | None = None,
+        reason: str | None = None
     ) -> None:
         """
         手动触发熔断。
@@ -195,8 +195,8 @@ class CircuitBreaker:
 
     def _do_trip(
         self,
-        duration: Optional[float] = None,
-        reason: Optional[str] = None
+        duration: float | None = None,
+        reason: str | None = None
     ) -> None:
         """
         内部触发熔断（不加锁）。
@@ -244,7 +244,7 @@ class CircuitBreaker:
             if time.time() >= self._open_until:
                 self._transition_to_half_open()
 
-    def _transition_to_open(self, reason: Optional[str] = None) -> None:
+    def _transition_to_open(self, reason: str | None = None) -> None:
         """
         转换到 OPEN 状态（不加锁）。
 
@@ -300,7 +300,7 @@ class CircuitBreaker:
                 return max(0, remaining)
             return 0
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """
         获取熔断器状态。
 
@@ -322,7 +322,7 @@ class CircuitBreaker:
                 'open_until_utc': (
                     datetime.fromtimestamp(
                         self._open_until,
-                        tz=timezone.utc
+                        tz=UTC
                     ).isoformat()
                     if self._state == BreakerState.OPEN else None
                 ),
@@ -330,7 +330,7 @@ class CircuitBreaker:
                 'last_trip_time_utc': (
                     datetime.fromtimestamp(
                         self._last_trip_time,
-                        tz=timezone.utc
+                        tz=UTC
                     ).isoformat()
                     if self._last_trip_time else None
                 ),
@@ -345,14 +345,14 @@ class CircuitBreaker:
 
 
 # 全局熔断器实例（按用途）
-_breakers: Dict[str, CircuitBreaker] = {}
+_breakers: dict[str, CircuitBreaker] = {}
 _breakers_lock = threading.Lock()
 
 # 命名熔断器注册表（与命名 Key Pool 对应）
-_named_breakers: Dict[str, CircuitBreaker] = {}
+_named_breakers: dict[str, CircuitBreaker] = {}
 
 
-def get_breaker(purpose: str) -> Optional[CircuitBreaker]:
+def get_breaker(purpose: str) -> CircuitBreaker | None:
     """
     获取指定用途的熔断器。
 
@@ -378,7 +378,7 @@ def register_breaker(breaker: CircuitBreaker) -> None:
         logger.info(f'🔌 注册熔断器: {breaker.purpose}')
 
 
-def get_all_breakers() -> Dict[str, CircuitBreaker]:
+def get_all_breakers() -> dict[str, CircuitBreaker]:
     """
     获取所有已注册的熔断器。
 
@@ -402,7 +402,7 @@ def register_named_breaker(breaker: CircuitBreaker, pool_name: str) -> None:
         logger.info(f'🔌 注册命名熔断器: {pool_name}')
 
 
-def get_named_breaker(pool_name: str) -> Optional[CircuitBreaker]:
+def get_named_breaker(pool_name: str) -> CircuitBreaker | None:
     """
     获取指定名称的命名熔断器。
 
@@ -416,7 +416,7 @@ def get_named_breaker(pool_name: str) -> Optional[CircuitBreaker]:
         return _named_breakers.get(pool_name)
 
 
-def get_all_named_breakers() -> Dict[str, CircuitBreaker]:
+def get_all_named_breakers() -> dict[str, CircuitBreaker]:
     """
     获取所有已注册的命名熔断器。
 
@@ -427,7 +427,7 @@ def get_all_named_breakers() -> Dict[str, CircuitBreaker]:
         return dict(_named_breakers)
 
 
-def get_breaker_for_purpose(purpose: str) -> Optional[CircuitBreaker]:
+def get_breaker_for_purpose(purpose: str) -> CircuitBreaker | None:
     """
     获取任务用途或 Pool 名称对应的熔断器。
 
@@ -443,7 +443,7 @@ def get_breaker_for_purpose(purpose: str) -> Optional[CircuitBreaker]:
         CircuitBreaker 实例或 None
     """
     # 导入在函数内部避免循环引用
-    from src.infrastructure.ai.key_pool import _purpose_to_pool, _pools_lock
+    from src.infrastructure.ai.key_pool import _pools_lock, _purpose_to_pool
 
     with _breakers_lock:
         # 1. 优先查找绑定的命名熔断器（通过任务用途）
@@ -467,7 +467,7 @@ def get_breaker_for_purpose(purpose: str) -> Optional[CircuitBreaker]:
         return _breakers.get(purpose)
 
 
-def get_breakers_grouped_by_name() -> Dict[str, Dict[str, Any]]:
+def get_breakers_grouped_by_name() -> dict[str, dict[str, Any]]:
     """
     获取按 Pool 名称分组的熔断器信息（用于 UI 显示）。
 
@@ -482,7 +482,7 @@ def get_breakers_grouped_by_name() -> Dict[str, Dict[str, Any]]:
         }
     """
     # 导入在函数内部避免循环引用
-    from src.infrastructure.ai.key_pool import _purpose_to_pool, _pools_lock
+    from src.infrastructure.ai.key_pool import _pools_lock, _purpose_to_pool
 
     with _breakers_lock:
         result = {}

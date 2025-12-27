@@ -5,13 +5,13 @@ Discord RSS 通知实现模块。
 """
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from src.core.interfaces.notifications import (
     IRSSNotifier,
+    RSSInterruptedNotification,
     RSSNotification,
     RSSTaskNotification,
-    RSSInterruptedNotification,
 )
 
 from .embed_builder import EmbedBuilder
@@ -37,7 +37,7 @@ class DiscordRSSNotifier(IRSSNotifier):
     def __init__(
         self,
         webhook_client: DiscordWebhookClient,
-        embed_builder: Optional[EmbedBuilder] = None
+        embed_builder: EmbedBuilder | None = None
     ):
         """
         初始化 RSS 通知器。
@@ -77,7 +77,7 @@ class DiscordRSSNotifier(IRSSNotifier):
         self,
         success_count: int,
         total_count: int,
-        failed_items: List[Dict[str, Any]],
+        failed_items: list[dict[str, Any]],
         attempt_count: int = 0,
         status: str = 'completed'
     ) -> None:

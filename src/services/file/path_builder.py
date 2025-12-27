@@ -7,7 +7,6 @@ Provides centralized path construction for downloads and media library organizat
 import logging
 import os
 import re
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +100,7 @@ class PathBuilder:
         season: int,
         category: str,
         media_type: str = 'anime',
-        subtitle_group: Optional[str] = None
+        subtitle_group: str | None = None
     ) -> str:
         """
         Build the download path for a new anime.
@@ -151,7 +150,7 @@ class PathBuilder:
         title: str,
         media_type: str,
         category: str,
-        season: Optional[int] = None
+        season: int | None = None
     ) -> str:
         """
         Build the library path for media organization.
@@ -195,7 +194,7 @@ class PathBuilder:
         anime_title: str,
         media_type: str,
         category: str,
-        season: Optional[int] = None
+        season: int | None = None
     ) -> str:
         """
         Build target directory for hardlink creation.

@@ -7,8 +7,7 @@ Following Interface Segregation Principle with focused, specialized interfaces.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
-
+from typing import Any
 
 # Notification Data Classes
 
@@ -25,7 +24,7 @@ class RSSNotification:
     """
     trigger_type: str
     rss_url: str
-    title: Optional[str] = None
+    title: str | None = None
     item_count: int = 0
 
 
@@ -44,7 +43,7 @@ class DownloadNotification:
     """
     anime_title: str
     season: int
-    episode: Optional[int]
+    episode: int | None
     subtitle_group: str
     hash_id: str
     progress: float = 0.0
@@ -92,7 +91,7 @@ class HardlinkNotification:
     subtitle_group: str = ''
     tvdb_used: bool = False
     hardlink_path: str = ''
-    rename_examples: List[str] = field(default_factory=list)
+    rename_examples: list[str] = field(default_factory=list)
 
     @property
     def total_files(self) -> int:
@@ -118,7 +117,7 @@ class ErrorNotification:
     """
     error_type: str
     error_message: str
-    context: Dict[str, Any] = field(default_factory=dict)
+    context: dict[str, Any] = field(default_factory=dict)
     severity: str = 'error'
 
     @property
@@ -166,7 +165,7 @@ class RSSTaskNotification:
     subtitle_group: str
     download_path: str
     season: int = 1
-    episode: Optional[int] = None
+    episode: int | None = None
 
 
 @dataclass
@@ -229,7 +228,7 @@ class IRSSNotifier(ABC):
         self,
         success_count: int,
         total_count: int,
-        failed_items: List[Dict[str, Any]],
+        failed_items: list[dict[str, Any]],
         attempt_count: int = 0,
         status: str = 'completed'
     ) -> None:
@@ -363,7 +362,7 @@ class IErrorNotifier(ABC):
         pass
 
     @abstractmethod
-    def notify_warning(self, message: str, context: Optional[Dict[str, Any]] = None) -> None:
+    def notify_warning(self, message: str, context: dict[str, Any] | None = None) -> None:
         """
         Send a warning notification.
 

@@ -8,7 +8,7 @@ import base64
 import logging
 import re
 import xml.etree.ElementTree as ET
-from typing import Any, Dict, List, Optional
+from typing import Any
 from urllib.parse import urlparse
 
 import requests
@@ -65,7 +65,7 @@ class RSSService(IRSSParser):
         })
         self._timeout = timeout
 
-    def parse_feed(self, rss_url: str) -> List[RSSItem]:
+    def parse_feed(self, rss_url: str) -> list[RSSItem]:
         """
         Parse an RSS/Atom feed.
 
@@ -115,7 +115,7 @@ class RSSService(IRSSParser):
             logger.error(f'❌ RSS解析异常: {e}')
             raise RSSError(f'RSS parsing error: {e}')
 
-    def filter_new_items(self, items: List[RSSItem]) -> List[RSSItem]:
+    def filter_new_items(self, items: list[RSSItem]) -> list[RSSItem]:
         """
         Filter out items that already exist in the database.
 
@@ -203,7 +203,7 @@ class RSSService(IRSSParser):
 
         return hash_id
 
-    def _parse_rss_feed(self, root: ET.Element) -> List[RSSItem]:
+    def _parse_rss_feed(self, root: ET.Element) -> list[RSSItem]:
         """
         Parse RSS 2.0 format feed.
 
@@ -223,7 +223,7 @@ class RSSService(IRSSParser):
 
         return items
 
-    def _parse_atom_feed(self, root: ET.Element) -> List[RSSItem]:
+    def _parse_atom_feed(self, root: ET.Element) -> list[RSSItem]:
         """
         Parse Atom format feed.
 
@@ -247,7 +247,7 @@ class RSSService(IRSSParser):
 
         return items
 
-    def _parse_rss_item(self, item: ET.Element) -> Optional[RSSItem]:
+    def _parse_rss_item(self, item: ET.Element) -> RSSItem | None:
         """
         Parse an RSS item element.
 
@@ -321,7 +321,7 @@ class RSSService(IRSSParser):
             logger.error(f'❌ RSS item解析异常: {e}')
             return None
 
-    def _parse_atom_entry(self, entry: ET.Element) -> Optional[RSSItem]:
+    def _parse_atom_entry(self, entry: ET.Element) -> RSSItem | None:
         """
         Parse an Atom entry element.
 
@@ -498,7 +498,7 @@ class RSSService(IRSSParser):
 
         return ''
 
-    def _extract_info_from_bencode(self, data: bytes) -> Optional[Dict[str, Any]]:
+    def _extract_info_from_bencode(self, data: bytes) -> dict[str, Any] | None:
         """
         Parse bencoded data and extract the 'info' dictionary.
 

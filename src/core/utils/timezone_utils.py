@@ -9,8 +9,7 @@ Features:
 3. Ensures consistency across time zones
 """
 
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 
 def get_utc_now() -> datetime:
@@ -20,10 +19,10 @@ def get_utc_now() -> datetime:
     Returns:
         datetime: Current time with UTC timezone info.
     """
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
-def to_utc(dt: Optional[datetime]) -> Optional[datetime]:
+def to_utc(dt: datetime | None) -> datetime | None:
     """
     Convert a datetime object to UTC time.
 
@@ -38,13 +37,13 @@ def to_utc(dt: Optional[datetime]) -> Optional[datetime]:
 
     # If already has timezone info, convert to UTC
     if dt.tzinfo is not None:
-        return dt.astimezone(timezone.utc)
+        return dt.astimezone(UTC)
 
     # If no timezone info, assume it's UTC (database time)
-    return dt.replace(tzinfo=timezone.utc)
+    return dt.replace(tzinfo=UTC)
 
 
-def format_datetime_iso(dt: Optional[datetime]) -> Optional[str]:
+def format_datetime_iso(dt: datetime | None) -> str | None:
     """
     Format a datetime to ISO 8601 string (with timezone info).
     Used for database storage and API transmission.
@@ -66,7 +65,7 @@ def format_datetime_iso(dt: Optional[datetime]) -> Optional[str]:
     return utc_dt.isoformat()
 
 
-def format_datetime_display(dt: Optional[datetime], format_type: str = 'full') -> str:
+def format_datetime_display(dt: datetime | None, format_type: str = 'full') -> str:
     """
     Format a datetime for display (ISO 8601 format).
     Frontend JavaScript will automatically convert to user's local timezone.
@@ -84,7 +83,7 @@ def format_datetime_display(dt: Optional[datetime], format_type: str = 'full') -
     return format_datetime_iso(dt)
 
 
-def parse_iso_datetime(iso_string: Optional[str]) -> Optional[datetime]:
+def parse_iso_datetime(iso_string: str | None) -> datetime | None:
     """
     Parse an ISO 8601 formatted time string.
 

@@ -5,9 +5,8 @@ Contains domain entities that have identity and lifecycle.
 Entities are compared by their identity, not by their attributes.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 from src.core.domain.value_objects import (
     AnimeTitle,
@@ -39,15 +38,15 @@ class AnimeInfo:
         created_at: Timestamp when the record was created.
         updated_at: Timestamp when the record was last updated.
     """
-    id: Optional[int] = None
-    title: Optional[AnimeTitle] = None
-    subtitle_group: Optional[SubtitleGroup] = None
-    season: Optional[SeasonInfo] = None
+    id: int | None = None
+    title: AnimeTitle | None = None
+    subtitle_group: SubtitleGroup | None = None
+    season: SeasonInfo | None = None
     category: Category = Category.TV
     media_type: MediaType = MediaType.ANIME
-    tvdb_id: Optional[int] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    tvdb_id: int | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     @property
     def display_name(self) -> str:
@@ -101,9 +100,9 @@ class DownloadRecord:
         download_time: Timestamp when download was initiated.
         completion_time: Timestamp when download completed.
     """
-    id: Optional[int] = None
-    hash: Optional[TorrentHash] = None
-    anime_id: Optional[int] = None
+    id: int | None = None
+    hash: TorrentHash | None = None
+    anime_id: int | None = None
     original_filename: str = ''
     anime_title: str = ''
     subtitle_group: str = ''
@@ -113,8 +112,8 @@ class DownloadRecord:
     download_method: DownloadMethod = DownloadMethod.RSS_AI
     is_multi_season: bool = False
     requires_tvdb: bool = False
-    download_time: Optional[datetime] = None
-    completion_time: Optional[datetime] = None
+    download_time: datetime | None = None
+    completion_time: datetime | None = None
 
     @property
     def hash_value(self) -> str:
@@ -164,7 +163,7 @@ class RenameMapping:
     original_name: str
     new_name: str
     season: int
-    episode: Optional[int] = None
+    episode: int | None = None
     is_skipped: bool = False
     skip_reason: str = ''
 
@@ -191,14 +190,14 @@ class HardlinkRecord:
         link_method: Method used (hardlink or copy).
         created_at: Timestamp when the hardlink was created.
     """
-    id: Optional[int] = None
-    anime_id: Optional[int] = None
+    id: int | None = None
+    anime_id: int | None = None
     torrent_hash: str = ''
     original_file_path: str = ''
     hardlink_path: str = ''
     file_size: int = 0
     link_method: str = 'hardlink'
-    created_at: Optional[datetime] = None
+    created_at: datetime | None = None
 
     @property
     def is_hardlink(self) -> bool:
@@ -236,7 +235,7 @@ class SubtitleRecord:
         created_at: Timestamp when the record was created.
         updated_at: Timestamp when the record was last updated.
     """
-    id: Optional[int] = None
+    id: int | None = None
     anime_id: int = 0
     video_file_path: str = ''
     subtitle_path: str = ''
@@ -245,8 +244,8 @@ class SubtitleRecord:
     subtitle_format: str = ''
     source_archive: str = ''
     match_method: str = 'ai'
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     @property
     def is_ai_matched(self) -> bool:

@@ -6,7 +6,7 @@ AI 标题解析器模块。
 
 import json
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 from src.core.config import config
 from src.core.exceptions import (
@@ -47,7 +47,7 @@ class AITitleParser(ITitleParser):
         self,
         key_pool: KeyPool,
         circuit_breaker: CircuitBreaker,
-        api_client: Optional[OpenAIClient] = None,
+        api_client: OpenAIClient | None = None,
         max_retries: int = 3
     ):
         """
@@ -64,7 +64,7 @@ class AITitleParser(ITitleParser):
         self._api_client = api_client or OpenAIClient(timeout=180)
         self._max_retries = max_retries
 
-    def parse(self, title: str) -> Optional[TitleParseResult]:
+    def parse(self, title: str) -> TitleParseResult | None:
         """
         解析动漫标题。
 
@@ -194,7 +194,7 @@ class AITitleParser(ITitleParser):
                     return result
                 else:
                     logger.warning(
-                        f'⚠️ 响应解析失败，尝试重试'
+                        '⚠️ 响应解析失败，尝试重试'
                     )
                     continue
             else:
@@ -269,9 +269,9 @@ class AITitleParser(ITitleParser):
 
     def _parse_response(
         self,
-        content: Optional[str],
+        content: str | None,
         original_title: str
-    ) -> Optional[TitleParseResult]:
+    ) -> TitleParseResult | None:
         """
         解析 AI 响应内容。
 
@@ -326,7 +326,7 @@ class AITitleParser(ITitleParser):
             logger.exception(f'❌ 响应解析未预期错误: {e}')
             return None
 
-    def _extract_retry_after(self, error_message: Optional[str]) -> Optional[float]:
+    def _extract_retry_after(self, error_message: str | None) -> float | None:
         """
         从错误消息中提取 retry-after 时间。
 
@@ -358,7 +358,7 @@ class AITitleParser(ITitleParser):
 
         return None
 
-    def _parse_extra_body(self, extra_body: str) -> Optional[Dict[str, Any]]:
+    def _parse_extra_body(self, extra_body: str) -> dict[str, Any] | None:
         """
         解析 extra_body JSON 字符串。
 

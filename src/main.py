@@ -12,10 +12,10 @@ import logging
 import os
 import sys
 import time
-import schedule
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from threading import Thread
-from typing import Optional
+
+import schedule
 
 # 設置日誌路徑
 log_path = os.getenv('LOG_PATH', 'logs')
@@ -28,6 +28,7 @@ log_file = os.path.join(log_path, f'anidown_{today}.log')
 # 清理旧日志文件（保留最近 5 天）
 # 注意：传入基础文件名，让 LogRotationService 匹配 anidown_*.log 模式
 from src.services.log_rotation_service import LogRotationService
+
 log_rotation = LogRotationService(
     log_file=os.path.join(log_path, 'anidown.log'),
     max_days=5
@@ -62,17 +63,23 @@ def init_key_pools():
     """初始化 API Key Pool 和熔断器"""
     from dependency_injector import providers
 
-    from src.core.config import config
     from src.container import container
-    from src.infrastructure.ai.key_pool import (
-        KeyPool, KeySpec,
-        register_pool, register_named_pool, bind_purpose_to_pool,
-        get_named_pool, clear_all_registries
-    )
+    from src.core.config import config
     from src.infrastructure.ai.circuit_breaker import (
         CircuitBreaker,
-        register_breaker, register_named_breaker, get_named_breaker,
-        clear_all_breaker_registries
+        clear_all_breaker_registries,
+        get_named_breaker,
+        register_breaker,
+        register_named_breaker,
+    )
+    from src.infrastructure.ai.key_pool import (
+        KeyPool,
+        KeySpec,
+        bind_purpose_to_pool,
+        clear_all_registries,
+        get_named_pool,
+        register_named_pool,
+        register_pool,
     )
 
     # 清空现有注册表（支持配置热重载）
@@ -174,8 +181,8 @@ def init_key_pools():
 
 def init_discord_webhook():
     """初始化 Discord Webhook 客户端"""
-    from src.core.config import config
     from src.container import container
+    from src.core.config import config
 
     discord_client = container.discord_webhook()
 
@@ -327,8 +334,8 @@ def init_queue_workers(download_manager):
     Args:
         download_manager: DownloadManager 实例
     """
-    from src.services.queue.webhook_queue import get_webhook_queue, WebhookQueueWorker
-    from src.services.queue.rss_queue import get_rss_queue, RSSQueueWorker
+    from src.services.queue.rss_queue import RSSQueueWorker, get_rss_queue
+    from src.services.queue.webhook_queue import WebhookQueueWorker, get_webhook_queue
 
     # 初始化 Webhook 队列
     webhook_queue = get_webhook_queue()
@@ -417,7 +424,6 @@ def init_queue_workers(download_manager):
     def handle_rss_event(payload):
         """处理 RSS Feed 事件 - 解析 Feed 并将项目加入队列"""
         try:
-            from src.core.config import RSSFeed
             from src.container import container
             from src.core.exceptions import AniDownError
             from src.core.interfaces.notifications import RSSNotification
@@ -844,7 +850,7 @@ def run_schedule(download_manager):
     """
     from src.core.config import config
     from src.interface.web.controllers.system_status import system_status_manager
-    from src.services.queue.rss_queue import get_rss_queue, RSSQueueWorker, RSSPayload
+    from src.services.queue.rss_queue import RSSPayload, RSSQueueWorker, get_rss_queue
 
     logger.info('🔔 启动定时任务调度器...')
     logger.info(f'📋 RSS检查间隔: {config.rss.check_interval} 秒')
@@ -980,6 +986,7 @@ def start_webhook_server(host: str, port: int):
         port: 监听端口
     """
     from flask import Flask
+
     from src.interface.webhook.handler import create_webhook_blueprint
 
     app = Flask(__name__)
@@ -994,8 +1001,8 @@ def start_webhook_server(host: str, port: int):
 
 def main():
     """主程序入口"""
-    from src.core.config import config
     from src.container import container
+    from src.core.config import config
     from src.services.ai_debug_service import ai_debug_service
 
     parser = argparse.ArgumentParser(description='AniDown - 动漫下载管理器')
@@ -1095,10 +1102,10 @@ def main():
     logger.info('🌐 正在启动 Web UI 服务器...')
 
     def run_webui():
-        from src.interface.web.app import create_app
-
         # 使用 Werkzeug 静默模式
         import logging as werkzeug_logging
+
+        from src.interface.web.app import create_app
         werkzeug_logging.getLogger('werkzeug').setLevel(werkzeug_logging.WARNING)
 
         app = create_app(container)

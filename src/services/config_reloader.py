@@ -5,7 +5,6 @@
 """
 
 import logging
-from typing import Dict, List, Optional, Tuple
 
 from dependency_injector import providers
 
@@ -31,7 +30,7 @@ class ConfigReloader:
     ]
 
     def __init__(self):
-        self._old_config_snapshot: Dict = {}
+        self._old_config_snapshot: dict = {}
 
     def snapshot_config(self) -> None:
         """保存当前配置快照（用于检测变更）"""
@@ -42,7 +41,7 @@ class ConfigReloader:
             'webhook_port': config.webhook.port,
         }
 
-    def check_restart_required(self) -> Tuple[bool, List[str]]:
+    def check_restart_required(self) -> tuple[bool, list[str]]:
         """
         检查是否需要重启。
 
@@ -61,7 +60,7 @@ class ConfigReloader:
 
         return len(changed_items) > 0, changed_items
 
-    def reload_all(self) -> Dict[str, bool]:
+    def reload_all(self) -> dict[str, bool]:
         """
         重新加载所有可热重载的配置。
 
@@ -98,17 +97,23 @@ class ConfigReloader:
     def _reload_key_pools(self) -> bool:
         """重载 Key Pools 和 Circuit Breakers"""
         try:
-            from src.core.config import config
             from src.container import container
-            from src.infrastructure.ai.key_pool import (
-                KeyPool, KeySpec,
-                register_pool, register_named_pool, bind_purpose_to_pool,
-                get_named_pool, clear_all_registries
-            )
+            from src.core.config import config
             from src.infrastructure.ai.circuit_breaker import (
                 CircuitBreaker,
-                register_breaker, register_named_breaker, get_named_breaker,
-                clear_all_breaker_registries
+                clear_all_breaker_registries,
+                get_named_breaker,
+                register_breaker,
+                register_named_breaker,
+            )
+            from src.infrastructure.ai.key_pool import (
+                KeyPool,
+                KeySpec,
+                bind_purpose_to_pool,
+                clear_all_registries,
+                get_named_pool,
+                register_named_pool,
+                register_pool,
             )
 
             # 清空现有注册表
@@ -265,8 +270,8 @@ class ConfigReloader:
     def _reload_discord(self) -> bool:
         """重载 Discord Webhook 配置"""
         try:
-            from src.core.config import config
             from src.container import container
+            from src.core.config import config
 
             discord_client = container.discord_webhook()
 
@@ -295,8 +300,8 @@ class ConfigReloader:
     def _reload_qbittorrent(self) -> bool:
         """重载 qBittorrent 配置"""
         try:
-            from src.core.config import config
             from src.container import container
+            from src.core.config import config
 
             qb_client = container.qb_client()
 
@@ -324,8 +329,8 @@ class ConfigReloader:
     def _reload_tvdb(self) -> bool:
         """重载 TVDB 配置"""
         try:
-            from src.core.config import config
             from src.container import container
+            from src.core.config import config
 
             tvdb_client = container.tvdb_client()
 
@@ -350,8 +355,8 @@ class ConfigReloader:
     def _reload_ai_clients(self) -> bool:
         """重载 AI 客户端配置（超时时间等）"""
         try:
-            from src.core.config import config
             from src.container import container
+            from src.core.config import config
             from src.infrastructure.ai.api_client import OpenAIClient
 
             # 重置并重新创建 API 客户端
@@ -409,8 +414,8 @@ class ConfigReloader:
     def _reload_path_builder(self) -> bool:
         """重载 PathBuilder 配置"""
         try:
-            from src.core.config import config
             from src.container import container
+            from src.core.config import config
             from src.services.file.path_builder import PathBuilder
 
             # 重置并重新创建 PathBuilder
@@ -447,7 +452,7 @@ class ConfigReloader:
 config_reloader = ConfigReloader()
 
 
-def reload_config() -> Tuple[Dict[str, bool], bool, List[str]]:
+def reload_config() -> tuple[dict[str, bool], bool, list[str]]:
     """
     执行配置热重载。
 

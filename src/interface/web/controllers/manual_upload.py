@@ -4,30 +4,30 @@
 处理 torrent 文件和磁力链接的手动上传
 """
 import base64
+import os
 import re
 import tempfile
-import os
 
+from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, render_template, request
-from dependency_injector.wiring import inject, Provide
 
-from src.core.config import config
 from src.container import Container
-from src.services.download_manager import DownloadManager
-from src.infrastructure.repositories.history_repository import HistoryRepository
-from src.infrastructure.repositories.download_repository import DownloadRepository
+from src.core.config import config
 from src.infrastructure.downloader.qbit_adapter import (
     get_torrent_hash_from_file,
-    get_torrent_hash_from_magnet
+    get_torrent_hash_from_magnet,
 )
+from src.infrastructure.repositories.download_repository import DownloadRepository
+from src.infrastructure.repositories.history_repository import HistoryRepository
 from src.interface.web.utils import (
     APIResponse,
-    handle_api_errors,
-    validate_json,
     RequestValidator,
     ValidationRule,
-    WebLogger
+    WebLogger,
+    handle_api_errors,
+    validate_json,
 )
+from src.services.download_manager import DownloadManager
 
 manual_upload_bp = Blueprint('manual_upload', __name__)
 logger = WebLogger(__name__)

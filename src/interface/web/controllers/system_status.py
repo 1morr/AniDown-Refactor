@@ -3,16 +3,13 @@
 
 提供系统运行状态、AI 队列状态等 API
 """
-from flask import Blueprint, render_template
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
+from flask import Blueprint, render_template
 
 from src.core.config import config
-from src.interface.web.utils import (
-    APIResponse,
-    handle_api_errors,
-    WebLogger
-)
+from src.interface.web.utils import APIResponse, WebLogger, handle_api_errors
 
 logger = WebLogger(__name__)
 system_status_bp = Blueprint('system_status', __name__)
@@ -92,7 +89,7 @@ def ai_status_page():
 @handle_api_errors
 def get_system_status():
     """获取系统运行状态"""
-    logger.debug(f"🚀 API请求: GET 获取系统状态")
+    logger.debug("🚀 API请求: GET 获取系统状态")
 
     status = system_status_manager.get_status()
 
@@ -154,7 +151,7 @@ def get_ai_status():
     ai_status = ai_rate_limiter.get_detailed_snapshot()
 
     payload = {
-        "now_utc": datetime.now(timezone.utc).isoformat(),
+        "now_utc": datetime.now(UTC).isoformat(),
         "queue": webhook_queue_status,  # 保持兼容性，webhook队列仍用 "queue" 键
         "rss_queue": rss_queue_status,   # 新增 RSS 队列
         "ai": ai_status,
@@ -168,6 +165,7 @@ def get_ai_status():
 def get_ai_key_history():
     """获取指定 AI Key 的使用历史"""
     from flask import request
+
     from src.infrastructure.repositories.ai_key_repository import ai_key_repository
 
     purpose = request.args.get('purpose', '')

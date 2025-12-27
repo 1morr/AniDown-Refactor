@@ -6,7 +6,7 @@ Contains abstract base classes defining contracts for external service adapters.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 @dataclass
@@ -28,12 +28,12 @@ class TitleParseResult:
     """
     original_title: str
     clean_title: str
-    full_title: Optional[str] = None
+    full_title: str | None = None
     subtitle_group: str = ''
     season: int = 1
-    episode: Optional[int] = None
+    episode: int | None = None
     category: str = 'tv'
-    quality_info: Dict[str, str] = field(default_factory=dict)
+    quality_info: dict[str, str] = field(default_factory=dict)
 
     @property
     def is_movie(self) -> bool:
@@ -60,10 +60,10 @@ class RenameResult:
         patterns: Regular expression patterns used for matching.
         method: The renaming method used.
     """
-    main_files: Dict[str, str] = field(default_factory=dict)
-    skipped_files: List[str] = field(default_factory=list)
-    seasons_info: Dict[str, Any] = field(default_factory=dict)
-    patterns: Dict[str, str] = field(default_factory=dict)
+    main_files: dict[str, str] = field(default_factory=dict)
+    skipped_files: list[str] = field(default_factory=list)
+    seasons_info: dict[str, Any] = field(default_factory=dict)
+    patterns: dict[str, str] = field(default_factory=dict)
     method: str = 'ai'
 
     @property
@@ -90,7 +90,7 @@ class ITitleParser(ABC):
     """
 
     @abstractmethod
-    def parse(self, title: str) -> Optional[TitleParseResult]:
+    def parse(self, title: str) -> TitleParseResult | None:
         """
         Parse an anime title.
 
@@ -113,12 +113,12 @@ class IFileRenamer(ABC):
     @abstractmethod
     def generate_rename_mapping(
         self,
-        files: List[str],
+        files: list[str],
         category: str,
-        anime_title: Optional[str] = None,
-        folder_structure: Optional[str] = None,
-        tvdb_data: Optional[Dict[str, Any]] = None
-    ) -> Optional[RenameResult]:
+        anime_title: str | None = None,
+        folder_structure: str | None = None,
+        tvdb_data: dict[str, Any] | None = None
+    ) -> RenameResult | None:
         """
         Generate rename mapping for a list of files.
 
@@ -157,7 +157,7 @@ class IDownloadClient(ABC):
         self,
         torrent_url: str,
         save_path: str,
-        hash_id: Optional[str] = None
+        hash_id: str | None = None
     ) -> bool:
         """
         Add a torrent by URL.
@@ -177,7 +177,7 @@ class IDownloadClient(ABC):
         self,
         file_path: str,
         save_path: str
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Add a torrent from a local file.
 
@@ -195,7 +195,7 @@ class IDownloadClient(ABC):
         self,
         magnet_link: str,
         save_path: str
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Add a torrent from a magnet link.
 
@@ -209,7 +209,7 @@ class IDownloadClient(ABC):
         pass
 
     @abstractmethod
-    def get_torrent_info(self, hash_id: str) -> Optional[Dict[str, Any]]:
+    def get_torrent_info(self, hash_id: str) -> dict[str, Any] | None:
         """
         Get torrent information.
 
@@ -222,7 +222,7 @@ class IDownloadClient(ABC):
         pass
 
     @abstractmethod
-    def get_torrent_files(self, hash_id: str) -> List[Dict[str, Any]]:
+    def get_torrent_files(self, hash_id: str) -> list[dict[str, Any]]:
         """
         Get list of files in a torrent.
 
@@ -329,7 +329,7 @@ class IRSSParser(ABC):
     """
 
     @abstractmethod
-    def parse_feed(self, rss_url: str) -> List[RSSItem]:
+    def parse_feed(self, rss_url: str) -> list[RSSItem]:
         """
         Parse an RSS/Atom feed.
 
@@ -342,7 +342,7 @@ class IRSSParser(ABC):
         pass
 
     @abstractmethod
-    def filter_new_items(self, items: List[RSSItem]) -> List[RSSItem]:
+    def filter_new_items(self, items: list[RSSItem]) -> list[RSSItem]:
         """
         Filter out items that already exist in the database.
 
@@ -386,7 +386,7 @@ class IMetadataClient(ABC):
         pass
 
     @abstractmethod
-    def search_series(self, name: str) -> Optional[List[Dict[str, Any]]]:
+    def search_series(self, name: str) -> list[dict[str, Any]] | None:
         """
         Search for a series by name.
 
@@ -399,7 +399,7 @@ class IMetadataClient(ABC):
         pass
 
     @abstractmethod
-    def get_series_extended(self, series_id: int) -> Optional[Dict[str, Any]]:
+    def get_series_extended(self, series_id: int) -> dict[str, Any] | None:
         """
         Get extended information for a series.
 
@@ -417,7 +417,7 @@ class IMetadataClient(ABC):
         series_id: int,
         page: int = 0,
         language: str = 'default'
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Get episodes for a series.
 
@@ -432,7 +432,7 @@ class IMetadataClient(ABC):
         pass
 
     @abstractmethod
-    def get_all_episodes(self, series_id: int) -> List[Dict[str, Any]]:
+    def get_all_episodes(self, series_id: int) -> list[dict[str, Any]]:
         """
         Get all episodes for a series.
 
@@ -449,7 +449,7 @@ class IMetadataClient(ABC):
         self,
         anime_name: str,
         max_check: int = 5
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Find an exact match for an anime name.
 
@@ -465,9 +465,9 @@ class IMetadataClient(ABC):
     @abstractmethod
     def generate_ai_format(
         self,
-        series_data: Dict[str, Any],
-        episodes: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        series_data: dict[str, Any],
+        episodes: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """
         Generate AI-friendly format for series data.
 
@@ -483,8 +483,8 @@ class IMetadataClient(ABC):
     @abstractmethod
     def simplify_ai_format(
         self,
-        ai_format_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        ai_format_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Simplify AI format data for reduced token usage.
 

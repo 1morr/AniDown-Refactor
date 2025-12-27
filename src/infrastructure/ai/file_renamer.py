@@ -7,7 +7,7 @@ AI 文件重命名器模块。
 import json
 import logging
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from src.core.config import config
 from src.core.exceptions import (
@@ -59,7 +59,7 @@ class AIFileRenamer(IFileRenamer):
         self,
         key_pool: KeyPool,
         circuit_breaker: CircuitBreaker,
-        api_client: Optional[OpenAIClient] = None,
+        api_client: OpenAIClient | None = None,
         max_retries: int = 3,
         batch_size: int = DEFAULT_BATCH_SIZE
     ):
@@ -81,12 +81,12 @@ class AIFileRenamer(IFileRenamer):
 
     def generate_rename_mapping(
         self,
-        files: List[str],
+        files: list[str],
         category: str,
-        anime_title: Optional[str] = None,
-        folder_structure: Optional[str] = None,
-        tvdb_data: Optional[Dict[str, Any]] = None
-    ) -> Optional[RenameResult]:
+        anime_title: str | None = None,
+        folder_structure: str | None = None,
+        tvdb_data: dict[str, Any] | None = None
+    ) -> RenameResult | None:
         """
         生成文件重命名映射。
 
@@ -147,8 +147,8 @@ class AIFileRenamer(IFileRenamer):
 
     def _group_files_by_folder(
         self,
-        files: List[str]
-    ) -> List[Tuple[str, List[str]]]:
+        files: list[str]
+    ) -> list[tuple[str, list[str]]]:
         """
         按文件夹路径（第二层目录）对文件进行分组。
 
@@ -161,7 +161,7 @@ class AIFileRenamer(IFileRenamer):
         Returns:
             按文件夹分组的列表，每个元素为 (文件夹路径, 文件列表)
         """
-        folder_groups: Dict[str, List[str]] = defaultdict(list)
+        folder_groups: dict[str, list[str]] = defaultdict(list)
 
         for file_path in files:
             # 解析文件路径，提取第二层目录作为分组键
@@ -181,7 +181,7 @@ class AIFileRenamer(IFileRenamer):
             folder_groups[folder_key].append(file_path)
 
         # 转换为有序列表，保持文件夹的原始出现顺序
-        seen_folders: List[str] = []
+        seen_folders: list[str] = []
         for file_path in files:
             parts = file_path.replace('\\', '/').split('/')
             if len(parts) >= 2:
@@ -205,12 +205,12 @@ class AIFileRenamer(IFileRenamer):
 
     def _process_batches(
         self,
-        files: List[str],
+        files: list[str],
         category: str,
-        anime_title: Optional[str],
-        folder_structure: Optional[str],
-        tvdb_data: Optional[Dict[str, Any]]
-    ) -> Optional[RenameResult]:
+        anime_title: str | None,
+        folder_structure: str | None,
+        tvdb_data: dict[str, Any] | None
+    ) -> RenameResult | None:
         """
         分批处理大文件列表。
 
@@ -228,7 +228,7 @@ class AIFileRenamer(IFileRenamer):
             合并后的 RenameResult 或 None
         """
         merged_result = RenameResult()
-        previous_hardlinks: List[str] = []
+        previous_hardlinks: list[str] = []
 
         # 先按文件夹分组
         folder_groups = self._group_files_by_folder(files)
@@ -315,13 +315,13 @@ class AIFileRenamer(IFileRenamer):
 
     def _process_single_batch(
         self,
-        files: List[str],
+        files: list[str],
         category: str,
-        anime_title: Optional[str],
-        folder_structure: Optional[str],
-        tvdb_data: Optional[Dict[str, Any]],
-        previous_hardlinks: List[str]
-    ) -> Optional[RenameResult]:
+        anime_title: str | None,
+        folder_structure: str | None,
+        tvdb_data: dict[str, Any] | None,
+        previous_hardlinks: list[str]
+    ) -> RenameResult | None:
         """
         处理单个批次的文件。
 
@@ -524,13 +524,13 @@ class AIFileRenamer(IFileRenamer):
 
     def _build_user_message(
         self,
-        files: List[str],
+        files: list[str],
         category: str,
-        anime_title: Optional[str],
-        folder_structure: Optional[str],
-        tvdb_data: Optional[Dict[str, Any]],
-        previous_hardlinks: List[str]
-    ) -> Tuple[str, Dict[str, str]]:
+        anime_title: str | None,
+        folder_structure: str | None,
+        tvdb_data: dict[str, Any] | None,
+        previous_hardlinks: list[str]
+    ) -> tuple[str, dict[str, str]]:
         """
         构建发送给 AI 的用户消息。
 
@@ -582,9 +582,9 @@ class AIFileRenamer(IFileRenamer):
 
     def _parse_response(
         self,
-        content: Optional[str],
-        indexed_files: Dict[str, str]
-    ) -> Optional[RenameResult]:
+        content: str | None,
+        indexed_files: dict[str, str]
+    ) -> RenameResult | None:
         """
         解析 AI 响应内容。
 
@@ -675,7 +675,7 @@ class AIFileRenamer(IFileRenamer):
             logger.exception(f'❌ 响应解析未预期错误: {e}')
             return None
 
-    def _extract_retry_after(self, error_message: Optional[str]) -> Optional[float]:
+    def _extract_retry_after(self, error_message: str | None) -> float | None:
         """
         从错误消息中提取 retry-after 时间。
 
@@ -707,7 +707,7 @@ class AIFileRenamer(IFileRenamer):
 
         return None
 
-    def _parse_extra_body(self, extra_body: str) -> Optional[Dict[str, Any]]:
+    def _parse_extra_body(self, extra_body: str) -> dict[str, Any] | None:
         """
         解析 extra_body JSON 字符串。
 

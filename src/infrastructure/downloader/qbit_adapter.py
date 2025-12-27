@@ -8,13 +8,12 @@ for interacting with qBittorrent Web API.
 import hashlib
 import logging
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 from urllib.parse import urljoin
 
 import requests
 
 from src.core.config import config
-from src.core.exceptions import DownloadError
 from src.core.interfaces.adapters import IDownloadClient
 
 logger = logging.getLogger(__name__)
@@ -60,7 +59,7 @@ class QBitAdapter(IDownloadClient):
             logger.error(f'qBittorrent login exception: {e}')
             return False
 
-    def _get_headers(self) -> Dict[str, str]:
+    def _get_headers(self) -> dict[str, str]:
         """获取请求头"""
         return {
             'Referer': self.base_url,
@@ -104,14 +103,14 @@ class QBitAdapter(IDownloadClient):
         self,
         torrent_url: str,
         save_path: str,
-        hash_id: Optional[str] = None
+        hash_id: str | None = None
     ) -> bool:
         """添加种子任务（通过URL）"""
         if not self._ensure_login():
             return False
 
         try:
-            logger.info(f'➕ 正在添加种子到 qBittorrent...')
+            logger.info('➕ 正在添加种子到 qBittorrent...')
             logger.debug(f'  种子URL: {torrent_url[:80]}...')
             if save_path:
                 logger.debug(f'  保存路径: {save_path}')
@@ -129,7 +128,7 @@ class QBitAdapter(IDownloadClient):
             response = self._retry_on_403(self.session.post, add_url, data=params)
 
             if response.status_code == 200:
-                logger.info(f'✅ 种子添加成功到 qBittorrent')
+                logger.info('✅ 种子添加成功到 qBittorrent')
                 return True
             else:
                 logger.error(f'Add torrent failed: {response.status_code} - {response.text}')
@@ -139,7 +138,7 @@ class QBitAdapter(IDownloadClient):
             logger.error(f'Add torrent exception: {e}')
             return False
 
-    def add_torrent_file(self, file_path: str, save_path: str) -> Optional[str]:
+    def add_torrent_file(self, file_path: str, save_path: str) -> str | None:
         """添加种子文件"""
         if not self._ensure_login():
             return None
@@ -163,7 +162,7 @@ class QBitAdapter(IDownloadClient):
                 )
 
             if response.status_code == 200:
-                logger.info(f'Torrent file added successfully')
+                logger.info('Torrent file added successfully')
                 # 从文件中提取hash
                 return get_torrent_hash_from_file(file_path)
             else:
@@ -174,7 +173,7 @@ class QBitAdapter(IDownloadClient):
             logger.error(f'Add torrent file exception: {e}')
             return None
 
-    def add_magnet(self, magnet_link: str, save_path: str) -> Optional[str]:
+    def add_magnet(self, magnet_link: str, save_path: str) -> str | None:
         """添加磁力链接"""
         if not self._ensure_login():
             return None
@@ -193,7 +192,7 @@ class QBitAdapter(IDownloadClient):
             response = self._retry_on_403(self.session.post, add_url, data=params)
 
             if response.status_code == 200:
-                logger.info(f'Magnet link added successfully')
+                logger.info('Magnet link added successfully')
                 # 从磁力链接中提取hash
                 return get_torrent_hash_from_magnet(magnet_link)
             else:
@@ -204,7 +203,7 @@ class QBitAdapter(IDownloadClient):
             logger.error(f'Add magnet exception: {e}')
             return None
 
-    def get_torrent_info(self, hash_id: str) -> Optional[Dict[str, Any]]:
+    def get_torrent_info(self, hash_id: str) -> dict[str, Any] | None:
         """获取种子信息"""
         if not self._ensure_login():
             return None
@@ -224,7 +223,7 @@ class QBitAdapter(IDownloadClient):
             logger.error(f'Get torrent info exception: {e}')
             return None
 
-    def get_torrent_files(self, hash_id: str) -> List[Dict[str, Any]]:
+    def get_torrent_files(self, hash_id: str) -> list[dict[str, Any]]:
         """获取种子文件列表"""
         if not self._ensure_login():
             return []
@@ -320,7 +319,7 @@ class QBitAdapter(IDownloadClient):
 
     # ==================== Additional Methods ====================
 
-    def get_all_torrents(self, filter_type: str = None) -> Optional[List[Dict[str, Any]]]:
+    def get_all_torrents(self, filter_type: str = None) -> list[dict[str, Any]] | None:
         """获取所有种子信息"""
         if not self._ensure_login():
             return None
@@ -340,15 +339,15 @@ class QBitAdapter(IDownloadClient):
             logger.error(f'Get all torrents exception: {e}')
             return None
 
-    def get_downloading_torrents(self) -> Optional[List[Dict[str, Any]]]:
+    def get_downloading_torrents(self) -> list[dict[str, Any]] | None:
         """获取正在下载的种子"""
         return self.get_all_torrents('downloading')
 
-    def get_completed_torrents(self) -> Optional[List[Dict[str, Any]]]:
+    def get_completed_torrents(self) -> list[dict[str, Any]] | None:
         """获取已完成的种子"""
         return self.get_all_torrents('completed')
 
-    def get_torrent_folder_structure(self, hash_id: str) -> Optional[str]:
+    def get_torrent_folder_structure(self, hash_id: str) -> str | None:
         """获取Torrent的文件夹树形结构（只包含文件夹，不包含文件）"""
         files = self.get_torrent_files(hash_id)
         if not files:
@@ -369,7 +368,7 @@ class QBitAdapter(IDownloadClient):
                         folders.add(folder_path)
 
             if not folders:
-                logger.debug(f'📁 Torrent没有子文件夹结构')
+                logger.debug('📁 Torrent没有子文件夹结构')
                 return '（无子文件夹）'
 
             folder_tree = self._build_folder_tree(sorted(folders))
@@ -381,7 +380,7 @@ class QBitAdapter(IDownloadClient):
             logger.error(f'❌ 构建文件夹结构失败: {e}')
             return None
 
-    def _build_folder_tree(self, folders: List[str]) -> str:
+    def _build_folder_tree(self, folders: list[str]) -> str:
         """将文件夹路径列表转换为树形结构字符串"""
         if not folders:
             return ''
@@ -401,8 +400,8 @@ class QBitAdapter(IDownloadClient):
 
     def _format_tree(
         self,
-        node: Dict,
-        lines: List[str],
+        node: dict,
+        lines: list[str],
         prefix: str = '',
         is_last: bool = True
     ):
@@ -424,7 +423,7 @@ class QBitAdapter(IDownloadClient):
                 self._format_tree(children, lines, prefix + child_prefix, is_last_item)
 
 
-def get_torrent_hash_from_magnet(magnet_link: str) -> Optional[str]:
+def get_torrent_hash_from_magnet(magnet_link: str) -> str | None:
     """从磁力链接提取hash"""
     match = re.search(r'urn:btih:([a-fA-F0-9]{40})', magnet_link)
     if match:
@@ -432,7 +431,7 @@ def get_torrent_hash_from_magnet(magnet_link: str) -> Optional[str]:
     return None
 
 
-def get_torrent_hash_from_file(torrent_file_path: str) -> Optional[str]:
+def get_torrent_hash_from_file(torrent_file_path: str) -> str | None:
     """从种子文件提取hash"""
     try:
         import bencodepy

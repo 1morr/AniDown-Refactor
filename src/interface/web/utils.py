@@ -7,11 +7,11 @@ Web 接口工具模块。
 import functools
 import logging
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
-from flask import jsonify, request, Response
-
+from flask import Response, jsonify, request
 
 logger = logging.getLogger(__name__)
 
@@ -33,13 +33,13 @@ class ValidationRule:
     """
 
     required: bool = False
-    min_length: Optional[int] = None
-    max_length: Optional[int] = None
-    pattern: Optional[str] = None
-    choices: Optional[List[Any]] = None
-    min_value: Optional[float] = None
-    max_value: Optional[float] = None
-    custom_validator: Optional[Callable] = None
+    min_length: int | None = None
+    max_length: int | None = None
+    pattern: str | None = None
+    choices: list[Any] | None = None
+    min_value: float | None = None
+    max_value: float | None = None
+    custom_validator: Callable | None = None
 
 
 class RequestValidator:
@@ -47,9 +47,9 @@ class RequestValidator:
 
     @staticmethod
     def validate(
-        data: Dict[str, Any],
-        rules: Dict[str, ValidationRule]
-    ) -> Optional[str]:
+        data: dict[str, Any],
+        rules: dict[str, ValidationRule]
+    ) -> str | None:
         """
         验证数据。
 
@@ -121,8 +121,8 @@ class APIResponse:
     @staticmethod
     def _make_response(
         success: bool,
-        data: Optional[Any] = None,
-        message: Optional[str] = None,
+        data: Any | None = None,
+        message: str | None = None,
         code: int = 200,
         **kwargs: Any
     ) -> Response:
@@ -139,7 +139,7 @@ class APIResponse:
         Returns:
             Flask Response 对象
         """
-        response_body: Dict[str, Any] = {'success': success}
+        response_body: dict[str, Any] = {'success': success}
 
         if data is not None:
             response_body['data'] = data
@@ -159,8 +159,8 @@ class APIResponse:
     @classmethod
     def success(
         cls,
-        data: Optional[Any] = None,
-        message: Optional[str] = None,
+        data: Any | None = None,
+        message: str | None = None,
         **kwargs: Any
     ) -> Response:
         """
@@ -194,8 +194,8 @@ class APIResponse:
     @classmethod
     def created(
         cls,
-        data: Optional[Any] = None,
-        message: Optional[str] = None,
+        data: Any | None = None,
+        message: str | None = None,
         **kwargs: Any
     ) -> Response:
         """
@@ -482,7 +482,7 @@ class WebLogger:
         """
         self._logger.error(f'❌ 处理失败: {task} - {str(error)}', exc_info=True)
 
-    def error(self, message: str, error: Optional[Exception] = None) -> None:
+    def error(self, message: str, error: Exception | None = None) -> None:
         """
         记录错误信息。
 

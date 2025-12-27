@@ -5,7 +5,7 @@ Provides integration with TVDB API v4 for fetching anime metadata.
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import requests
 
@@ -28,7 +28,7 @@ class TVDBAdapter(IMetadataClient):
     def __init__(self):
         """Initialize the TVDB adapter."""
         self._api_key = config.tvdb.api_key
-        self._token: Optional[str] = None
+        self._token: str | None = None
 
     @property
     def is_enabled(self) -> bool:
@@ -73,7 +73,7 @@ class TVDBAdapter(IMetadataClient):
             logger.error(f'❌ TVDB登录失败：{e}')
             return False
 
-    def _get_headers(self) -> Dict[str, str]:
+    def _get_headers(self) -> dict[str, str]:
         """
         Get request headers with authentication token.
 
@@ -88,7 +88,7 @@ class TVDBAdapter(IMetadataClient):
             'Content-Type': 'application/json'
         }
 
-    def search_series(self, name: str) -> Optional[List[Dict[str, Any]]]:
+    def search_series(self, name: str) -> list[dict[str, Any]] | None:
         """
         Search for a series by name.
 
@@ -119,7 +119,7 @@ class TVDBAdapter(IMetadataClient):
             logger.error(f'❌ TVDB搜索失败：{e}')
             return None
 
-    def get_series_extended(self, series_id: int) -> Optional[Dict[str, Any]]:
+    def get_series_extended(self, series_id: int) -> dict[str, Any] | None:
         """
         Get extended information for a series.
 
@@ -145,7 +145,7 @@ class TVDBAdapter(IMetadataClient):
             data = result.get('data', {})
 
             # Extract season names from seasons array
-            season_names: Dict[int, str] = {}
+            season_names: dict[int, str] = {}
             for season in data.get('seasons', []):
                 # Only get official aired order seasons
                 season_type = season.get('type', {})
@@ -172,7 +172,7 @@ class TVDBAdapter(IMetadataClient):
         series_id: int,
         page: int = 0,
         language: str = 'default'
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Get episodes for a series with pagination.
 
@@ -206,7 +206,7 @@ class TVDBAdapter(IMetadataClient):
             logger.error(f'❌ 获取TVDB剧集失败：{e}')
             return None
 
-    def get_all_episodes(self, series_id: int) -> List[Dict[str, Any]]:
+    def get_all_episodes(self, series_id: int) -> list[dict[str, Any]]:
         """
         Get all episodes for a series with pagination handling.
 
@@ -246,7 +246,7 @@ class TVDBAdapter(IMetadataClient):
         self,
         series_id: int,
         language: str
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Fetch all pages of episodes for a series.
 
@@ -282,9 +282,9 @@ class TVDBAdapter(IMetadataClient):
 
     def _check_name_match(
         self,
-        series_data: Dict[str, Any],
+        series_data: dict[str, Any],
         target_name: str
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """
         Check if target name matches any series name or alias.
 
@@ -328,7 +328,7 @@ class TVDBAdapter(IMetadataClient):
         self,
         anime_name: str,
         max_check: int = 5
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Search and find an exact match for anime name.
 
@@ -379,7 +379,7 @@ class TVDBAdapter(IMetadataClient):
         )
         return None
 
-    def get_episode_extended(self, episode_id: int) -> Optional[Dict[str, Any]]:
+    def get_episode_extended(self, episode_id: int) -> dict[str, Any] | None:
         """
         Get extended information for an episode.
 
@@ -434,9 +434,9 @@ class TVDBAdapter(IMetadataClient):
 
     def generate_ai_format(
         self,
-        series_data: Dict[str, Any],
-        episodes: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        series_data: dict[str, Any],
+        episodes: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """
         Generate AI-friendly format for series data.
 
@@ -451,7 +451,7 @@ class TVDBAdapter(IMetadataClient):
         season_names = series_data.get('_season_names', {})
 
         # Group episodes by season
-        seasons_dict: Dict[int, List[Dict[str, Any]]] = {}
+        seasons_dict: dict[int, list[dict[str, Any]]] = {}
         for episode in episodes:
             season_num = episode.get('seasonNumber')
             if season_num is not None:
@@ -472,7 +472,7 @@ class TVDBAdapter(IMetadataClient):
             if season_num == 0:
                 # Fetch Special Category for each episode from TVDB API
                 logger.info(f'  获取 {len(season_episodes)} 个特别篇的分类信息...')
-                episode_categories: Dict[int, str] = {}
+                episode_categories: dict[int, str] = {}
                 for ep in season_episodes:
                     ep_id = ep.get('id')
                     if ep_id:
@@ -480,7 +480,7 @@ class TVDBAdapter(IMetadataClient):
                         episode_categories[ep_id] = category
 
                 # Group specials by type
-                type_groups: Dict[str, List[Dict[str, Any]]] = {}
+                type_groups: dict[str, list[dict[str, Any]]] = {}
                 for ep in season_episodes:
                     ep_id = ep.get('id')
                     ep_type = episode_categories.get(ep_id, 'Uncategorized')
@@ -571,8 +571,8 @@ class TVDBAdapter(IMetadataClient):
 
     def simplify_ai_format(
         self,
-        ai_format_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        ai_format_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Simplify AI format data for reduced token usage.
 
