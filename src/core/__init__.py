@@ -17,11 +17,8 @@ from src.core.exceptions import (
     FileOperationError,
     HardlinkError,
     ConfigError,
-    ConfigValidationError,
     DatabaseError,
-    RecordNotFoundError,
     ParseError,
-    RSSParseError,
     TitleParseError,
 )
 
@@ -39,10 +36,7 @@ __all__ = [
     'FileOperationError',
     'HardlinkError',
     'ConfigError',
-    'ConfigValidationError',
     'DatabaseError',
-    'RecordNotFoundError',
     'ParseError',
-    'RSSParseError',
     'TitleParseError',
 ]

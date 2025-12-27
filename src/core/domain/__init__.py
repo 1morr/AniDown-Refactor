@@ -13,7 +13,6 @@ from src.core.domain.value_objects import (
     SeasonInfo,
     AnimeTitle,
     SubtitleGroup,
-    FilePath,
 )
 from src.core.domain.entities import (
     AnimeInfo,
@@ -33,7 +32,6 @@ __all__ = [
     'SeasonInfo',
     'AnimeTitle',
     'SubtitleGroup',
-    'FilePath',
     # Entities
     'AnimeInfo',
     'DownloadRecord',
