@@ -4,29 +4,29 @@ Discord 通知模块。
 提供 Discord Webhook 集成，包括：
 - Webhook 客户端（HTTP 通信）
 - Embed 构建器（消息格式化）
-- 各类通知实现（RSS、下载、硬链接、错误、AI使用、Webhook接收）
+- 统一的 Discord 通知器（整合所有通知类型）
+
+旧的独立通知器已废弃，请使用 DiscordNotifier。
 """
 
-from src.infrastructure.notification.discord.ai_usage_notifier import (
-    DiscordAIUsageNotifier,
-)
-from src.infrastructure.notification.discord.download_notifier import (
-    DiscordDownloadNotifier,
-)
+from src.infrastructure.notification.discord.discord_notifier import DiscordNotifier
 from src.infrastructure.notification.discord.embed_builder import EmbedBuilder
-from src.infrastructure.notification.discord.error_notifier import DiscordErrorNotifier
-from src.infrastructure.notification.discord.hardlink_notifier import (
-    DiscordHardlinkNotifier,
-)
-from src.infrastructure.notification.discord.rss_notifier import DiscordRSSNotifier
 from src.infrastructure.notification.discord.webhook_client import DiscordWebhookClient
-from src.infrastructure.notification.discord.webhook_received_notifier import (
-    DiscordWebhookReceivedNotifier,
-)
+
+# 为向后兼容提供旧名称的别名
+DiscordRSSNotifier = DiscordNotifier
+DiscordDownloadNotifier = DiscordNotifier
+DiscordHardlinkNotifier = DiscordNotifier
+DiscordErrorNotifier = DiscordNotifier
+DiscordAIUsageNotifier = DiscordNotifier
+DiscordWebhookReceivedNotifier = DiscordNotifier
 
 __all__ = [
+    # 核心组件
     'DiscordWebhookClient',
     'EmbedBuilder',
+    'DiscordNotifier',
+    # 向后兼容别名（已废弃）
     'DiscordRSSNotifier',
     'DiscordDownloadNotifier',
     'DiscordHardlinkNotifier',
