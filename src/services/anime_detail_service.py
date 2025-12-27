@@ -10,7 +10,6 @@ import os
 import uuid
 from typing import Any, Dict, List, Optional
 
-from src.core.config import config
 from src.core.interfaces import IAnimeRepository, IDownloadRepository, IDownloadClient
 from src.infrastructure.database.session import db_manager
 from src.infrastructure.database.models import (
@@ -18,6 +17,7 @@ from src.infrastructure.database.models import (
     DownloadStatus as DownloadStatusModel,
     Hardlink,
 )
+from src.services.file.path_builder import PathBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,8 @@ class AnimeDetailService:
         self,
         anime_repo: IAnimeRepository,
         download_repo: IDownloadRepository,
-        download_client: IDownloadClient
+        download_client: IDownloadClient,
+        path_builder: PathBuilder
     ):
         """
         Initialize the anime detail service.
@@ -42,10 +43,12 @@ class AnimeDetailService:
             anime_repo: Anime repository for database operations.
             download_repo: Download repository for download records.
             download_client: Download client for torrent operations.
+            path_builder: Path builder for filesystem path construction.
         """
         self._anime_repo = anime_repo
         self._download_repo = download_repo
         self._download_client = download_client
+        self._path_builder = path_builder
 
     def get_anime_with_torrents(self, anime_id: int) -> Dict[str, Any]:
         """
@@ -92,8 +95,12 @@ class AnimeDetailService:
                     'updated_at': anime.updated_at
                 }
 
-                # Build target path
-                target_path = self._build_auto_target_path(anime_info)
+                # Build target path using PathBuilder
+                target_path = self._path_builder.build_target_directory(
+                    anime_title=anime_info.get('short_title') or anime_info.get('original_title'),
+                    media_type=anime_info.get('media_type', 'anime'),
+                    category=anime_info.get('category', 'tv')
+                )
 
                 # Build torrents list with files
                 torrents = []
@@ -398,74 +405,6 @@ class AnimeDetailService:
             return 'subtitle'
         return 'other'
 
-    def _build_auto_target_path(self, anime_info: Dict[str, Any]) -> str:
-        """
-        Build auto-detected target path based on anime info.
-
-        Args:
-            anime_info: Anime information dictionary.
-
-        Returns:
-            Target directory path.
-        """
-        anime_title = anime_info.get('short_title') or anime_info.get('original_title', 'Unknown')
-        media_type = anime_info.get('media_type', 'anime')
-        category = anime_info.get('category', 'tv')
-
-        # Sanitize title for filesystem
-        sanitized_title = self._sanitize_title(anime_title)
-
-        # Select base path
-        if media_type == 'live_action':
-            if category == 'movie':
-                base_path = config.live_action_movie_target_path
-            else:
-                base_path = config.live_action_tv_target_path
-        else:
-            if category == 'movie':
-                base_path = config.movie_link_target_path or config.link_target_path
-            else:
-                base_path = config.link_target_path
-
-        return os.path.join(base_path.rstrip('/\\'), sanitized_title)
-
-    def _sanitize_title(self, name: str) -> str:
-        """
-        Sanitize anime title for use in file/directory names.
-
-        Args:
-            name: Original title string.
-
-        Returns:
-            Sanitized title safe for filesystem use.
-        """
-        import re
-
-        if not name:
-            return ''
-
-        # Replace invalid characters with fullwidth equivalents
-        illegal_chars = {
-            '<': '\uff1c', '>': '\uff1e', ':': '\uff1a', '"': '\u201d', '/': '\uff0f',
-            '\\': '\uff3c', '|': '\uff5c', '?': '\uff1f', '*': '\uff0a'
-        }
-
-        sanitized = name
-        for char, replacement in illegal_chars.items():
-            sanitized = sanitized.replace(char, replacement)
-
-        # Replace multiple spaces with single space
-        sanitized = re.sub(r'\s+', ' ', sanitized)
-
-        # Remove leading/trailing spaces and dots
-        sanitized = sanitized.strip(' .')
-
-        # Truncate to reasonable length
-        if len(sanitized) > 200:
-            sanitized = sanitized[:200]
-
-        return sanitized
-
     def check_existing_hardlinks(
         self,
         anime_id: int,
@@ -645,11 +584,11 @@ class AnimeDetailService:
                     }
 
                 # Build target path first (needed for relative path extraction)
-                target_path = self._build_auto_target_path({
-                    'short_title': anime_title,
-                    'media_type': media_type,
-                    'category': category
-                })
+                target_path = self._path_builder.build_target_directory(
+                    anime_title=anime_title,
+                    media_type=media_type,
+                    category=category
+                )
 
                 # Build preview results
                 preview_items = []
@@ -936,9 +875,14 @@ def get_anime_detail_service() -> AnimeDetailService:
     if _anime_detail_service is None:
         from src.infrastructure.repositories import AnimeRepository, DownloadRepository
         from src.infrastructure.downloader import QBitAdapter
+        from src.core.config import config as app_config
         _anime_detail_service = AnimeDetailService(
             AnimeRepository(),
             DownloadRepository(),
-            QBitAdapter()
+            QBitAdapter(),
+            PathBuilder(
+                download_root=app_config.qbittorrent.base_download_path,
+                library_root=app_config.link_target_path
+            )
         )
     return _anime_detail_service

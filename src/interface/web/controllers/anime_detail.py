@@ -9,9 +9,9 @@ from flask import Blueprint, render_template, request
 from dependency_injector.wiring import inject, Provide
 
 from src.container import Container
-from src.core.config import config
 from src.services.anime_detail_service import AnimeDetailService
 from src.services.anime_service import AnimeService
+from src.services.file.path_builder import PathBuilder
 from src.interface.web.utils import (
     APIResponse,
     handle_api_errors,
@@ -194,7 +194,8 @@ def api_process_with_ai(
 @validate_json('files')
 def api_create_anime_hardlinks(
     anime_id: int,
-    anime_detail_service: AnimeDetailService = Provide[Container.anime_detail_service]
+    anime_detail_service: AnimeDetailService = Provide[Container.anime_detail_service],
+    path_builder: PathBuilder = Provide[Container.path_builder]
 ):
     """Create hardlinks for selected files."""
     if anime_id < 1:
@@ -223,21 +224,12 @@ def api_create_anime_hardlinks(
             media_type = anime.media_type or 'anime'
             category = anime.category or 'tv'
 
-            # Build target directory
-            if media_type == 'live_action':
-                if category == 'movie':
-                    base_target = config.live_action_movie_target_path
-                else:
-                    base_target = config.live_action_tv_target_path
-            else:
-                if category == 'movie':
-                    base_target = config.movie_link_target_path or config.link_target_path
-                else:
-                    base_target = config.link_target_path
-
-            # Sanitize title
-            sanitized_title = anime_detail_service._sanitize_title(anime_title)
-            target_directory = os.path.join(base_target, sanitized_title)
+            # Build target directory using PathBuilder
+            target_directory = path_builder.build_library_path(
+                title=anime_title,
+                media_type=media_type,
+                category=category
+            )
 
             if target_path:
                 target_directory = os.path.join(target_directory, target_path.lstrip('/\\'))
