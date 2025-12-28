@@ -5,14 +5,14 @@ Contains business logic services that orchestrate domain operations.
 Services coordinate between adapters, repositories, and domain entities.
 """
 
-from src.services.ai_debug_service import AIDebugService, get_ai_debug_service
-from src.services.anime_service import AnimeService, get_anime_service
+from src.services.ai_debug_service import AIDebugService
+from src.services.anime_service import AnimeService
 from src.services.download_manager import DownloadManager, RSSProcessResult
 from src.services.file.path_builder import PathBuilder
 from src.services.file_service import FileService
-from src.services.filter_service import FilterService, get_filter_service
-from src.services.log_rotation_service import LogRotationService, get_log_rotation_service
-from src.services.metadata_service import MetadataService, get_metadata_service
+from src.services.filter_service import FilterService
+from src.services.log_rotation_service import LogRotationService
+from src.services.metadata_service import MetadataService
 from src.services.queue import rss_queue, webhook_queue
 from src.services.queue.queue_worker import QueueEvent, QueueWorker
 from src.services.queue.rss_queue import RSSQueueWorker
@@ -44,17 +44,12 @@ __all__ = [
     'rss_queue',
     # Filter service
     'FilterService',
-    'get_filter_service',
     # Metadata service
     'MetadataService',
-    'get_metadata_service',
     # Anime service
     'AnimeService',
-    'get_anime_service',
     # AI Debug service
     'AIDebugService',
-    'get_ai_debug_service',
     # Log rotation service
     'LogRotationService',
-    'get_log_rotation_service',
 ]

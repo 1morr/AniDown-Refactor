@@ -15,7 +15,7 @@ from src.core.exceptions import (
     AIKeyExhaustedError,
 )
 from src.infrastructure.repositories.ai_key_repository import ai_key_repository
-from src.services.ai_debug_service import ai_debug_service
+from src.services.ai_debug_service import AIDebugService
 
 from .api_client import OpenAIClient
 from .circuit_breaker import CircuitBreaker
@@ -102,7 +102,8 @@ class AISubtitleMatcher:
         key_pool: KeyPool,
         circuit_breaker: CircuitBreaker,
         api_client: OpenAIClient | None = None,
-        max_retries: int = 3
+        max_retries: int = 3,
+        ai_debug_service: AIDebugService | None = None
     ):
         """
         初始化字幕匹配器。
@@ -112,11 +113,13 @@ class AISubtitleMatcher:
             circuit_breaker: 熔断器
             api_client: API 客户端（可选，默认创建新实例）
             max_retries: 最大重试次数
+            ai_debug_service: AI 调试服务（可选）
         """
         self._key_pool = key_pool
         self._circuit_breaker = circuit_breaker
         self._api_client = api_client or OpenAIClient(timeout=180)
         self._max_retries = max_retries
+        self._ai_debug_service = ai_debug_service
 
     def match_subtitles(
         self,
@@ -279,8 +282,8 @@ class AISubtitleMatcher:
                     )
 
                     # 记录 AI 调试日志
-                    if ai_debug_service.enabled:
-                        ai_debug_service.log_ai_interaction(
+                    if self._ai_debug_service and self._ai_debug_service.enabled:
+                        self._ai_debug_service.log_ai_interaction(
                             operation='subtitle_match',
                             input_data={
                                 'video_files': video_files,
@@ -345,8 +348,8 @@ class AISubtitleMatcher:
                     )
 
                     # 记录 AI 调试日志（失败）
-                    if ai_debug_service.enabled:
-                        ai_debug_service.log_ai_interaction(
+                    if self._ai_debug_service and self._ai_debug_service.enabled:
+                        self._ai_debug_service.log_ai_interaction(
                             operation='subtitle_match',
                             input_data={
                                 'video_files': video_files,

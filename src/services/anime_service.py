@@ -1462,32 +1462,3 @@ class AnimeService:
             logger.error(f'删除硬链接失败: {e}')
             return {'success': False, 'error': str(e)}
 
-
-# Global anime service instance
-_anime_service: AnimeService | None = None
-
-
-def get_anime_service() -> AnimeService:
-    """
-    Get the global anime service instance.
-
-    Creates the instance on first call.
-
-    Returns:
-        AnimeService instance.
-    """
-    global _anime_service
-    if _anime_service is None:
-        from src.core.config import config as app_config
-        from src.infrastructure.downloader import QBitAdapter
-        from src.infrastructure.repositories import AnimeRepository, DownloadRepository
-        _anime_service = AnimeService(
-            AnimeRepository(),
-            DownloadRepository(),
-            QBitAdapter(),
-            PathBuilder(
-                download_root=app_config.qbittorrent.base_download_path,
-                library_root=app_config.link_target_path
-            )
-        )
-    return _anime_service

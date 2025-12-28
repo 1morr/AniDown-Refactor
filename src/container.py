@@ -46,7 +46,6 @@ from src.services.file_service import FileService
 
 # Core Services
 from src.services.filter_service import FilterService
-from src.services.log_rotation_service import LogRotationService
 from src.services.metadata_service import MetadataService
 
 # Rename Services
@@ -105,6 +104,9 @@ class Container(containers.DeclarativeContainer):
     tvdb_client = providers.Singleton(TVDBAdapter)
 
     # ===== AI Components =====
+    # AI Debug Service - 在所有 AI 组件之前定义
+    ai_debug_service = providers.Singleton(AIDebugService)
+
     # OpenAI API Clients - 分离标题解析和重命名的客户端（使用不同 timeout）
     title_parse_api_client = providers.Singleton(
         OpenAIClient,
@@ -128,7 +130,8 @@ class Container(containers.DeclarativeContainer):
         AITitleParser,
         key_pool=title_parse_pool,
         circuit_breaker=title_parse_breaker,
-        api_client=title_parse_api_client
+        api_client=title_parse_api_client,
+        ai_debug_service=ai_debug_service
     )
 
     # Multi-File Rename: KeyPool & CircuitBreaker
@@ -144,7 +147,8 @@ class Container(containers.DeclarativeContainer):
         AIFileRenamer,
         key_pool=rename_pool,
         circuit_breaker=rename_breaker,
-        api_client=rename_api_client
+        api_client=rename_api_client,
+        ai_debug_service=ai_debug_service
     )
 
     # Subtitle Match: KeyPool & CircuitBreaker
@@ -167,7 +171,8 @@ class Container(containers.DeclarativeContainer):
         AISubtitleMatcher,
         key_pool=subtitle_match_pool,
         circuit_breaker=subtitle_match_breaker,
-        api_client=subtitle_match_api_client
+        api_client=subtitle_match_api_client,
+        ai_debug_service=ai_debug_service
     )
 
     # ===== Notification Components =====
@@ -251,9 +256,7 @@ class Container(containers.DeclarativeContainer):
         notifier=discord_notifier
     )
 
-    # ===== Utility Services =====
-    ai_debug_service = providers.Singleton(AIDebugService)
-    log_rotation_service = providers.Singleton(LogRotationService)
+
 
 
 # 全局容器实例

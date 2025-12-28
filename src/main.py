@@ -1003,7 +1003,7 @@ def main():
     """主程序入口"""
     from src.container import container
     from src.core.config import config
-    from src.services.ai_debug_service import ai_debug_service
+
 
     parser = argparse.ArgumentParser(description='AniDown - 动漫下载管理器')
     parser.add_argument('--debug', action='store_true', help='启用debug模式')
@@ -1035,7 +1035,7 @@ def main():
     # 启用debug模式（命令行参数或环境变量）
     debug_enabled = args.debug or os.getenv('DEBUG', '').lower() in ('true', '1', 'yes')
     if debug_enabled:
-        ai_debug_service.enable()
+        container.ai_debug_service().enable()
         logger.info('🐛 DEBUG模式已启用')
         logging.getLogger().setLevel(logging.DEBUG)
 
