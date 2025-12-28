@@ -358,39 +358,6 @@ def init_queue_workers(download_manager):
             # 重新抛出异常，让 QueueWorker 正确统计失败数
             raise
 
-    def handle_torrent_added(payload):
-        """处理种子添加事件"""
-        try:
-            logger.info(f'📥 种子已添加: {payload.name}')
-            download_manager.handle_torrent_added(payload.hash_id)
-        except Exception as e:
-            logger.error(f'❌ 处理种子添加事件失败: {e}', exc_info=True)
-            # 重新抛出异常，让 QueueWorker 正确统计失败数
-            raise
-
-    def handle_torrent_error(payload):
-        """处理种子错误事件"""
-        try:
-            logger.warning(f'⚠️ 种子错误: {payload.name}')
-            download_manager.handle_torrent_error(
-                payload.hash_id,
-                payload.extra_data.get('error', '未知错误')
-            )
-        except Exception as e:
-            logger.error(f'❌ 处理种子错误事件失败: {e}', exc_info=True)
-            # 重新抛出异常，让 QueueWorker 正确统计失败数
-            raise
-
-    def handle_torrent_paused(payload):
-        """处理种子暂停事件"""
-        try:
-            logger.info(f'⏸️ 种子已暂停: {payload.name}')
-            download_manager.handle_torrent_paused(payload.hash_id)
-        except Exception as e:
-            logger.error(f'❌ 处理种子暂停事件失败: {e}', exc_info=True)
-            # 重新抛出异常，让 QueueWorker 正确统计失败数
-            raise
-
     # 注册 Webhook 处理器
     webhook_queue.register_handler(
         WebhookQueueWorker.EVENT_TORRENT_COMPLETED,
@@ -400,18 +367,6 @@ def init_queue_workers(download_manager):
     webhook_queue.register_handler(
         'torrent_finished',
         handle_torrent_completed
-    )
-    webhook_queue.register_handler(
-        WebhookQueueWorker.EVENT_TORRENT_ADDED,
-        handle_torrent_added
-    )
-    webhook_queue.register_handler(
-        WebhookQueueWorker.EVENT_TORRENT_ERROR,
-        handle_torrent_error
-    )
-    webhook_queue.register_handler(
-        WebhookQueueWorker.EVENT_TORRENT_PAUSED,
-        handle_torrent_paused
     )
 
     # 启动 Webhook 队列

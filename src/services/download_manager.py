@@ -1510,75 +1510,8 @@ class DownloadManager:
 
     # ==================== Webhook Event Handlers ====================
 
-    def handle_torrent_added(
-        self,
-        hash_id: str,
-        webhook_data: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
-        """Handle torrent added event."""
-        try:
-            logger.info(f'处理种子添加事件: {hash_id}')
-            self._download_repo.update_status(hash_id, 'downloading')
-            return {'success': True, 'message': 'Torrent added processed'}
-        except Exception as e:
-            logger.error(f'处理种子添加事件失败: {e}')
-            # 发送错误通知到 Discord
-            self._notify_error(f'处理种子添加事件失败: {e}')
-            # 重新抛出异常，让调用者可以获取详细错误信息
-            raise
 
-    def handle_torrent_error(
-        self,
-        hash_id: str,
-        webhook_data: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
-        """Handle torrent error event."""
-        try:
-            logger.error(f'处理种子错误事件: {hash_id}')
 
-            error_message = (
-                webhook_data.get('error', 'Unknown error') if webhook_data
-                else 'Unknown error'
-            )
-
-            self._download_repo.update_status(hash_id, 'failed')
-
-            download_info = self._download_repo.get_by_hash(hash_id)
-            if download_info and self._notifier:
-                self._notifier.notify_error(ErrorNotification(
-                    error_type='下载错误',
-                    error_message=error_message,
-                    context={
-                        'anime_title': download_info.anime_title or download_info.original_filename,
-                        'hash_id': hash_id
-                    }
-                ))
-
-            logger.error(f'种子错误处理完成: {hash_id} - {error_message}')
-            return {'success': True, 'message': 'Torrent error processed'}
-        except Exception as e:
-            logger.error(f'处理种子错误事件失败: {e}')
-            # 发送错误通知到 Discord
-            self._notify_error(f'处理种子错误事件失败: {e}')
-            # 重新抛出异常，让调用者可以获取详细错误信息
-            raise
-
-    def handle_torrent_paused(
-        self,
-        hash_id: str,
-        webhook_data: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
-        """Handle torrent paused event."""
-        try:
-            logger.info(f'处理种子暂停事件: {hash_id}')
-            self._download_repo.update_status(hash_id, 'paused')
-            return {'success': True, 'message': 'Torrent paused processed'}
-        except Exception as e:
-            logger.error(f'处理种子暂停事件失败: {e}')
-            # 发送错误通知到 Discord
-            self._notify_error(f'处理种子暂停事件失败: {e}')
-            # 重新抛出异常，让调用者可以获取详细错误信息
-            raise
 
     # ==================== Helper Methods ====================
 
