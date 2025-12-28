@@ -325,10 +325,14 @@ class FileService:
         else:
             os.makedirs(target_file_dir, mode=0o775, exist_ok=True)
 
-        # Skip if target already exists
+        # Replace if target already exists
         if os.path.exists(target_path):
-            logger.warning(f'⚠️ Target already exists, skipping: {target_path}')
-            return True
+            logger.info(f'🔄 Target already exists, replacing: {target_path}')
+            try:
+                os.remove(target_path)
+            except OSError as e:
+                logger.error(f'❌ Failed to remove existing file: {e}')
+                return False
 
         # Attempt hardlink creation
         link_method = self._create_link(source_path, target_path)
