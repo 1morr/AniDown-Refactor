@@ -112,21 +112,6 @@ class TestEmbedBuilder:
 
         assert 'title' in embed or 'description' in embed
 
-    def test_build_download_start_embed(self):
-        """Test building download start notification embed."""
-        from src.infrastructure.notification.discord.embed_builder import EmbedBuilder
-
-        builder = EmbedBuilder()
-        embed = builder.build_download_start_embed(
-            anime_title='金牌得主',
-            season=1,
-            episode=1,
-            subtitle_group='喵萌奶茶屋&VCB-Studio',
-            hash_id='abc123def456789012345678901234567890'
-        )
-
-        assert 'title' in embed or 'description' in embed
-
     def test_build_error_embed(self):
         """Test building error notification embed."""
         from src.infrastructure.notification.discord.embed_builder import EmbedBuilder
@@ -182,25 +167,6 @@ class TestDiscordNotifier:
         )
 
         # Verify webhook was called or result is correct type
-        assert (mock_discord_webhook.send_embed.called or
-                mock_discord_webhook.send.called or
-                isinstance(result, bool) or
-                result is None)
-
-    def test_notify_download_start(self, discord_notifier, mock_discord_webhook):
-        """Test download start notification."""
-        from src.core.interfaces.notifications import DownloadNotification
-
-        notification = DownloadNotification(
-            anime_title='金牌得主',
-            season=1,
-            episode=1,
-            subtitle_group='喵萌奶茶屋&VCB-Studio',
-            hash_id='abc123'
-        )
-
-        result = discord_notifier.notify_download_start(notification)
-
         assert (mock_discord_webhook.send_embed.called or
                 mock_discord_webhook.send.called or
                 isinstance(result, bool) or
@@ -348,26 +314,6 @@ class TestDownloadNotifier:
         )
         return DiscordNotifier(webhook_client=mock_discord_webhook)
 
-    def test_notify_download_start(self, download_notifier, mock_discord_webhook):
-        """Test download start notification."""
-        from src.core.interfaces.notifications import DownloadNotification
-
-        notification = DownloadNotification(
-            anime_title='金牌得主',
-            season=1,
-            episode=1,
-            subtitle_group='喵萌奶茶屋&VCB-Studio',
-            hash_id='abc123'
-        )
-
-        # The notify method may return bool or notification result
-        result = download_notifier.notify_download_start(notification)
-
-        # Verify webhook was called or result is correct type
-        assert (mock_discord_webhook.send_embed.called or
-                mock_discord_webhook.send.called or
-                isinstance(result, bool) or
-                result is None)
 
 
 class TestHardlinkNotifier:
@@ -468,12 +414,14 @@ class TestDiscordIntegration:
         builder = EmbedBuilder()
 
         # Build test embed
-        embed = builder.build_download_start_embed(
+        embed = builder.build_rss_task_embed(
+            project_name='AniDown 测试',
+            hash_id='test_hash_1234567890',
             anime_title='AniDown 测试',
-            season=1,
-            episode=1,
             subtitle_group='Test',
-            hash_id='test_hash_1234567890'
+            download_path='/downloads/test',
+            season=1,
+            episode=1
         )
 
         # Send to RSS webhook

@@ -25,38 +25,6 @@ class RSSNotification:
     item_count: int = 0
 
 
-@dataclass
-class DownloadNotification:
-    """
-    Download event notification data.
-
-    Attributes:
-        anime_title: Title of the anime being downloaded.
-        season: Season number.
-        episode: Episode number (if applicable).
-        subtitle_group: Name of the subtitle group.
-        hash_id: Torrent hash identifier.
-        progress: Download progress (0.0 to 1.0).
-    """
-    anime_title: str
-    season: int
-    episode: int | None
-    subtitle_group: str
-    hash_id: str
-    progress: float = 0.0
-
-    @property
-    def season_episode_display(self) -> str:
-        """Return formatted season/episode string (e.g., 'S01E05')."""
-        if self.episode is not None:
-            return f'S{self.season:02d}E{self.episode:02d}'
-        return f'S{self.season:02d}'
-
-    @property
-    def short_hash(self) -> str:
-        """Return shortened hash for display."""
-        return self.hash_id[:8] if self.hash_id else ''
-
 
 @dataclass
 class HardlinkNotification:

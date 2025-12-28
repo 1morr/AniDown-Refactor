@@ -9,7 +9,6 @@ from typing import Any
 
 from src.core.interfaces.notifications import (
     AIUsageNotification,
-    DownloadNotification,
     ErrorNotification,
     HardlinkNotification,
     RSSInterruptedNotification,
@@ -28,21 +27,18 @@ class DiscordNotifier:
     """
     统一的 Discord 通知器。
 
-    整合了所有通知类型（RSS、下载、硬链接、错误、AI使用、Webhook接收）
-    到一个类中，减少代码重复，简化依赖注入。
+    整合了所有通知类型到一个类中，减少代码重复，简化依赖注入。
 
     支持的通知类型:
-    - RSS 处理通知 (notify_processing_start, notify_processing_complete, etc.)
-    - 下载事件通知 (notify_download_start, notify_download_complete, etc.)
-    - 硬链接创建通知 (notify_hardlink_created, notify_hardlink_failed)
-    - 错误和警告通知 (notify_error, notify_warning)
-    - AI 使用通知 (notify_ai_usage)
+    - RSS 处理通知 (notify_processing_start, notify_download_task, notify_processing_complete, notify_processing_interrupted)
     - Webhook 接收通知 (notify_webhook_received)
+    - 硬链接通知 (notify_hardlink_created, notify_hardlink_failed)
+    - AI 使用通知 (notify_ai_usage)
+    - 错误通知 (notify_error)
 
     Example:
         >>> notifier = DiscordNotifier(webhook_client)
         >>> notifier.notify_processing_start(RSSNotification(...))
-        >>> notifier.notify_download_start(DownloadNotification(...))
         >>> notifier.notify_hardlink_created(HardlinkNotification(...))
     """
 
@@ -64,7 +60,7 @@ class DiscordNotifier:
         self._embed_builder = embed_builder or EmbedBuilder()
         self._default_error_channel = default_error_channel
 
-    # ========== RSS 通知方法 ==========
+    # ==================== RSS 通知方法 ====================
 
     def notify_processing_start(self, notification: RSSNotification) -> None:
         """
@@ -86,6 +82,28 @@ class DiscordNotifier:
             logger.info('✅ [Notifier] RSS 开始通知发送成功')
         else:
             logger.warning(f'⚠️ RSS 开始通知发送失败: {response.error_message}')
+
+    def notify_download_task(self, notification: RSSTaskNotification) -> None:
+        """
+        通知单个下载任务已添加。
+
+        Args:
+            notification: RSS 任务通知数据
+        """
+        embed = self._embed_builder.build_rss_task_embed(
+            project_name=notification.project_name,
+            hash_id=notification.hash_id,
+            anime_title=notification.anime_title,
+            subtitle_group=notification.subtitle_group,
+            download_path=notification.download_path,
+            season=notification.season,
+            episode=notification.episode
+        )
+
+        response = self._client.send(embeds=[embed], channel_type='rss')
+
+        if not response.success:
+            logger.warning(f'⚠️ RSS 任务通知发送失败: {response.error_message}')
 
     def notify_processing_complete(
         self,
@@ -124,28 +142,6 @@ class DiscordNotifier:
         else:
             logger.warning(f'⚠️ RSS 完成通知发送失败: {response.error_message}')
 
-    def notify_download_task(self, notification: RSSTaskNotification) -> None:
-        """
-        通知单个下载任务已添加。
-
-        Args:
-            notification: RSS 任务通知数据
-        """
-        embed = self._embed_builder.build_rss_task_embed(
-            project_name=notification.project_name,
-            hash_id=notification.hash_id,
-            anime_title=notification.anime_title,
-            subtitle_group=notification.subtitle_group,
-            download_path=notification.download_path,
-            season=notification.season,
-            episode=notification.episode
-        )
-
-        response = self._client.send(embeds=[embed], channel_type='rss')
-
-        if not response.success:
-            logger.warning(f'⚠️ RSS 任务通知发送失败: {response.error_message}')
-
     def notify_processing_interrupted(
         self,
         notification: RSSInterruptedNotification
@@ -169,72 +165,31 @@ class DiscordNotifier:
         if not response.success:
             logger.warning(f'⚠️ RSS 中断通知发送失败: {response.error_message}')
 
-    # ========== 下载通知方法 ==========
+    # ==================== Webhook 接收通知方法 ====================
 
-    def notify_download_start(self, notification: DownloadNotification) -> None:
-        """
-        通知下载开始。
-
-        Args:
-            notification: 下载通知数据
-        """
-        embed = self._embed_builder.build_download_start_embed(
-            anime_title=notification.anime_title,
-            season=notification.season,
-            episode=notification.episode,
-            subtitle_group=notification.subtitle_group,
-            hash_id=notification.hash_id
-        )
-
-        response = self._client.send(embeds=[embed], channel_type='download')
-
-        if not response.success:
-            logger.warning(f'⚠️ 下载开始通知发送失败: {response.error_message}')
-
-    def notify_download_complete(self, notification: DownloadNotification) -> None:
-        """
-        通知下载完成。
-
-        Args:
-            notification: 下载通知数据
-        """
-        embed = self._embed_builder.build_download_complete_embed(
-            anime_title=notification.anime_title,
-            season=notification.season,
-            episode=notification.episode,
-            subtitle_group=notification.subtitle_group,
-            hash_id=notification.hash_id
-        )
-
-        response = self._client.send(embeds=[embed], channel_type='download')
-
-        if not response.success:
-            logger.warning(f'⚠️ 下载完成通知发送失败: {response.error_message}')
-
-    def notify_download_failed(
+    def notify_webhook_received(
         self,
-        notification: DownloadNotification,
-        error_message: str
+        notification: WebhookReceivedNotification
     ) -> None:
         """
-        通知下载失败。
+        通知收到了 Webhook。
 
         Args:
-            notification: 下载通知数据
-            error_message: 错误消息
+            notification: Webhook 接收通知数据
         """
-        embed = self._embed_builder.build_download_failed_embed(
-            anime_title=notification.anime_title,
-            error_message=error_message,
-            hash_id=notification.hash_id
+        embed = self._embed_builder.build_webhook_received_embed(
+            torrent_id=notification.torrent_id,
+            save_path=notification.save_path,
+            content_path=notification.content_path,
+            torrent_name=notification.torrent_name
         )
 
-        response = self._client.send(embeds=[embed], channel_type='download')
+        response = self._client.send(embeds=[embed], channel_type='hardlink')
 
         if not response.success:
-            logger.warning(f'⚠️ 下载失败通知发送失败: {response.error_message}')
+            logger.warning(f'⚠️ Webhook 接收通知发送失败: {response.error_message}')
 
-    # ========== 硬链接通知方法 ==========
+    # ==================== 硬链接通知方法 ====================
 
     def notify_hardlink_created(self, notification: HardlinkNotification) -> None:
         """
@@ -289,110 +244,7 @@ class DiscordNotifier:
         if not response.success:
             logger.warning(f'⚠️ 硬链接失败通知发送失败: {response.error_message}')
 
-    # ========== 错误通知方法 ==========
-
-    def notify_error(self, notification: ErrorNotification) -> None:
-        """
-        发送错误通知。
-
-        Args:
-            notification: 错误通知数据
-        """
-        embed = self._embed_builder.build_error_embed(
-            error_type=notification.error_type,
-            error_message=notification.error_message,
-            context=notification.context
-        )
-
-        channel_type = self._determine_error_channel(notification.context)
-        response = self._client.send(embeds=[embed], channel_type=channel_type)
-
-        if not response.success:
-            logger.warning(f'⚠️ 错误通知发送失败: {response.error_message}')
-        else:
-            logger.debug(f'✅ 错误通知已发送: {notification.error_type}')
-
-    def notify_warning(
-        self,
-        message: str,
-        context: dict[str, Any] | None = None
-    ) -> None:
-        """
-        发送警告通知。
-
-        Args:
-            message: 警告消息
-            context: 可选的上下文信息
-        """
-        embed = self._embed_builder.build_warning_embed(
-            warning_type='系统警告',
-            warning_message=message,
-            context=context
-        )
-
-        channel_type = self._determine_error_channel(context)
-        response = self._client.send(embeds=[embed], channel_type=channel_type)
-
-        if not response.success:
-            logger.warning(f'⚠️ 警告通知发送失败: {response.error_message}')
-        else:
-            logger.debug(f'✅ 警告通知已发送: {message[:50]}...')
-
-    def send_simple_error(self, error_message: str) -> None:
-        """
-        发送简单的错误消息。
-
-        兼容原始 send_error_info 方法。
-
-        Args:
-            error_message: 错误消息
-        """
-        response = self._client.send(
-            content=f'❌ 处理出错: {error_message}',
-            embeds=[],
-            channel_type=self._default_error_channel
-        )
-
-        if not response.success:
-            logger.warning(f'⚠️ 简单错误通知发送失败: {response.error_message}')
-
-    def send_detailed_error(
-        self,
-        error_type: str,
-        error_message: str,
-        context: dict[str, Any] | None = None,
-        channel_type: str | None = None
-    ) -> None:
-        """
-        发送详细的错误通知。
-
-        兼容原始 send_error_detail 方法。
-
-        Args:
-            error_type: 错误类型
-            error_message: 错误消息
-            context: 上下文信息（可选）
-            channel_type: 频道类型（可选）
-        """
-        notification = ErrorNotification(
-            error_type=error_type,
-            error_message=error_message,
-            context=context or {}
-        )
-
-        embed = self._embed_builder.build_error_embed(
-            error_type=notification.error_type,
-            error_message=notification.error_message,
-            context=notification.context
-        )
-
-        target_channel = channel_type or self._default_error_channel
-        response = self._client.send(embeds=[embed], channel_type=target_channel)
-
-        if not response.success:
-            logger.warning(f'⚠️ 详细错误通知发送失败: {response.error_message}')
-
-    # ========== AI 使用通知方法 ==========
+    # ==================== AI 使用通知方法 ====================
 
     def notify_ai_usage(self, notification: AIUsageNotification) -> None:
         """
@@ -416,31 +268,30 @@ class DiscordNotifier:
         if not response.success:
             logger.warning(f'⚠️ AI 使用通知发送失败: {response.error_message}')
 
-    # ========== Webhook 接收通知方法 ==========
+    # ==================== 错误通知方法 ====================
 
-    def notify_webhook_received(
-        self,
-        notification: WebhookReceivedNotification
-    ) -> None:
+    def notify_error(self, notification: ErrorNotification) -> None:
         """
-        通知收到了 Webhook。
+        发送错误通知。
 
         Args:
-            notification: Webhook 接收通知数据
+            notification: 错误通知数据
         """
-        embed = self._embed_builder.build_webhook_received_embed(
-            torrent_id=notification.torrent_id,
-            save_path=notification.save_path,
-            content_path=notification.content_path,
-            torrent_name=notification.torrent_name
+        embed = self._embed_builder.build_error_embed(
+            error_type=notification.error_type,
+            error_message=notification.error_message,
+            context=notification.context
         )
 
-        response = self._client.send(embeds=[embed], channel_type='hardlink')
+        channel_type = self._determine_error_channel(notification.context)
+        response = self._client.send(embeds=[embed], channel_type=channel_type)
 
         if not response.success:
-            logger.warning(f'⚠️ Webhook 接收通知发送失败: {response.error_message}')
+            logger.warning(f'⚠️ 错误通知发送失败: {response.error_message}')
+        else:
+            logger.debug(f'✅ 错误通知已发送: {notification.error_type}')
 
-    # ========== 私有辅助方法 ==========
+    # ==================== 私有辅助方法 ====================
 
     def _determine_error_channel(
         self,

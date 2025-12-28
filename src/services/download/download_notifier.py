@@ -8,7 +8,6 @@ import logging
 
 from src.core.interfaces.notifications import (
     AIUsageNotification,
-    DownloadNotification,
     ErrorNotification,
     HardlinkNotification,
     RSSNotification,
@@ -72,39 +71,6 @@ class DownloadNotifier:
             )
         except Exception as e:
             logger.warning(f'⚠️ 发送AI使用通知失败: {e}')
-
-    def notify_download_start(
-        self,
-        anime_title: str,
-        season: int,
-        episode: int | None,
-        subtitle_group: str,
-        hash_id: str
-    ) -> None:
-        """
-        Send download start notification.
-
-        Args:
-            anime_title: Anime title.
-            season: Season number.
-            episode: Episode number (optional).
-            subtitle_group: Subtitle group name.
-            hash_id: Torrent hash ID.
-        """
-        if not self._notifier:
-            return
-
-        try:
-            notification = DownloadNotification(
-                anime_title=anime_title,
-                season=season,
-                episode=episode,
-                subtitle_group=subtitle_group,
-                hash_id=hash_id
-            )
-            self._notifier.notify_download_start(notification)
-        except Exception as e:
-            logger.warning(f'⚠️ 发送下载开始通知失败: {e}')
 
     def notify_download_task(
         self,

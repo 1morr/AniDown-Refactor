@@ -425,12 +425,14 @@ class RSSProcessor:
                     self._history_repo.insert_rss_detail(history_id, title, 'success')
 
                     # Send notification
-                    self._notifier.notify_download_start(
+                    self._notifier.notify_download_task(
+                        project_name=title,
+                        hash_id=hash_id,
                         anime_title=short_title,
-                        season=season,
-                        episode=1,
                         subtitle_group=subtitle_group,
-                        hash_id=hash_id
+                        download_path=save_path,
+                        season=season,
+                        episode=1
                     )
 
                 except Exception as e:

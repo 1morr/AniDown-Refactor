@@ -17,7 +17,6 @@ from src.core.interfaces.adapters import (
 )
 from src.core.interfaces.notifications import (
     AIUsageNotification,
-    DownloadNotification,
     ErrorNotification,
     HardlinkNotification,
     RSSInterruptedNotification,
@@ -48,7 +47,6 @@ __all__ = [
     'IMetadataClient',
     # Notification Data Classes
     'RSSNotification',
-    'DownloadNotification',
     'HardlinkNotification',
     'ErrorNotification',
     'AIUsageNotification',

@@ -34,10 +34,10 @@ class EmbedBuilder:
     """
 
     # 颜色常量（Discord 颜色为十进制整数）
-    COLOR_SUCCESS = 0x00FF00  # 绿色
-    COLOR_INFO = 0x3498DB     # 蓝色
-    COLOR_WARNING = 0xFFA500  # 橙色
-    COLOR_ERROR = 0xFF0000    # 红色
+    COLOR_SUCCESS = 0x00FF00     # 绿色
+    COLOR_INFO = 0x3498DB        # 蓝色
+    COLOR_WARNING = 0xFFA500     # 橙色
+    COLOR_ERROR = 0xFF0000       # 红色
     COLOR_PROCESSING = 0x9B59B6  # 紫色
 
     def __init__(self, app_name: str = 'AniDown'):
@@ -48,6 +48,8 @@ class EmbedBuilder:
             app_name: 应用名称（显示在页脚）
         """
         self._app_name = app_name
+
+    # ==================== 私有辅助方法 ====================
 
     def _base_embed(
         self,
@@ -98,284 +100,6 @@ class EmbedBuilder:
         embed['fields'] = fields
         return embed
 
-    # === RSS 通知 ===
-
-    def build_rss_start_embed(
-        self,
-        trigger_type: str,
-        rss_url: str,
-        title: str | None = None
-    ) -> dict[str, Any]:
-        """
-        构建 RSS 处理开始通知 Embed。
-
-        Args:
-            trigger_type: 触发类型（定时触发、手动触发等）
-            rss_url: RSS URL
-            title: 可选标题
-
-        Returns:
-            Embed 字典
-        """
-        embed = self._base_embed(
-            title='🚀 RSS 处理开始',
-            color=self.COLOR_PROCESSING
-        )
-
-        fields = [
-            {'name': '⏰ 触发方式', 'value': trigger_type, 'inline': True}
-        ]
-
-        if title:
-            fields.append({'name': '📝 标题', 'value': title, 'inline': True})
-
-        # 截断过长的 URL
-        display_url = rss_url if len(rss_url) <= 50 else rss_url[:47] + '...'
-        fields.append({'name': '🔗 RSS URL', 'value': display_url, 'inline': False})
-
-        return self._add_fields(embed, fields)
-
-    # === 下载通知 ===
-
-    def build_download_start_embed(
-        self,
-        anime_title: str,
-        season: int,
-        episode: int | None,
-        subtitle_group: str,
-        hash_id: str
-    ) -> dict[str, Any]:
-        """
-        构建下载开始通知 Embed。
-
-        Args:
-            anime_title: 动漫标题
-            season: 季度
-            episode: 集数
-            subtitle_group: 字幕组
-            hash_id: 种子哈希
-
-        Returns:
-            Embed 字典
-        """
-        # 构建集数显示
-        ep_text = f'S{season:02d}'
-        if episode is not None:
-            ep_text += f'E{episode:02d}'
-
-        embed = self._base_embed(
-            title='📥 开始下载',
-            description=f'**{anime_title}** {ep_text}',
-            color=self.COLOR_INFO
-        )
-
-        fields = [
-            {'name': '👥 字幕组', 'value': subtitle_group or '未知', 'inline': True},
-            {'name': '📺 季度', 'value': f'第 {season} 季' if season > 0 else '电影/OVA', 'inline': True},
-            {'name': ':hash: Hash', 'value': f'`{hash_id[:8]}...`', 'inline': True}
-        ]
-
-        return self._add_fields(embed, fields)
-
-    def build_download_complete_embed(
-        self,
-        anime_title: str,
-        season: int,
-        episode: int | None,
-        subtitle_group: str,
-        hash_id: str
-    ) -> dict[str, Any]:
-        """
-        构建下载完成通知 Embed。
-
-        Args:
-            anime_title: 动漫标题
-            season: 季度
-            episode: 集数
-            subtitle_group: 字幕组
-            hash_id: 种子哈希
-
-        Returns:
-            Embed 字典
-        """
-        ep_text = f'S{season:02d}'
-        if episode is not None:
-            ep_text += f'E{episode:02d}'
-
-        embed = self._base_embed(
-            title='✅ 下载完成',
-            description=f'**{anime_title}** {ep_text}',
-            color=self.COLOR_SUCCESS
-        )
-
-        fields = [
-            {'name': '👥 字幕组', 'value': subtitle_group or '未知', 'inline': True},
-            {'name': ':hash: Hash', 'value': f'`{hash_id[:8]}...`', 'inline': True}
-        ]
-
-        return self._add_fields(embed, fields)
-
-    def build_download_failed_embed(
-        self,
-        anime_title: str,
-        error_message: str,
-        hash_id: str | None = None
-    ) -> dict[str, Any]:
-        """
-        构建下载失败通知 Embed。
-
-        Args:
-            anime_title: 动漫标题
-            error_message: 错误消息
-            hash_id: 种子哈希（可选）
-
-        Returns:
-            Embed 字典
-        """
-        embed = self._base_embed(
-            title='❌ 下载失败',
-            description=f'**{anime_title}**',
-            color=self.COLOR_ERROR
-        )
-
-        fields = [
-            {'name': '⚠️ 错误', 'value': error_message[:500], 'inline': False}
-        ]
-
-        if hash_id:
-            fields.append({
-                'name': ':hash: Hash',
-                'value': f'`{hash_id[:8]}...`',
-                'inline': True
-            })
-
-        return self._add_fields(embed, fields)
-
-    # === 硬链接通知 ===
-
-    def build_hardlink_failed_embed(
-        self,
-        anime_title: str,
-        error_message: str,
-        source_path: str | None = None,
-        target_path: str | None = None
-    ) -> dict[str, Any]:
-        """
-        构建硬链接失败通知 Embed。
-
-        Args:
-            anime_title: 动漫标题
-            error_message: 错误消息
-            source_path: 源路径（可选）
-            target_path: 目标路径（可选）
-
-        Returns:
-            Embed 字典
-        """
-        embed = self._base_embed(
-            title='❌ 硬链接创建失败',
-            description=f'**{anime_title}**',
-            color=self.COLOR_ERROR
-        )
-
-        fields = [
-            {'name': '⚠️ 错误', 'value': error_message[:500], 'inline': False}
-        ]
-
-        if source_path:
-            display_source = source_path if len(source_path) <= 50 else '...' + source_path[-47:]
-            fields.append({
-                'name': '📤 源路径',
-                'value': f'`{display_source}`',
-                'inline': False
-            })
-
-        if target_path:
-            display_target = target_path if len(target_path) <= 50 else '...' + target_path[-47:]
-            fields.append({
-                'name': '📥 目标路径',
-                'value': f'`{display_target}`',
-                'inline': False
-            })
-
-        return self._add_fields(embed, fields)
-
-    # === 错误通知 ===
-
-    def build_error_embed(
-        self,
-        error_type: str,
-        error_message: str,
-        context: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
-        """
-        构建错误通知 Embed。
-
-        Args:
-            error_type: 错误类型
-            error_message: 错误消息
-            context: 上下文信息（可选）
-
-        Returns:
-            Embed 字典
-        """
-        embed = self._base_embed(
-            title=f'❌ {error_type}',
-            description=error_message[:2000],
-            color=self.COLOR_ERROR
-        )
-
-        if context:
-            fields = []
-            for key, value in list(context.items())[:5]:
-                fields.append({
-                    'name': f'📌 {key}',
-                    'value': str(value)[:100],
-                    'inline': True
-                })
-            if fields:
-                return self._add_fields(embed, fields)
-
-        return embed
-
-    def build_warning_embed(
-        self,
-        warning_type: str,
-        warning_message: str,
-        context: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
-        """
-        构建警告通知 Embed。
-
-        Args:
-            warning_type: 警告类型
-            warning_message: 警告消息
-            context: 上下文信息（可选）
-
-        Returns:
-            Embed 字典
-        """
-        embed = self._base_embed(
-            title=f'⚠️ {warning_type}',
-            description=warning_message[:2000],
-            color=self.COLOR_WARNING
-        )
-
-        if context:
-            fields = []
-            for key, value in list(context.items())[:5]:
-                fields.append({
-                    'name': f'📌 {key}',
-                    'value': str(value)[:100],
-                    'inline': True
-                })
-            if fields:
-                return self._add_fields(embed, fields)
-
-        return embed
-
-    # === 辅助方法 ===
-
     def _truncate_path(self, path: str, max_len: int = 45) -> str:
         """
         截断路径以便显示。
@@ -423,46 +147,42 @@ class EmbedBuilder:
             'failed': '❌'
         }.get(status, '📋')
 
-    # === AI 使用通知 ===
+    # ==================== RSS 通知 Embed ====================
 
-    def build_ai_usage_embed(
+    def build_rss_start_embed(
         self,
-        reason: str,
-        project_name: str,
-        context: str,
-        operation: str
+        trigger_type: str,
+        rss_url: str,
+        title: str | None = None
     ) -> dict[str, Any]:
         """
-        构建 AI 使用通知 Embed。
+        构建 RSS 处理开始通知 Embed。
 
         Args:
-            reason: 使用 AI 的原因
-            project_name: 项目/动漫名称
-            context: 上下文（'rss' 或 'webhook'）
-            operation: 操作类型（'title_parsing' 或 'file_renaming'）
+            trigger_type: 触发类型（定时触发、手动触发等）
+            rss_url: RSS URL
+            title: 可选标题
 
         Returns:
             Embed 字典
         """
-        operation_display = {
-            'title_parsing': '标题解析',
-            'file_renaming': '文件重命名'
-        }.get(operation, operation)
-
         embed = self._base_embed(
-            title='🤖 使用 AI 处理',
+            title='🚀 RSS 处理开始',
             color=self.COLOR_PROCESSING
         )
 
         fields = [
-            {'name': '📁 项目', 'value': project_name[:50] or '未知', 'inline': True},
-            {'name': '⚙️ 操作', 'value': operation_display, 'inline': True},
-            {'name': '💡 原因', 'value': reason[:100], 'inline': False}
+            {'name': '⏰ 触发方式', 'value': trigger_type, 'inline': True}
         ]
 
-        return self._add_fields(embed, fields)
+        if title:
+            fields.append({'name': '📝 标题', 'value': title, 'inline': True})
 
-    # === RSS 任务通知 ===
+        # 截断过长的 URL
+        display_url = self._truncate_url(rss_url)
+        fields.append({'name': '🔗 RSS URL', 'value': display_url, 'inline': False})
+
+        return self._add_fields(embed, fields)
 
     def build_rss_task_embed(
         self,
@@ -512,8 +232,6 @@ class EmbedBuilder:
         ]
 
         return self._add_fields(embed, fields)
-
-    # === RSS 完成通知（增强版）===
 
     def build_rss_complete_embed_enhanced(
         self,
@@ -575,14 +293,14 @@ class EmbedBuilder:
             # 最多显示 5 个失败项，包含错误原因
             failed_lines = []
             for item in failed_items[:5]:
-                title = item.get('title', '未知')[:30]
+                item_title = item.get('title', '未知')[:30]
                 reason = item.get('reason', '')
                 if reason:
                     # 截断过长的错误原因
                     reason_text = reason[:60] + '...' if len(reason) > 60 else reason
-                    failed_lines.append(f'• {title}... | {reason_text}')
+                    failed_lines.append(f'• {item_title}... | {reason_text}')
                 else:
-                    failed_lines.append(f'• {title}...')
+                    failed_lines.append(f'• {item_title}...')
             failed_text = '\n'.join(failed_lines)
             if len(failed_items) > 5:
                 failed_text += f'\n... 还有 {len(failed_items) - 5} 个'
@@ -594,8 +312,6 @@ class EmbedBuilder:
             })
 
         return self._add_fields(embed, fields)
-
-    # === RSS 中断通知 ===
 
     def build_rss_interrupted_embed(
         self,
@@ -632,7 +348,11 @@ class EmbedBuilder:
 
         return self._add_fields(embed, fields)
 
-    # === Webhook 接收通知 ===
+    # ==================== 下载通知 Embed ====================
+
+
+
+    # ==================== Webhook 接收通知 Embed ====================
 
     def build_webhook_received_embed(
         self,
@@ -674,7 +394,7 @@ class EmbedBuilder:
 
         return self._add_fields(embed, fields)
 
-    # === 硬链接详细通知 ===
+    # ==================== 硬链接通知 Embed ====================
 
     def build_hardlink_detailed_embed(
         self,
@@ -736,3 +456,127 @@ class EmbedBuilder:
             })
 
         return self._add_fields(embed, fields)
+
+    def build_hardlink_failed_embed(
+        self,
+        anime_title: str,
+        error_message: str,
+        source_path: str | None = None,
+        target_path: str | None = None
+    ) -> dict[str, Any]:
+        """
+        构建硬链接失败通知 Embed。
+
+        Args:
+            anime_title: 动漫标题
+            error_message: 错误消息
+            source_path: 源路径（可选）
+            target_path: 目标路径（可选）
+
+        Returns:
+            Embed 字典
+        """
+        embed = self._base_embed(
+            title='❌ 硬链接创建失败',
+            description=f'**{anime_title}**',
+            color=self.COLOR_ERROR
+        )
+
+        fields = [
+            {'name': '⚠️ 错误', 'value': error_message[:500], 'inline': False}
+        ]
+
+        if source_path:
+            display_source = self._truncate_path(source_path, 47)
+            fields.append({
+                'name': '📤 源路径',
+                'value': f'`{display_source}`',
+                'inline': False
+            })
+
+        if target_path:
+            display_target = self._truncate_path(target_path, 47)
+            fields.append({
+                'name': '📥 目标路径',
+                'value': f'`{display_target}`',
+                'inline': False
+            })
+
+        return self._add_fields(embed, fields)
+
+    # ==================== AI 通知 Embed ====================
+
+    def build_ai_usage_embed(
+        self,
+        reason: str,
+        project_name: str,
+        context: str,
+        operation: str
+    ) -> dict[str, Any]:
+        """
+        构建 AI 使用通知 Embed。
+
+        Args:
+            reason: 使用 AI 的原因
+            project_name: 项目/动漫名称
+            context: 上下文（'rss' 或 'webhook'）
+            operation: 操作类型（'title_parsing' 或 'file_renaming'）
+
+        Returns:
+            Embed 字典
+        """
+        operation_display = {
+            'title_parsing': '标题解析',
+            'file_renaming': '文件重命名'
+        }.get(operation, operation)
+
+        embed = self._base_embed(
+            title='🤖 使用 AI 处理',
+            color=self.COLOR_PROCESSING
+        )
+
+        fields = [
+            {'name': '📁 项目', 'value': project_name[:50] or '未知', 'inline': True},
+            {'name': '⚙️ 操作', 'value': operation_display, 'inline': True},
+            {'name': '💡 原因', 'value': reason[:100], 'inline': False}
+        ]
+
+        return self._add_fields(embed, fields)
+
+    # ==================== 错误通知 Embed ====================
+
+    def build_error_embed(
+        self,
+        error_type: str,
+        error_message: str,
+        context: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        """
+        构建错误通知 Embed。
+
+        Args:
+            error_type: 错误类型
+            error_message: 错误消息
+            context: 上下文信息（可选）
+
+        Returns:
+            Embed 字典
+        """
+        embed = self._base_embed(
+            title=f'❌ {error_type}',
+            description=error_message[:2000],
+            color=self.COLOR_ERROR
+        )
+
+        if context:
+            fields = []
+            for key, value in list(context.items())[:5]:
+                fields.append({
+                    'name': f'📌 {key}',
+                    'value': str(value)[:100],
+                    'inline': True
+                })
+            if fields:
+                return self._add_fields(embed, fields)
+
+        return embed
