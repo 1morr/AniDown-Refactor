@@ -10,7 +10,7 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for
 
 from src.core.config import AppConfig, LanguagePriorityConfig, OpenAIConfig, RSSFeed, config
 from src.interface.web.utils import APIResponse, WebLogger, handle_api_errors
-from src.services.config_reloader import config_reloader, reload_config
+from src.services.system.config_reloader import config_reloader, reload_config
 
 config_bp = Blueprint('config', __name__)
 logger = WebLogger(__name__)

@@ -13,8 +13,8 @@ from src.interface.web.utils import (
     handle_api_errors,
     validate_json,
 )
-from src.services.anime_service import AnimeService
-from src.services.subtitle_service import SubtitleService
+from src.services.anime.anime_service import AnimeService
+from src.services.anime.subtitle_service import SubtitleService
 
 logger = WebLogger(__name__)
 anime_bp = Blueprint('anime', __name__)

@@ -93,7 +93,7 @@ class TestMetadataService:
     @pytest.fixture
     def metadata_service(self):
         """Create MetadataService instance."""
-        from src.services.metadata_service import MetadataService
+        from src.services.metadata.metadata_service import MetadataService
         from src.infrastructure.metadata.tvdb_adapter import TVDBAdapter
 
         return MetadataService(metadata_client=TVDBAdapter())
@@ -101,7 +101,7 @@ class TestMetadataService:
     @pytest.fixture
     def mock_metadata_service(self):
         """Create MetadataService with mocked client."""
-        from src.services.metadata_service import MetadataService
+        from src.services.metadata.metadata_service import MetadataService
 
         mock_client = MagicMock()
         return MetadataService(metadata_client=mock_client)
@@ -192,7 +192,7 @@ class TestTVDBIntegration:
     def test_get_series_info(self, requires_tvdb):
         """Test getting detailed series info from TVDB."""
         from src.infrastructure.metadata.tvdb_adapter import TVDBAdapter
-        from src.services.metadata_service import MetadataService
+        from src.services.metadata.metadata_service import MetadataService
 
         adapter = TVDBAdapter()
         service = MetadataService(metadata_client=adapter)
@@ -217,7 +217,7 @@ class TestTVDBIntegration:
     def test_full_tvdb_workflow(self, requires_tvdb):
         """Test complete TVDB workflow for anime metadata."""
         from src.infrastructure.metadata.tvdb_adapter import TVDBAdapter
-        from src.services.metadata_service import MetadataService
+        from src.services.metadata.metadata_service import MetadataService
 
         adapter = TVDBAdapter()
         service = MetadataService(metadata_client=adapter)

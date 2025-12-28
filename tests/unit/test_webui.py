@@ -405,7 +405,7 @@ class TestRSSController:
 
     def test_preview_filters_api(self, client):
         """Test /api/preview_filters endpoint."""
-        from src.services.rss_service import RSSService
+        from src.services.rss.rss_service import RSSService
         from src.core.interfaces.adapters import RSSItem
 
         # Create mock RSS items as dataclass objects (not dicts!)
@@ -488,7 +488,7 @@ class TestRSSController:
 
     def test_preview_filters_api_with_regex(self, client):
         """Test /api/preview_filters with regex filter."""
-        from src.services.rss_service import RSSService
+        from src.services.rss.rss_service import RSSService
         from src.core.interfaces.adapters import RSSItem
 
         mock_items = [

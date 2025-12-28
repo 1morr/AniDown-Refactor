@@ -8,7 +8,7 @@ to map paths between container and host.
 import pytest
 from unittest.mock import patch, MagicMock
 
-from src.services.file_service import FileService
+from src.services.file.file_service import FileService
 
 
 class TestPathConversion:
@@ -26,7 +26,7 @@ class TestPathConversion:
 
         When path_conversion.enabled is False, paths should remain unchanged.
         """
-        with patch('src.services.file_service.config') as mock_config:
+        with patch('src.services.file.file_service.config') as mock_config:
             mock_config.path_conversion.enabled = False
 
             original_path = '/downloads/AniDown/Anime/test.mkv'
@@ -40,7 +40,7 @@ class TestPathConversion:
 
         When path starts with source_base_path, it should be converted.
         """
-        with patch('src.services.file_service.config') as mock_config:
+        with patch('src.services.file.file_service.config') as mock_config:
             mock_config.path_conversion.enabled = True
             mock_config.path_conversion.source_base_path = '/downloads/AniDown/'
             mock_config.path_conversion.target_base_path = '/storage/Downloads/AniDown/'
@@ -57,7 +57,7 @@ class TestPathConversion:
 
         When path doesn't start with source_base_path, it should remain unchanged.
         """
-        with patch('src.services.file_service.config') as mock_config:
+        with patch('src.services.file.file_service.config') as mock_config:
             mock_config.path_conversion.enabled = True
             mock_config.path_conversion.source_base_path = '/downloads/AniDown/'
             mock_config.path_conversion.target_base_path = '/storage/Downloads/AniDown/'
@@ -73,7 +73,7 @@ class TestPathConversion:
 
         If the source_base_path appears multiple times, only the first should be replaced.
         """
-        with patch('src.services.file_service.config') as mock_config:
+        with patch('src.services.file.file_service.config') as mock_config:
             mock_config.path_conversion.enabled = True
             mock_config.path_conversion.source_base_path = '/downloads/'
             mock_config.path_conversion.target_base_path = '/storage/'
@@ -90,7 +90,7 @@ class TestPathConversion:
         """
         Test path conversion with empty path.
         """
-        with patch('src.services.file_service.config') as mock_config:
+        with patch('src.services.file.file_service.config') as mock_config:
             mock_config.path_conversion.enabled = True
             mock_config.path_conversion.source_base_path = '/downloads/AniDown/'
             mock_config.path_conversion.target_base_path = '/storage/Downloads/AniDown/'
@@ -106,7 +106,7 @@ class TestPathConversion:
         If the path contains source_base_path but doesn't start with it,
         no conversion should happen.
         """
-        with patch('src.services.file_service.config') as mock_config:
+        with patch('src.services.file.file_service.config') as mock_config:
             mock_config.path_conversion.enabled = True
             mock_config.path_conversion.source_base_path = '/downloads/AniDown/'
             mock_config.path_conversion.target_base_path = '/storage/Downloads/AniDown/'
@@ -121,7 +121,7 @@ class TestPathConversion:
         """
         Test path conversion with exact match (just the base path).
         """
-        with patch('src.services.file_service.config') as mock_config:
+        with patch('src.services.file.file_service.config') as mock_config:
             mock_config.path_conversion.enabled = True
             mock_config.path_conversion.source_base_path = '/downloads/AniDown/'
             mock_config.path_conversion.target_base_path = '/storage/Downloads/AniDown/'
@@ -136,7 +136,7 @@ class TestPathConversion:
         """
         Test path conversion with special characters in filename.
         """
-        with patch('src.services.file_service.config') as mock_config:
+        with patch('src.services.file.file_service.config') as mock_config:
             mock_config.path_conversion.enabled = True
             mock_config.path_conversion.source_base_path = '/downloads/AniDown/'
             mock_config.path_conversion.target_base_path = '/storage/Downloads/AniDown/'
@@ -151,7 +151,7 @@ class TestPathConversion:
         """
         Test path conversion with Unicode characters in path.
         """
-        with patch('src.services.file_service.config') as mock_config:
+        with patch('src.services.file.file_service.config') as mock_config:
             mock_config.path_conversion.enabled = True
             mock_config.path_conversion.source_base_path = '/downloads/AniDown/'
             mock_config.path_conversion.target_base_path = '/storage/Downloads/AniDown/'
@@ -169,7 +169,7 @@ class TestPathConversion:
         Note: convert_path normalizes all paths to POSIX style (forward slashes)
         for Docker/Linux compatibility.
         """
-        with patch('src.services.file_service.config') as mock_config:
+        with patch('src.services.file.file_service.config') as mock_config:
             mock_config.path_conversion.enabled = True
             mock_config.path_conversion.source_base_path = 'C:\\Downloads\\AniDown\\'
             mock_config.path_conversion.target_base_path = '/storage/AniDown/'
@@ -188,7 +188,7 @@ class TestPathConversion:
         This is common when Windows qBittorrent webhook data contains
         paths that get concatenated with Unix-style relative paths.
         """
-        with patch('src.services.file_service.config') as mock_config:
+        with patch('src.services.file.file_service.config') as mock_config:
             mock_config.path_conversion.enabled = True
             mock_config.path_conversion.source_base_path = 'C:\\Users\\Roxy\\storage\\Downloads\\AniDown\\'
             mock_config.path_conversion.target_base_path = '/storage/Downloads/AniDown/'
@@ -238,7 +238,7 @@ class TestPathConversionIntegration:
         Test path conversion using actual config loading.
         """
         from src.core.config import config
-        from src.services.file_service import FileService
+        from src.services.file.file_service import FileService
 
         mock_repo = MagicMock()
         file_service = FileService(history_repo=mock_repo)

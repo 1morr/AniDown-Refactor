@@ -45,12 +45,12 @@ class TestManualUploadService:
         )
         from src.services.download_manager import DownloadManager
         from src.services.file.path_builder import PathBuilder
-        from src.services.file_service import FileService
-        from src.services.filter_service import FilterService
+        from src.services.file.file_service import FileService
+        from src.services.rss.filter_service import FilterService
         from src.services.rename.file_classifier import FileClassifier
         from src.services.rename.filename_formatter import FilenameFormatter
         from src.services.rename.rename_service import RenameService
-        from src.services.rss_service import RSSService
+        from src.services.rss.rss_service import RSSService
 
         rss_service = RSSService(download_repo=download_repo)
         filter_service = FilterService()

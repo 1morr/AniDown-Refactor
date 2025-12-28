@@ -20,12 +20,12 @@ class TestRSSService:
     @pytest.fixture
     def rss_service(self, download_repo):
         """Create RSSService instance with test database."""
-        from src.services.rss_service import RSSService
+        from src.services.rss.rss_service import RSSService
         return RSSService(download_repo=download_repo)
 
     def test_rss_service_initialization(self, download_repo):
         """Test RSSService initializes correctly."""
-        from src.services.rss_service import RSSService
+        from src.services.rss.rss_service import RSSService
 
         service = RSSService(download_repo=download_repo)
 
@@ -35,7 +35,7 @@ class TestRSSService:
 
     def test_rss_service_custom_timeout(self, download_repo):
         """Test RSSService with custom timeout."""
-        from src.services.rss_service import RSSService
+        from src.services.rss.rss_service import RSSService
 
         service = RSSService(download_repo=download_repo, timeout=60)
 
@@ -167,12 +167,12 @@ class TestFilterService:
     @pytest.fixture
     def filter_service(self):
         """Create FilterService instance."""
-        from src.services.filter_service import FilterService
+        from src.services.rss.filter_service import FilterService
         return FilterService()
 
     def test_filter_service_initialization(self):
         """Test FilterService initializes correctly."""
-        from src.services.filter_service import FilterService
+        from src.services.rss.filter_service import FilterService
 
         service = FilterService()
 

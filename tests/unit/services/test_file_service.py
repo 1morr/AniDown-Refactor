@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.services.file_service import FileService
+from src.services.file.file_service import FileService
 from src.core.domain.entities import HardlinkRecord
 
 

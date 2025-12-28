@@ -20,8 +20,8 @@ from src.core.interfaces.repositories import (
 )
 from src.services.download.download_notifier import DownloadNotifier
 from src.services.file.path_builder import PathBuilder
-from src.services.file_service import FileService
-from src.services.metadata_service import MetadataService
+from src.services.file.file_service import FileService
+from src.services.metadata.metadata_service import MetadataService
 from src.services.rename.rename_service import RenameService
 
 logger = logging.getLogger(__name__)

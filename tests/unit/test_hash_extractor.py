@@ -26,7 +26,7 @@ class TestHashExtractor:
     @pytest.fixture
     def hash_extractor(self, mock_rss_service):
         """Create HashExtractor with mocked dependencies."""
-        from src.services.rss_service import HashExtractor
+        from src.services.rss.rss_service import HashExtractor
         return HashExtractor(
             rss_service=mock_rss_service,
             cache_ttl=3600,
@@ -79,7 +79,7 @@ class TestHashExtractor:
 
     def test_batch_extract_cache_expired(self, hash_extractor, mock_rss_service):
         """Test that expired cache entries trigger re-extraction."""
-        from src.services.rss_service import CachedHash
+        from src.services.rss.rss_service import CachedHash
 
         mock_rss_service.extract_hash_from_url.return_value = 'new_hash'
 
@@ -195,7 +195,7 @@ class TestRSSServiceHashIntegration:
     @pytest.fixture
     def rss_service(self, download_repo):
         """Create RSSService with test dependencies."""
-        from src.services.rss_service import RSSService
+        from src.services.rss.rss_service import RSSService
         return RSSService(download_repo=download_repo)
 
     def test_batch_extract_hashes_with_rss_items(self, rss_service):

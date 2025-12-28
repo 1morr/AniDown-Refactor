@@ -15,7 +15,7 @@ from src.core.exceptions import (
 )
 from src.core.interfaces.adapters import ITitleParser, TitleParseResult
 from src.infrastructure.repositories.ai_key_repository import ai_key_repository
-from src.services.ai_debug_service import AIDebugService
+from src.services.debug.ai_debug_service import AIDebugService
 
 from .api_client import OpenAIClient
 from .circuit_breaker import CircuitBreaker

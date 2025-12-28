@@ -23,13 +23,13 @@ class TestRSSWorkflowIntegration:
     @pytest.fixture
     def rss_service(self, download_repo):
         """Create RSSService with test database."""
-        from src.services.rss_service import RSSService
+        from src.services.rss.rss_service import RSSService
         return RSSService(download_repo=download_repo)
 
     @pytest.fixture
     def filter_service(self):
         """Create FilterService."""
-        from src.services.filter_service import FilterService
+        from src.services.rss.filter_service import FilterService
         return FilterService()
 
     @pytest.mark.slow
@@ -174,12 +174,12 @@ class TestRSSWithAIProcessing:
         )
         from src.services.download_manager import DownloadManager
         from src.services.file.path_builder import PathBuilder
-        from src.services.file_service import FileService
-        from src.services.filter_service import FilterService
+        from src.services.file.file_service import FileService
+        from src.services.rss.filter_service import FilterService
         from src.services.rename.file_classifier import FileClassifier
         from src.services.rename.filename_formatter import FilenameFormatter
         from src.services.rename.rename_service import RenameService
-        from src.services.rss_service import RSSService
+        from src.services.rss.rss_service import RSSService
 
         # Create services
         rss_service = RSSService(download_repo=download_repo)
@@ -298,7 +298,7 @@ class TestRSSHashExtraction:
     @pytest.fixture
     def rss_service(self, download_repo):
         """Create RSSService."""
-        from src.services.rss_service import RSSService
+        from src.services.rss.rss_service import RSSService
         return RSSService(download_repo=download_repo)
 
     def test_extract_hash_from_mikan_url(self, rss_service):

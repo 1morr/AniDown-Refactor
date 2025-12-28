@@ -35,9 +35,12 @@ from src.infrastructure.repositories.download_repository import DownloadReposito
 from src.infrastructure.repositories.history_repository import HistoryRepository
 from src.infrastructure.repositories.subtitle_repository import SubtitleRepository
 
-# Utility Services
-from src.services.ai_debug_service import AIDebugService
-from src.services.anime_service import AnimeService
+# Anime Services
+from src.services.anime.anime_service import AnimeService
+from src.services.anime.subtitle_service import SubtitleService
+
+# Debug Services
+from src.services.debug.ai_debug_service import AIDebugService
 
 # Download Manager Services
 from src.services.download import (
@@ -50,19 +53,20 @@ from src.services.download import (
 from src.services.download_manager import DownloadManager
 
 # File Services
+from src.services.file.file_service import FileService
 from src.services.file.path_builder import PathBuilder
-from src.services.file_service import FileService
 
-# Core Services
-from src.services.filter_service import FilterService
-from src.services.metadata_service import MetadataService
+# Metadata Services
+from src.services.metadata.metadata_service import MetadataService
 
 # Rename Services
 from src.services.rename.file_classifier import FileClassifier
 from src.services.rename.filename_formatter import FilenameFormatter
 from src.services.rename.rename_service import RenameService
-from src.services.rss_service import RSSService
-from src.services.subtitle_service import SubtitleService
+
+# RSS Services
+from src.services.rss.filter_service import FilterService
+from src.services.rss.rss_service import RSSService
 
 
 class Container(containers.DeclarativeContainer):

@@ -27,8 +27,8 @@ from src.infrastructure.ai.prompts import (
 )
 from src.infrastructure.metadata.tvdb_adapter import TVDBAdapter
 from src.interface.web.utils import APIResponse, WebLogger, handle_api_errors, validate_json
-from src.services.metadata_service import MetadataService
-from src.services.rss_service import RSSService
+from src.services.metadata.metadata_service import MetadataService
+from src.services.rss.rss_service import RSSService
 
 ai_test_bp = Blueprint('ai_test', __name__)
 logger = WebLogger(__name__)

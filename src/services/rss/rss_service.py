@@ -22,7 +22,7 @@ from src.core.interfaces.adapters import IRSSParser, RSSItem
 from src.core.interfaces.repositories import IDownloadRepository
 
 if TYPE_CHECKING:
-    from src.services.rss_service import RSSService
+    from src.services.rss.rss_service import RSSService
 
 logger = logging.getLogger(__name__)
 

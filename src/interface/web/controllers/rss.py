@@ -22,7 +22,7 @@ from src.interface.web.utils import (
 )
 from src.services.download_manager import DownloadManager
 from src.services.queue.rss_queue import RSSPayload, RSSQueueWorker, get_rss_queue
-from src.services.rss_service import RSSService
+from src.services.rss.rss_service import RSSService
 
 rss_bp = Blueprint('rss', __name__)
 logger = WebLogger(__name__)

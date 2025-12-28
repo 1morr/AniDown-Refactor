@@ -16,7 +16,7 @@ from src.interface.web.utils import (
     validate_json,
 )
 from src.services.download_manager import DownloadManager
-from src.services.file_service import FileService
+from src.services.file.file_service import FileService
 from src.services.queue.webhook_queue import WebhookPayload
 
 logger = WebLogger(__name__)

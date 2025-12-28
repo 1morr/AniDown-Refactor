@@ -41,7 +41,7 @@ from src.core.interfaces.repositories import (
 )
 from src.services.download.download_notifier import DownloadNotifier
 from src.services.file.path_builder import PathBuilder
-from src.services.filter_service import FilterService
+from src.services.rss.filter_service import FilterService
 
 logger = logging.getLogger(__name__)
 

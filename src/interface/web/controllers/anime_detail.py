@@ -11,7 +11,7 @@ from flask import Blueprint, render_template, request
 
 from src.container import Container
 from src.interface.web.utils import APIResponse, WebLogger, handle_api_errors, validate_json
-from src.services.anime_service import AnimeService
+from src.services.anime.anime_service import AnimeService
 from src.services.file.path_builder import PathBuilder
 
 logger = WebLogger(__name__)
