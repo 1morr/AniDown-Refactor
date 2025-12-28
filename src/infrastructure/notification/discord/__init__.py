@@ -5,32 +5,14 @@ Discord 通知模块。
 - Webhook 客户端（HTTP 通信）
 - Embed 构建器（消息格式化）
 - 统一的 Discord 通知器（整合所有通知类型）
-
-旧的独立通知器已废弃，请使用 DiscordNotifier。
 """
 
 from src.infrastructure.notification.discord.discord_notifier import DiscordNotifier
 from src.infrastructure.notification.discord.embed_builder import EmbedBuilder
 from src.infrastructure.notification.discord.webhook_client import DiscordWebhookClient
 
-# 为向后兼容提供旧名称的别名
-DiscordRSSNotifier = DiscordNotifier
-DiscordDownloadNotifier = DiscordNotifier
-DiscordHardlinkNotifier = DiscordNotifier
-DiscordErrorNotifier = DiscordNotifier
-DiscordAIUsageNotifier = DiscordNotifier
-DiscordWebhookReceivedNotifier = DiscordNotifier
-
 __all__ = [
-    # 核心组件
     'DiscordWebhookClient',
     'EmbedBuilder',
     'DiscordNotifier',
-    # 向后兼容别名（已废弃）
-    'DiscordRSSNotifier',
-    'DiscordDownloadNotifier',
-    'DiscordHardlinkNotifier',
-    'DiscordErrorNotifier',
-    'DiscordAIUsageNotifier',
-    'DiscordWebhookReceivedNotifier',
 ]

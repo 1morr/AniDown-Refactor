@@ -19,9 +19,7 @@ from src.infrastructure.ai import (
     OpenAIClient,
 )
 from src.infrastructure.notification.discord import (
-    DiscordDownloadNotifier,
-    DiscordHardlinkNotifier,
-    DiscordRSSNotifier,
+    DiscordNotifier,
     DiscordWebhookClient,
     EmbedBuilder,
 )
@@ -40,7 +38,5 @@ __all__ = [
     # Discord Notification
     'DiscordWebhookClient',
     'EmbedBuilder',
-    'DiscordRSSNotifier',
-    'DiscordDownloadNotifier',
-    'DiscordHardlinkNotifier',
+    'DiscordNotifier',
 ]

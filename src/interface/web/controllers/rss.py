@@ -445,7 +445,7 @@ def fetch_all_bangumi_rss_api(
     rss_service: RSSService = Provide[Container.rss_service],
     download_manager: DownloadManager = Provide[Container.download_manager],
     history_repo: HistoryRepository = Provide[Container.history_repo],
-    rss_notifier = Provide[Container.rss_notifier]
+    rss_notifier = Provide[Container.discord_notifier]
 ):
     """API: 从配置的RSS链接中提取所有番组RSS (仅支持Mikan)"""
     import requests

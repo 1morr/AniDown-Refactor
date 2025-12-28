@@ -12,12 +12,6 @@ from src.core.interfaces.notifications import (
     DownloadNotification,
     ErrorNotification,
     HardlinkNotification,
-    IAIUsageNotifier,
-    IDownloadNotifier,
-    IErrorNotifier,
-    IHardlinkNotifier,
-    IRSSNotifier,
-    IWebhookNotifier,
     RSSInterruptedNotification,
     RSSNotification,
     RSSTaskNotification,
@@ -30,27 +24,20 @@ from .webhook_client import DiscordWebhookClient
 logger = logging.getLogger(__name__)
 
 
-class DiscordNotifier(
-    IRSSNotifier,
-    IDownloadNotifier,
-    IHardlinkNotifier,
-    IErrorNotifier,
-    IAIUsageNotifier,
-    IWebhookNotifier
-):
+class DiscordNotifier:
     """
     统一的 Discord 通知器。
 
     整合了所有通知类型（RSS、下载、硬链接、错误、AI使用、Webhook接收）
     到一个类中，减少代码重复，简化依赖注入。
 
-    实现接口:
-    - IRSSNotifier: RSS 处理通知
-    - IDownloadNotifier: 下载事件通知
-    - IHardlinkNotifier: 硬链接创建通知
-    - IErrorNotifier: 错误和警告通知
-    - IAIUsageNotifier: AI 使用通知
-    - IWebhookNotifier: Webhook 接收通知
+    支持的通知类型:
+    - RSS 处理通知 (notify_processing_start, notify_processing_complete, etc.)
+    - 下载事件通知 (notify_download_start, notify_download_complete, etc.)
+    - 硬链接创建通知 (notify_hardlink_created, notify_hardlink_failed)
+    - 错误和警告通知 (notify_error, notify_warning)
+    - AI 使用通知 (notify_ai_usage)
+    - Webhook 接收通知 (notify_webhook_received)
 
     Example:
         >>> notifier = DiscordNotifier(webhook_client)
@@ -77,7 +64,7 @@ class DiscordNotifier(
         self._embed_builder = embed_builder or EmbedBuilder()
         self._default_error_channel = default_error_channel
 
-    # ========== IRSSNotifier 实现 ==========
+    # ========== RSS 通知方法 ==========
 
     def notify_processing_start(self, notification: RSSNotification) -> None:
         """
@@ -182,7 +169,7 @@ class DiscordNotifier(
         if not response.success:
             logger.warning(f'⚠️ RSS 中断通知发送失败: {response.error_message}')
 
-    # ========== IDownloadNotifier 实现 ==========
+    # ========== 下载通知方法 ==========
 
     def notify_download_start(self, notification: DownloadNotification) -> None:
         """
@@ -247,7 +234,7 @@ class DiscordNotifier(
         if not response.success:
             logger.warning(f'⚠️ 下载失败通知发送失败: {response.error_message}')
 
-    # ========== IHardlinkNotifier 实现 ==========
+    # ========== 硬链接通知方法 ==========
 
     def notify_hardlink_created(self, notification: HardlinkNotification) -> None:
         """
@@ -302,7 +289,7 @@ class DiscordNotifier(
         if not response.success:
             logger.warning(f'⚠️ 硬链接失败通知发送失败: {response.error_message}')
 
-    # ========== IErrorNotifier 实现 ==========
+    # ========== 错误通知方法 ==========
 
     def notify_error(self, notification: ErrorNotification) -> None:
         """
@@ -405,7 +392,7 @@ class DiscordNotifier(
         if not response.success:
             logger.warning(f'⚠️ 详细错误通知发送失败: {response.error_message}')
 
-    # ========== IAIUsageNotifier 实现 ==========
+    # ========== AI 使用通知方法 ==========
 
     def notify_ai_usage(self, notification: AIUsageNotification) -> None:
         """
@@ -429,7 +416,7 @@ class DiscordNotifier(
         if not response.success:
             logger.warning(f'⚠️ AI 使用通知发送失败: {response.error_message}')
 
-    # ========== IWebhookNotifier 实现 ==========
+    # ========== Webhook 接收通知方法 ==========
 
     def notify_webhook_received(
         self,

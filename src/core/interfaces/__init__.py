@@ -1,8 +1,8 @@
 """
 Interfaces module.
 
-Contains abstract base classes defining the contracts for repositories,
-adapters, and notification services.
+Contains abstract base classes defining the contracts for repositories
+and adapters, plus notification data classes.
 """
 
 from src.core.interfaces.adapters import (
@@ -16,14 +16,14 @@ from src.core.interfaces.adapters import (
     TitleParseResult,
 )
 from src.core.interfaces.notifications import (
+    AIUsageNotification,
     DownloadNotification,
     ErrorNotification,
     HardlinkNotification,
-    IDownloadNotifier,
-    IErrorNotifier,
-    IHardlinkNotifier,
-    IRSSNotifier,
+    RSSInterruptedNotification,
     RSSNotification,
+    RSSTaskNotification,
+    WebhookReceivedNotification,
 )
 from src.core.interfaces.repositories import (
     IAnimeRepository,
@@ -51,9 +51,8 @@ __all__ = [
     'DownloadNotification',
     'HardlinkNotification',
     'ErrorNotification',
-    # Notification Interfaces
-    'IRSSNotifier',
-    'IDownloadNotifier',
-    'IHardlinkNotifier',
-    'IErrorNotifier',
+    'AIUsageNotification',
+    'RSSTaskNotification',
+    'RSSInterruptedNotification',
+    'WebhookReceivedNotification',
 ]
