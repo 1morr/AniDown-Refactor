@@ -700,7 +700,7 @@ class AnimeService:
                 }
 
                 # Build target path using PathBuilder
-                target_path = self._path_builder.build_target_directory(
+                target_path = self._path_builder.build_library_path(
                     anime_title=anime_info.get('short_title') or anime_info.get('original_title'),
                     media_type=anime_info.get('media_type', 'anime'),
                     category=anime_info.get('category', 'tv')
@@ -1187,7 +1187,7 @@ class AnimeService:
                     }
 
                 # Build target path first (needed for relative path extraction)
-                target_path = self._path_builder.build_target_directory(
+                target_path = self._path_builder.build_library_path(
                     anime_title=anime_title,
                     media_type=media_type,
                     category=category

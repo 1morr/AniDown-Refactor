@@ -13,7 +13,6 @@ from typing import Any
 
 from src.core.config import config
 from src.core.domain.entities import HardlinkRecord
-from src.core.exceptions import HardlinkError
 from src.core.interfaces.repositories import IHardlinkRepository
 from src.infrastructure.database.models import Hardlink
 from src.infrastructure.database.session import db_manager
@@ -386,34 +385,6 @@ class FileService:
         except (OSError, shutil.Error) as e:
             logger.error(f'❌ Failed to copy file: {e}')
             return None
-
-    def build_target_directory(
-        self,
-        anime_title: str,
-        media_type: str,
-        category: str,
-        season: int | None = None
-    ) -> str:
-        """
-        Build target directory for hardlink creation.
-
-        Args:
-            anime_title: Title of the anime.
-            media_type: Media type ('anime' or 'live_action').
-            category: Content category ('tv' or 'movie').
-            season: Optional season number.
-
-        Returns:
-            Target directory path.
-        """
-        if not self._path_builder:
-            raise HardlinkError('PathBuilder not configured for FileService')
-        return self._path_builder.build_target_directory(
-            anime_title=anime_title,
-            media_type=media_type,
-            category=category,
-            season=season
-        )
 
     def delete_by_torrent(self, torrent_hash: str, delete_files: bool = False) -> int:
         """
