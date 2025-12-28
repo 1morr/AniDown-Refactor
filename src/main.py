@@ -446,7 +446,7 @@ def init_queue_workers(download_manager):
             rss_service = container.rss_service()
             history_repo = container.history_repo()
             download_repo = container.download_repo()
-            rss_notifier = container.rss_notifier()
+            rss_notifier = container.discord_notifier()
 
             # 发送 RSS 开始通知（批处理模式下跳过，避免通知过多）
             if not is_batch_mode:
@@ -779,7 +779,7 @@ def init_queue_workers(download_manager):
                 )
 
                 # 发送完成通知
-                rss_notifier = container.rss_notifier()
+                rss_notifier = container.discord_notifier()
                 items_found = stats.get('items_found', items_attempted)
 
                 # 构建失败项目列表

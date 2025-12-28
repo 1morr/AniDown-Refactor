@@ -178,13 +178,7 @@ class Container(containers.DeclarativeContainer):
         webhook_client=discord_webhook
     )
 
-    # 为向后兼容，提供别名（指向同一实例）
-    rss_notifier = discord_notifier
-    download_notifier = discord_notifier
-    hardlink_notifier = discord_notifier
-    error_notifier = discord_notifier
-    ai_usage_notifier = discord_notifier
-    webhook_received_notifier = discord_notifier
+
 
     # ===== File Services =====
     path_builder = providers.Singleton(
@@ -254,12 +248,7 @@ class Container(containers.DeclarativeContainer):
         hardlink_service=file_service,
         path_builder=path_builder,
         metadata_service=metadata_service,
-        rss_notifier=rss_notifier,
-        download_notifier=download_notifier,
-        hardlink_notifier=hardlink_notifier,
-        error_notifier=error_notifier,
-        ai_usage_notifier=ai_usage_notifier,
-        webhook_received_notifier=webhook_received_notifier
+        notifier=discord_notifier
     )
 
     # ===== Utility Services =====

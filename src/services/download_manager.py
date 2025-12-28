@@ -43,12 +43,6 @@ from src.core.interfaces.notifications import (
     DownloadNotification,
     ErrorNotification,
     HardlinkNotification,
-    IAIUsageNotifier,
-    IDownloadNotifier,
-    IErrorNotifier,
-    IHardlinkNotifier,
-    IRSSNotifier,
-    IWebhookNotifier,
     RSSNotification,
     RSSTaskNotification,
     WebhookReceivedNotification,
@@ -58,6 +52,7 @@ from src.core.interfaces.repositories import (
     IDownloadRepository,
     IHardlinkRepository,
 )
+from src.infrastructure.notification.discord.discord_notifier import DiscordNotifier
 from src.services.file.path_builder import PathBuilder
 from src.services.file_service import FileService
 from src.services.filter_service import FilterService
@@ -123,12 +118,7 @@ class DownloadManager:
         hardlink_service: FileService,
         path_builder: PathBuilder,
         metadata_service: MetadataService,
-        rss_notifier: IRSSNotifier | None = None,
-        download_notifier: IDownloadNotifier | None = None,
-        hardlink_notifier: IHardlinkNotifier | None = None,
-        error_notifier: IErrorNotifier | None = None,
-        ai_usage_notifier: IAIUsageNotifier | None = None,
-        webhook_received_notifier: IWebhookNotifier | None = None
+        notifier: DiscordNotifier | None = None
     ):
         """
         Initialize the download manager.
@@ -146,12 +136,7 @@ class DownloadManager:
             hardlink_service: File service for hardlink creation and file operations.
             path_builder: Path construction service.
             metadata_service: TVDB metadata service.
-            rss_notifier: Optional RSS notification service.
-            download_notifier: Optional download notification service.
-            hardlink_notifier: Optional hardlink notification service.
-            error_notifier: Optional error notification service.
-            ai_usage_notifier: Optional AI usage notification service.
-            webhook_received_notifier: Optional webhook received notification service.
+            notifier: Optional Discord notifier (implements all notification interfaces).
         """
         self._anime_repo = anime_repo
         self._download_repo = download_repo
@@ -165,17 +150,12 @@ class DownloadManager:
         self._hardlink_service = hardlink_service
         self._path_builder = path_builder
         self._metadata_service = metadata_service
-        self._rss_notifier = rss_notifier
-        self._download_notifier = download_notifier
-        self._hardlink_notifier = hardlink_notifier
-        self._error_notifier = error_notifier
-        self._ai_usage_notifier = ai_usage_notifier
-        self._webhook_received_notifier = webhook_received_notifier
+        self._notifier = notifier
         self._file_service = hardlink_service  # FileService is now used for both
         self._file_classifier = FileClassifier()
 
         # 设置 RenameService 的 AI 使用回调，实现即时通知
-        if ai_usage_notifier and rename_service:
+        if notifier and rename_service:
             rename_service._on_ai_usage = self._notify_rename_ai_usage
 
         # 设置 RenameService 的路径转换回调
@@ -190,8 +170,8 @@ class DownloadManager:
             reason: Reason for using AI.
             project_name: Anime title being processed.
         """
-        if self._ai_usage_notifier:
-            self._ai_usage_notifier.notify_ai_usage(
+        if self._notifier:
+            self._notifier.notify_ai_usage(
                 AIUsageNotification(
                     reason=reason,
                     project_name=project_name,
@@ -238,12 +218,12 @@ class DownloadManager:
         )
 
         # Send start notifications
-        if self._rss_notifier:
+        if self._notifier:
             logger.info(f'📤 准备发送RSS开始通知，共 {len(feed_objects)} 个订阅源')
             for feed in feed_objects:
                 try:
                     logger.debug(f'📤 发送RSS开始通知: {feed.url[:50]}...')
-                    self._rss_notifier.notify_processing_start(
+                    self._notifier.notify_processing_start(
                         RSSNotification(trigger_type=trigger_type, rss_url=feed.url)
                     )
                     logger.debug('✅ RSS开始通知发送成功')
@@ -677,8 +657,8 @@ class DownloadManager:
                 raise AnimeInfoExtractionError('AI解析失败')
 
             # Send AI usage notification
-            if self._ai_usage_notifier:
-                self._ai_usage_notifier.notify_ai_usage(
+            if self._notifier:
+                self._notifier.notify_ai_usage(
                     AIUsageNotification(
                         reason='新动漫标题解析',
                         project_name=parse_result.clean_title,
@@ -1028,11 +1008,11 @@ class DownloadManager:
             logger.info(f'  Hash: {hash_id[:8]}...')
 
             # Send webhook received notification
-            if self._webhook_received_notifier:
+            if self._notifier:
                 torrent_name = webhook_data.get('name', '') if webhook_data else ''
                 save_path = webhook_data.get('save_path', '') if webhook_data else ''
                 content_path = webhook_data.get('content_path', '') if webhook_data else ''
-                self._webhook_received_notifier.notify_webhook_received(
+                self._notifier.notify_webhook_received(
                     WebhookReceivedNotification(
                         torrent_id=hash_id,
                         save_path=save_path,
@@ -1269,7 +1249,7 @@ class DownloadManager:
                             logger.info(f'✓ 字幕硬链接创建成功: {new_name}')
 
             # Send notification
-            if hardlink_count > 0 and self._hardlink_notifier:
+            if hardlink_count > 0 and self._notifier:
                 notification = HardlinkNotification(
                     anime_title=anime_title,
                     season=season,
@@ -1285,12 +1265,12 @@ class DownloadManager:
                     rename_examples=rename_examples
                 )
                 try:
-                    self._hardlink_notifier.notify_hardlink_created(notification)
+                    self._notifier.notify_hardlink_created(notification)
                 except Exception as e:
                     logger.error(f'发送硬链接创建通知失败: {e}')
 
             # Send failure notification when all hardlinks failed
-            elif hardlink_count == 0 and video_files and self._hardlink_notifier:
+            elif hardlink_count == 0 and video_files and self._notifier:
                 failure_notification = HardlinkNotification(
                     anime_title=anime_title,
                     season=season,
@@ -1308,7 +1288,7 @@ class DownloadManager:
                 try:
                     first_video = video_files[0] if video_files else None
                     source_path = first_video.full_path if first_video else None
-                    self._hardlink_notifier.notify_hardlink_failed(
+                    self._notifier.notify_hardlink_failed(
                         notification=failure_notification,
                         error_message=f'所有硬链接创建失败 (共 {len(video_files)} 个视频文件)，源文件不存在或路径错误',
                         source_path=source_path
@@ -1561,8 +1541,8 @@ class DownloadManager:
             self._download_repo.update_status(hash_id, 'failed')
 
             download_info = self._download_repo.get_by_hash(hash_id)
-            if download_info and self._error_notifier:
-                self._error_notifier.notify_error(ErrorNotification(
+            if download_info and self._notifier:
+                self._notifier.notify_error(ErrorNotification(
                     error_type='下载错误',
                     error_message=error_message,
                     context={
@@ -1840,7 +1820,7 @@ class DownloadManager:
         hash_id: str
     ) -> None:
         """Send download start notification."""
-        if self._download_notifier:
+        if self._notifier:
             notification = DownloadNotification(
                 anime_title=anime_title,
                 season=season,
@@ -1849,7 +1829,7 @@ class DownloadManager:
                 hash_id=hash_id
             )
             try:
-                self._download_notifier.notify_download_start(notification)
+                self._notifier.notify_download_start(notification)
             except Exception as e:
                 logger.warning(f'⚠️ 发送下载开始通知失败: {e}')
 
@@ -1864,9 +1844,9 @@ class DownloadManager:
         episode: int | None = None
     ) -> None:
         """Send download task notification (immediate, per task)."""
-        if self._rss_notifier:
+        if self._notifier:
             try:
-                self._rss_notifier.notify_download_task(
+                self._notifier.notify_download_task(
                     RSSTaskNotification(
                         project_name=project_name,
                         hash_id=hash_id or '',
@@ -1890,7 +1870,7 @@ class DownloadManager:
     ) -> None:
         """Send RSS processing completion notification with enhanced stats."""
         logger.info(f'📤 准备发送RSS完成通知: 成功={success_count}, 总数={total_count}')
-        if self._rss_notifier:
+        if self._notifier:
             try:
                 # Calculate attempt count if not provided
                 if attempt_count == 0:
@@ -1905,7 +1885,7 @@ class DownloadManager:
                     status = 'completed'
 
                 logger.debug(f'📤 发送完成通知: status={status}, attempt={attempt_count}')
-                self._rss_notifier.notify_processing_complete(
+                self._notifier.notify_processing_complete(
                     success_count=success_count,
                     total_count=total_count,
                     failed_items=failed_items,
@@ -1920,9 +1900,9 @@ class DownloadManager:
 
     def _notify_error(self, message: str) -> None:
         """Send error notification."""
-        if self._error_notifier:
+        if self._notifier:
             try:
-                self._error_notifier.notify_error(ErrorNotification(
+                self._notifier.notify_error(ErrorNotification(
                     error_type='错误',
                     error_message=message
                 ))

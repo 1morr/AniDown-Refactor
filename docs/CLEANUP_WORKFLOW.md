@@ -198,12 +198,39 @@ class DiscordNotifier(
   - [x] `ai_usage_notifier.py`
   - [x] `webhook_received_notifier.py`
 
+### 3.3 移除向后兼容别名 ✅ 已完成
+
+移除了所有向后兼容别名：
+- [x] 3.3.1 移除类名别名（`DiscordRSSNotifier = DiscordNotifier` 等）
+- [x] 3.3.2 移除容器提供者别名（`rss_notifier = discord_notifier` 等）
+- [x] 3.3.3 更新 `main.py` 使用 `container.discord_notifier()`
+- [x] 3.3.4 更新 `rss.py` 使用 `Provide[Container.discord_notifier]`
+
+### 3.4 统一 DownloadManager 参数 ✅ 已完成
+
+将 6 个 notifier 参数合并为 1 个：
+- [x] 3.4.1 更新 `DownloadManager.__init__` 签名
+- [x] 3.4.2 更新内部属性（`self._rss_notifier` → `self._notifier` 等）
+- [x] 3.4.3 更新 `container.py` 配线
+
+### 3.5 移除通知接口 ABCs ✅ 已完成
+
+从 `src/core/interfaces/notifications.py` 移除接口：
+- [x] 3.5.1 移除 `IRSSNotifier`, `IDownloadNotifier`, `IHardlinkNotifier`
+- [x] 3.5.2 移除 `IErrorNotifier`, `IAIUsageNotifier`, `IWebhookNotifier`
+- [x] 3.5.3 更新 `DiscordNotifier` 移除接口继承
+- [x] 3.5.4 更新 `__init__.py` 导出
+
 ### Phase 3 验证 ✅ 已完成
 
 - [x] 运行 `ruff check src/infrastructure/notification/discord/` 确认无语法错误
 - [x] 运行 `pytest tests/unit/test_discord_notification.py` 确认测试通过 (23 passed)
 - [x] 运行 `pytest tests/` 确认所有测试通过 (261 passed)
 - [x] 运行 `python -m src.main --test` 确认应用启动正常
+
+### Phase 3 总结文档
+
+详见 `docs/PHASE3_SUMMARY.md`
 
 ---
 

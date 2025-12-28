@@ -5,9 +5,7 @@
 """
 
 from src.infrastructure.notification.discord import (
-    DiscordDownloadNotifier,
-    DiscordHardlinkNotifier,
-    DiscordRSSNotifier,
+    DiscordNotifier,
     DiscordWebhookClient,
     EmbedBuilder,
 )
@@ -15,7 +13,5 @@ from src.infrastructure.notification.discord import (
 __all__ = [
     'DiscordWebhookClient',
     'EmbedBuilder',
-    'DiscordRSSNotifier',
-    'DiscordDownloadNotifier',
-    'DiscordHardlinkNotifier',
+    'DiscordNotifier',
 ]
