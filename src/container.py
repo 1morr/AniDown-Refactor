@@ -189,7 +189,10 @@ class Container(containers.DeclarativeContainer):
     path_builder = providers.Singleton(
         PathBuilder,
         download_root=config.qbittorrent.base_download_path,
-        library_root=config.link_target_path
+        anime_tv_root=config.link_target_path,
+        anime_movie_root=config.movie_link_target_path,
+        live_action_tv_root=config.live_action_tv_target_path,
+        live_action_movie_root=config.live_action_movie_target_path
     )
 
     # ===== Rename Services =====

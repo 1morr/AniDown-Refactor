@@ -22,7 +22,10 @@ class PathBuilder:
     def __init__(
         self,
         download_root: str,
-        library_root: str,
+        anime_tv_root: str,
+        anime_movie_root: str | None = None,
+        live_action_tv_root: str | None = None,
+        live_action_movie_root: str | None = None,
         anime_subdir: str = 'Anime',
         live_action_subdir: str = 'LiveAction',
         tv_subdir: str = 'TV',
@@ -33,7 +36,13 @@ class PathBuilder:
 
         Args:
             download_root: Root directory for downloads.
-            library_root: Root directory for media library.
+            anime_tv_root: Root directory for anime TV series library.
+            anime_movie_root: Root directory for anime movies library.
+                Falls back to anime_tv_root if not provided.
+            live_action_tv_root: Root directory for live action TV series library.
+                Falls back to anime_tv_root if not provided.
+            live_action_movie_root: Root directory for live action movies library.
+                Falls back to anime_tv_root if not provided.
             anime_subdir: Subdirectory name for anime content.
             live_action_subdir: Subdirectory name for live action content.
             tv_subdir: Subdirectory name for TV series.
@@ -41,7 +50,10 @@ class PathBuilder:
         """
         # Normalize paths: convert backslashes to forward slashes and remove trailing slash
         self._download_root = self._normalize_path(download_root)
-        self._library_root = self._normalize_path(library_root)
+        self._anime_tv_root = self._normalize_path(anime_tv_root)
+        self._anime_movie_root = self._normalize_path(anime_movie_root or anime_tv_root)
+        self._live_action_tv_root = self._normalize_path(live_action_tv_root or anime_tv_root)
+        self._live_action_movie_root = self._normalize_path(live_action_movie_root or anime_tv_root)
         self._anime_subdir = anime_subdir
         self._live_action_subdir = live_action_subdir
         self._tv_subdir = tv_subdir
@@ -91,8 +103,24 @@ class PathBuilder:
 
     @property
     def library_root(self) -> str:
-        """Return the library root directory."""
-        return self._library_root
+        """Return the default library root directory (anime TV root for backward compatibility)."""
+        return self._anime_tv_root
+
+    def get_library_root(self, media_type: str, category: str) -> str:
+        """
+        Get the library root directory for a specific media type and category.
+
+        Args:
+            media_type: Media type ('anime' or 'live_action').
+            category: Content category ('tv' or 'movie').
+
+        Returns:
+            The appropriate library root directory path.
+        """
+        if media_type == 'live_action':
+            return self._live_action_movie_root if category == 'movie' else self._live_action_tv_root
+        else:
+            return self._anime_movie_root if category == 'movie' else self._anime_tv_root
 
     def build_download_path(
         self,
@@ -166,25 +194,25 @@ class PathBuilder:
 
         Example:
             >>> builder.build_library_path('Frieren', 'anime', 'tv', 1)
-            '/library/Anime/Frieren/Season 1'
+            '/library/anime_tv/Frieren/Season 1'
         """
         # Sanitize title for filesystem
         safe_title = self._sanitize_filename(title)
 
-        # Determine media type subdirectory
-        type_dir = self._anime_subdir if media_type == 'anime' else self._live_action_subdir
+        # Get the appropriate library root for this media type and category
+        root = self.get_library_root(media_type, category)
 
         # Build path based on category using forward slashes
         if category == 'movie':
-            # Movies: /library/Anime/Title
-            path = self._build_path(self._library_root, type_dir, safe_title)
+            # Movies: /library/movies/Title
+            path = self._build_path(root, safe_title)
         else:
-            # TV series: /library/Anime/Title/Season X
+            # TV series: /library/tv/Title/Season X
             if season is not None and season > 0:
                 season_dir = f'Season {season}'
-                path = self._build_path(self._library_root, type_dir, safe_title, season_dir)
+                path = self._build_path(root, safe_title, season_dir)
             else:
-                path = self._build_path(self._library_root, type_dir, safe_title)
+                path = self._build_path(root, safe_title)
 
         logger.debug(f'📁 Built library path: {path}')
         return path

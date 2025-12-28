@@ -444,12 +444,12 @@ class DownloadManager:
             )
 
             # Generate save path
-            save_path = self._generate_save_path({
-                'anime_clean_title': short_title,
-                'season': season,
-                'category': category,
-                'media_type': media_type
-            })
+            save_path = self._path_builder.build_download_path(
+                title=short_title,
+                season=season,
+                category=category,
+                media_type=media_type
+            )
 
             # Process items
             for item in new_items:
@@ -679,12 +679,12 @@ class DownloadManager:
             )
 
             # Generate save path
-            save_path = self._generate_save_path({
-                'anime_clean_title': parse_result.clean_title,
-                'season': parse_result.season,
-                'category': parse_result.category,
-                'media_type': media_type
-            })
+            save_path = self._path_builder.build_download_path(
+                title=parse_result.clean_title,
+                season=parse_result.season,
+                category=parse_result.category,
+                media_type=media_type
+            )
 
             # Add torrent
             if not torrent_url:
@@ -762,11 +762,11 @@ class DownloadManager:
         episode = self._extract_episode_from_title(title, anime_id=anime_id)
 
         # Generate save path
-        save_path = self._generate_save_path({
-            'anime_clean_title': anime_short_title,
-            'season': anime_season,
-            'category': anime_category
-        })
+        save_path = self._path_builder.build_download_path(
+            title=anime_short_title,
+            season=anime_season,
+            category=anime_category
+        )
 
         # Add torrent
         if not torrent_url:
@@ -859,12 +859,12 @@ class DownloadManager:
             )
 
             # Generate save path
-            save_path = self._generate_save_path({
-                'anime_clean_title': anime_title,
-                'season': season,
-                'category': category,
-                'media_type': media_type
-            })
+            save_path = self._path_builder.build_download_path(
+                title=anime_title,
+                season=season,
+                category=category,
+                media_type=media_type
+            )
 
             # Process based on upload type
             hash_id = None
@@ -1100,10 +1100,13 @@ class DownloadManager:
             # Determine category
             category = 'movie' if season == 0 else 'tv'
 
-            # Determine target base path and sanitize anime title
-            target_base = self._get_target_base_path(media_type, category)
-            safe_anime_title = self._path_builder._sanitize_filename(anime_title)
-            target_dir = os.path.join(target_base, safe_anime_title)
+            # Determine target directory (anime title directory, no Season subdirectory)
+            target_dir = self._path_builder.build_library_path(
+                title=anime_title,
+                media_type=media_type,
+                category=category,
+                season=None
+            )
 
             # Classify files
             download_directory = (
@@ -1733,35 +1736,6 @@ class DownloadManager:
             )
         logger.debug(f'✅ 种子文件信息保存完成: {hash_id[:8]}')
 
-    def _generate_save_path(self, ai_result: dict[str, Any]) -> str:
-        """Generate download save path."""
-        clean_title = ai_result.get('anime_clean_title', 'Unknown')
-        season = ai_result.get('season', 1)
-        category = ai_result.get('category', 'tv')
-        media_type = ai_result.get('media_type', 'anime')
-
-        # Sanitize title
-        clean_title = self._path_builder._sanitize_filename(clean_title)
-
-        return self._path_builder.build_download_path(
-            title=clean_title,
-            season=season,
-            category=category,
-            media_type=media_type
-        )
-
-    def _get_target_base_path(self, media_type: str, category: str) -> str:
-        """Get target base path for hardlinks."""
-        if media_type == 'live_action':
-            if category == 'movie':
-                return config.live_action_movie_target_path
-            else:
-                return config.live_action_tv_target_path
-        else:
-            if category == 'movie':
-                return config.movie_link_target_path or config.link_target_path
-            else:
-                return config.link_target_path
 
     def _extract_episode_from_title(
         self,

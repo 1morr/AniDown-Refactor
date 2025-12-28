@@ -20,7 +20,7 @@ class TestPathBuilder:
 
         return PathBuilder(
             download_root='/downloads/AniDown/',
-            library_root='/library/TV Shows'
+            anime_tv_root='/library/TV Shows'
         )
 
     def test_path_builder_initialization(self):
@@ -29,13 +29,13 @@ class TestPathBuilder:
 
         builder = PathBuilder(
             download_root='/downloads/AniDown/',
-            library_root='/library/TV Shows'
+            anime_tv_root='/library/TV Shows'
         )
 
         assert builder is not None
         # Path is normalized: trailing slash removed, backslashes converted to forward slashes
         assert builder._download_root == '/downloads/AniDown'
-        assert builder._library_root == '/library/TV Shows'
+        assert builder._anime_tv_root == '/library/TV Shows'
 
     def test_path_builder_windows_path_normalization(self):
         """Test PathBuilder normalizes Windows-style paths for Docker compatibility."""
@@ -44,7 +44,7 @@ class TestPathBuilder:
         # Windows-style path with backslashes and trailing backslash
         builder = PathBuilder(
             download_root='C:\\Users\\Roxy\\storage\\Downloads\\AniDown\\',
-            library_root='/storage/Library/Anime/TV Shows'
+            anime_tv_root='/storage/Library/Anime/TV Shows'
         )
 
         # Backslashes should be converted to forward slashes
@@ -154,6 +154,106 @@ class TestPathBuilder:
             result = path_builder._sanitize_filename(input_str)
             # Should not contain the problematic character (replaced)
             assert should_not_contain not in result or result != input_str
+
+
+class TestPathBuilderMultiLibrary:
+    """Tests for PathBuilder multi-library root functionality."""
+
+    def test_get_library_root_all_types(self):
+        """Test get_library_root returns correct path for all media type/category combinations."""
+        from src.services.file.path_builder import PathBuilder
+
+        builder = PathBuilder(
+            download_root='/downloads',
+            anime_tv_root='/library/anime/tv',
+            anime_movie_root='/library/anime/movies',
+            live_action_tv_root='/library/live_action/tv',
+            live_action_movie_root='/library/live_action/movies'
+        )
+
+        assert builder.get_library_root('anime', 'tv') == '/library/anime/tv'
+        assert builder.get_library_root('anime', 'movie') == '/library/anime/movies'
+        assert builder.get_library_root('live_action', 'tv') == '/library/live_action/tv'
+        assert builder.get_library_root('live_action', 'movie') == '/library/live_action/movies'
+
+    def test_get_library_root_fallback(self):
+        """Test get_library_root falls back to anime_tv_root when optional paths not provided."""
+        from src.services.file.path_builder import PathBuilder
+
+        builder = PathBuilder(
+            download_root='/downloads',
+            anime_tv_root='/library/default'
+            # Other paths not specified, should fallback
+        )
+
+        assert builder.get_library_root('anime', 'tv') == '/library/default'
+        assert builder.get_library_root('anime', 'movie') == '/library/default'
+        assert builder.get_library_root('live_action', 'tv') == '/library/default'
+        assert builder.get_library_root('live_action', 'movie') == '/library/default'
+
+    def test_get_library_root_partial_fallback(self):
+        """Test get_library_root with partial paths specified."""
+        from src.services.file.path_builder import PathBuilder
+
+        builder = PathBuilder(
+            download_root='/downloads',
+            anime_tv_root='/library/anime_tv',
+            anime_movie_root='/library/anime_movies'
+            # live_action paths not specified
+        )
+
+        assert builder.get_library_root('anime', 'tv') == '/library/anime_tv'
+        assert builder.get_library_root('anime', 'movie') == '/library/anime_movies'
+        # Live action should fallback to anime_tv_root
+        assert builder.get_library_root('live_action', 'tv') == '/library/anime_tv'
+        assert builder.get_library_root('live_action', 'movie') == '/library/anime_tv'
+
+    def test_build_library_path_uses_correct_root(self):
+        """Test build_library_path uses the correct root for each media type/category."""
+        from src.services.file.path_builder import PathBuilder
+
+        builder = PathBuilder(
+            download_root='/downloads',
+            anime_tv_root='/library/anime_tv',
+            anime_movie_root='/library/anime_movies',
+            live_action_tv_root='/library/live_action_tv',
+            live_action_movie_root='/library/live_action_movies'
+        )
+
+        # Anime TV
+        path = builder.build_library_path('Frieren', 'anime', 'tv', season=1)
+        assert path.startswith('/library/anime_tv')
+        assert 'Frieren' in path
+        assert 'Season 1' in path
+
+        # Anime Movie
+        path = builder.build_library_path('Your Name', 'anime', 'movie')
+        assert path.startswith('/library/anime_movies')
+        assert 'Your Name' in path
+
+        # Live Action TV
+        path = builder.build_library_path('Breaking Bad', 'live_action', 'tv', season=5)
+        assert path.startswith('/library/live_action_tv')
+        assert 'Breaking Bad' in path
+        assert 'Season 5' in path
+
+        # Live Action Movie
+        path = builder.build_library_path('Inception', 'live_action', 'movie')
+        assert path.startswith('/library/live_action_movies')
+        assert 'Inception' in path
+
+    def test_library_root_property_backward_compatible(self):
+        """Test library_root property returns anime_tv_root for backward compatibility."""
+        from src.services.file.path_builder import PathBuilder
+
+        builder = PathBuilder(
+            download_root='/downloads',
+            anime_tv_root='/library/anime_tv',
+            anime_movie_root='/library/anime_movies'
+        )
+
+        # library_root property should return anime_tv_root
+        assert builder.library_root == '/library/anime_tv'
 
 
 class TestFilenameFormatter:
@@ -392,7 +492,7 @@ class TestPathGenerationIntegration:
 
         builder = PathBuilder(
             download_root=config.qbittorrent.base_download_path,
-            library_root=config.link_target_path
+            anime_tv_root=config.link_target_path
         )
 
         path = builder.build_download_path(
@@ -413,7 +513,7 @@ class TestPathGenerationIntegration:
 
         builder = PathBuilder(
             download_root='/downloads/AniDown/',
-            library_root='/library/TV Shows'
+            anime_tv_root='/library/TV Shows'
         )
 
         # Test with problematic title

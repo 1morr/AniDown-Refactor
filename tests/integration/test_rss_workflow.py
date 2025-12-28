@@ -181,7 +181,7 @@ class TestRSSWithAIProcessing:
         filter_service = FilterService()
         path_builder = PathBuilder(
             download_root='/downloads/AniDown/',
-            library_root='/library/TV Shows'
+            anime_tv_root='/library/TV Shows'
         )
         file_classifier = FileClassifier()
         pattern_matcher = PatternMatcher()
