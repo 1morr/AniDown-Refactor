@@ -563,7 +563,7 @@ class TestCompleteMultiFileWorkflow:
         """创建 mock hardlink service。"""
         service = MagicMock()
         service.create.return_value = True
-        service.build_target_directory.return_value = '/library/Anime/测试动漫/Season 1'
+        service.build_library_path.return_value = '/library/Anime/测试动漫/Season 1'
         return service
 
     def test_scenario1_multifile_no_multiseason_consistency_on_regex_renames_all(
@@ -635,7 +635,7 @@ class TestCompleteMultiFileWorkflow:
             assert len(subtitle_mapping) >= 1, '应该有字幕文件映射'
 
             # 模拟创建硬链接
-            target_dir = mock_hardlink_service.build_target_directory(
+            target_dir = mock_hardlink_service.build_library_path(
                 anime_title='测试动漫',
                 media_type='anime',
                 category='tv',
@@ -738,7 +738,7 @@ class TestCompleteMultiFileWorkflow:
             )
 
             # 模拟创建硬链接
-            target_dir = mock_hardlink_service.build_target_directory(
+            target_dir = mock_hardlink_service.build_library_path(
                 anime_title='测试动漫',
                 media_type='anime',
                 category='tv',
@@ -829,7 +829,7 @@ class TestCompleteMultiFileWorkflow:
             )
 
             # 模拟创建硬链接
-            target_dir = mock_hardlink_service.build_target_directory(
+            target_dir = mock_hardlink_service.build_library_path(
                 anime_title='测试动漫',
                 media_type='anime',
                 category='tv',

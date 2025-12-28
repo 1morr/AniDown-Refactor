@@ -189,29 +189,6 @@ class PathBuilder:
         logger.debug(f'📁 Built library path: {path}')
         return path
 
-    def build_target_directory(
-        self,
-        anime_title: str,
-        media_type: str,
-        category: str,
-        season: int | None = None
-    ) -> str:
-        """
-        Build target directory for hardlink creation.
-
-        This is an alias for build_library_path for semantic clarity.
-
-        Args:
-            anime_title: Anime title.
-            media_type: Media type.
-            category: Content category.
-            season: Optional season number.
-
-        Returns:
-            Target directory path.
-        """
-        return self.build_library_path(anime_title, media_type, category, season)
-
     def ensure_directory(self, path: str) -> bool:
         """
         Ensure a directory exists, creating it if necessary.
