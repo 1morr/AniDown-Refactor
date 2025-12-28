@@ -10,8 +10,6 @@ from datetime import UTC, datetime
 from difflib import SequenceMatcher
 from typing import Any
 
-from sqlalchemy import or_
-
 from src.core.domain.entities import AnimeInfo as AnimeInfoEntity
 from src.core.domain.value_objects import (
     AnimeTitle,
@@ -37,6 +35,140 @@ class AnimeRepository(IAnimeRepository):
         text = text.replace('\uff02', '"').replace('\u201c', '"').replace('\u201d', '"')
         text = text.replace('\u2018', "'").replace('\u2019', "'").replace('\uff07', "'")
         return text
+
+    def _detect_season_from_title(self, title: str) -> int:
+        """从标题中检测季数
+
+        支持格式:
+        - 第X季 / 第二季 (中文)
+        - Season X / S2
+        - 动漫名称 2 (标题后数字)
+        - II, III, IV (罗马数字)
+        - 2nd Season, 3rd Season
+
+        Args:
+            title: RSS 标题
+
+        Returns:
+            检测到的季数，默认返回 1
+        """
+        detected_season = 1  # 默认为第一季
+
+        # 中文数字转阿拉伯数字的映射
+        chinese_to_number = {
+            '零': 0, '一': 1, '二': 2, '三': 3, '四': 4,
+            '五': 5, '六': 6, '七': 7, '八': 8, '九': 9,
+            '十': 10, '百': 100
+        }
+
+        def chinese_number_to_arabic(chinese_num: str) -> int:
+            if not chinese_num:
+                return 1
+
+            result = 0
+            temp = 0
+
+            for char in chinese_num:
+                if char == '十':
+                    if temp == 0:
+                        temp = 1  # 处理 "十" 开头的情况
+                    result += temp * 10
+                    temp = 0
+                elif char == '百':
+                    if temp == 0:
+                        temp = 1  # 处理 "百" 开头的情况
+                    result += temp * 100
+                    temp = 0
+                elif char in chinese_to_number:
+                    temp = chinese_to_number[char]
+
+            result += temp
+            return result or 1
+
+        # 检测模式1: "第X季" 格式（中文数字或阿拉伯数字）
+        chinese_season_pattern = r'第([一二三四五六七八九十百]+|[0-9]+)季'
+        chinese_season_match = re.search(chinese_season_pattern, title)
+
+        if chinese_season_match:
+            season_str = chinese_season_match.group(1)
+            if re.search(r'[0-9]+', season_str):
+                detected_season = int(season_str)
+            else:
+                detected_season = chinese_number_to_arabic(season_str)
+
+        # 检测模式2: "动漫名称 2" 格式（动漫名称后空格加数字）
+        title_number_pattern = (
+            r'(?:[\u4e00-\u9fa5]+\s+|[a-zA-Z]+\s+)([2-9]|[1-9][0-9])'
+            r'(?:\s*(?:$|[\[\]\/\-\|])|(?:\s+(?:Season|season|期|季)))'
+        )
+        title_number_match = re.search(title_number_pattern, title)
+
+        # 排除已知的误判模式（数字后跟着单词的情况）
+        exclude_pattern = r'\b[0-9]+\s+[a-z]+\b'
+        has_excluded_pattern = re.search(exclude_pattern, title, re.IGNORECASE)
+
+        # 排除范围格式（如 "17-26"、"1~12" 等），这些通常是话数范围而不是季数
+        range_pattern = r'\b\d+[-~]\d+\b'
+        has_range_pattern = re.search(range_pattern, title)
+
+        if (not chinese_season_match and title_number_match
+                and not has_excluded_pattern and not has_range_pattern):
+            # 额外检查：确保这不是动画名称的一部分
+            number_index = title.find(title_number_match.group(1))
+            after_number = title[number_index + len(title_number_match.group(1)):]
+
+            # 如果数字后面紧跟着小写字母（如 "8 gou"）或连字符/波浪号，则跳过
+            if (not re.search(r'^\s+[a-z]', after_number)
+                    and not re.search(r'^[-~]', after_number)):
+                detected_season = int(title_number_match.group(1))
+
+        # 检测模式3: "Season X" 格式（需要前后有空格或边界）
+        season_pattern = r'(?:^|\s|[\[\(])Season\s*([0-9]+)(?:\s|[\]\)]|$)'
+        season_match = re.search(season_pattern, title, re.IGNORECASE)
+
+        if not chinese_season_match and not title_number_match and season_match:
+            detected_season = int(season_match.group(1))
+
+        # 检测模式4: "SX" 格式（需要前后有空格或特定字符）
+        s_pattern = r'(?:^|\s|[\[\(])S([0-9]{1,2})(?:\s|[\]\)]|E[0-9]|$)'
+        s_match = re.search(s_pattern, title)
+
+        if (not chinese_season_match and not title_number_match
+                and not season_match and s_match):
+            detected_season = int(s_match.group(1))
+
+        # 检测模式5: 罗马数字格式 "II", "III", "IV" 等
+        roman_pattern = r'(?:^|\s|[\[\(])(II+|III+|IV|V|VI+|VII+|VIII+|IX|X+)(?:\s|[\]\)]|$)'
+        roman_match = re.search(roman_pattern, title)
+
+        if (not chinese_season_match and not title_number_match
+                and not season_match and not s_match and roman_match):
+            roman_numerals = {
+                'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5,
+                'VI': 6, 'VII': 7, 'VIII': 8, 'IX': 9, 'X': 10
+            }
+            detected_season = roman_numerals.get(roman_match.group(1), 1)
+
+        # 检测模式6: "第2期"、"第二期" 格式
+        period_pattern = r'第([一二三四五六七八九十百]+|[0-9]+)期'
+        period_match = re.search(period_pattern, title)
+
+        if not chinese_season_match and not title_number_match and period_match:
+            period_str = period_match.group(1)
+            if re.search(r'[0-9]+', period_str):
+                detected_season = int(period_str)
+            else:
+                detected_season = chinese_number_to_arabic(period_str)
+
+        # 检测模式7: "2nd Season", "3rd Season" 等
+        ordinal_pattern = r'([0-9]+)(?:st|nd|rd|th)\s+Season'
+        ordinal_match = re.search(ordinal_pattern, title, re.IGNORECASE)
+
+        if (not chinese_season_match and not title_number_match
+                and not season_match and ordinal_match):
+            detected_season = int(ordinal_match.group(1))
+
+        return detected_season
 
     def _to_entity(self, row: AnimeInfo) -> AnimeInfoEntity:
         """将数据库行转换为实体"""
@@ -99,49 +231,65 @@ class AnimeRepository(IAnimeRepository):
         subtitle_group: str | None = None,
         season: int | None = None
     ) -> AnimeInfoEntity | None:
-        """根据动漫核心信息查找动漫信息"""
-        clean_title = self._clean_title_for_matching(title)
+        """根据动漫核心信息查找（季数+短标题+字幕组三要素匹配）
+
+        匹配逻辑:
+        1. 从 RSS 标题检测季数
+        2. 按季数过滤候选动漫
+        3. 检查标题是否包含数据库中的 short_title 或 long_title
+        4. 检查标题是否包含字幕组名称
+
+        Args:
+            title: RSS 标题
+            subtitle_group: 字幕组名称（可选，优先使用）
+            season: 季数（可选，若不提供则从标题检测）
+
+        Returns:
+            匹配的动漫实体，未找到返回 None
+        """
+        # 1. 从 RSS 标题检测季数
+        detected_season = season if season is not None else self._detect_season_from_title(title)
+
+        # 2. 标准化引号（使用已有的 _normalize_quotes 方法）
+        clean_title = self._normalize_quotes(title).lower()
 
         with db_manager.session() as session:
-            # 1. 精确匹配
-            exact_match = session.query(AnimeInfo).filter(
-                or_(
-                    AnimeInfo.original_title == title,
-                    AnimeInfo.short_title == clean_title,
-                    AnimeInfo.long_title == title
+            # 3. 先按季数过滤
+            candidates = session.query(AnimeInfo).filter_by(season=detected_season).all()
+
+            if not candidates:
+                logger.debug(f'📭 未找到季数 {detected_season} 的候选动漫')
+                return None
+
+            # 4. 检查标题和字幕组双重匹配
+            for anime in candidates:
+                # 标题匹配检查
+                short_title = self._normalize_quotes(anime.short_title or '').lower()
+                long_title = self._normalize_quotes(anime.long_title or '').lower()
+
+                title_match = (
+                    (short_title and short_title in clean_title) or
+                    (long_title and long_title in clean_title)
                 )
-            ).first()
 
-            if exact_match:
-                return self._to_entity(exact_match)
+                if not title_match:
+                    continue
 
-            # 2. 模糊匹配
-            all_anime = session.query(AnimeInfo).all()
-            best_match = None
-            best_score = 0.0
+                # 字幕组匹配检查
+                anime_subtitle_group = (anime.subtitle_group or '').lower()
+                subtitle_group_match = (
+                    anime_subtitle_group and anime_subtitle_group in clean_title
+                )
 
-            for anime in all_anime:
-                scores = []
+                # 三要素全部匹配
+                if title_match and subtitle_group_match:
+                    logger.info(
+                        f'✅ 匹配成功: {anime.short_title} S{anime.season} '
+                        f'[{anime.subtitle_group}]'
+                    )
+                    return self._to_entity(anime)
 
-                if anime.original_title:
-                    scores.append(self._calculate_similarity(
-                        clean_title, self._clean_title_for_matching(anime.original_title)))
-                if anime.short_title:
-                    scores.append(self._calculate_similarity(
-                        clean_title, self._clean_title_for_matching(anime.short_title)))
-                if anime.long_title:
-                    scores.append(self._calculate_similarity(
-                        clean_title, self._clean_title_for_matching(anime.long_title)))
-
-                if scores:
-                    max_score = max(scores)
-                    if max_score > best_score and max_score > 0.8:
-                        best_score = max_score
-                        best_match = anime
-
-            if best_match:
-                return self._to_entity(best_match)
-
+            logger.debug(f'📭 未找到匹配: 标题="{title[:50]}..." 季数={detected_season}')
             return None
 
     def get_all(self, limit: int = 100, offset: int = 0) -> list[AnimeInfoEntity]:
