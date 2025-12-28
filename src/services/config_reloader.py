@@ -432,9 +432,9 @@ class ConfigReloader:
 
             # 更新已存在服务实例的引用
             # hardlink_service 持有 path_builder 引用
-            hardlink_service = container.hardlink_service()
-            hardlink_service._path_builder = new_path_builder
-            logger.debug('🔄 更新 hardlink_service 的 path_builder 引用')
+            file_service = container.file_service()
+            file_service._path_builder = new_path_builder
+            logger.debug('🔄 更新 file_service 的 path_builder 引用')
 
             # download_manager 持有 path_builder 引用
             download_manager = container.download_manager()
