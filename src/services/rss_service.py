@@ -1,14 +1,18 @@
 """
 RSS service module.
 
-Provides RSS/Atom feed parsing and item filtering functionality.
+Provides RSS/Atom feed parsing, item filtering, and hash extraction functionality.
 """
 
 import base64
 import logging
 import re
+import threading
 import xml.etree.ElementTree as ET
-from typing import Any
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
+from time import time
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 import requests
@@ -17,7 +21,172 @@ from src.core.exceptions import RSSError
 from src.core.interfaces.adapters import IRSSParser, RSSItem
 from src.core.interfaces.repositories import IDownloadRepository
 
+if TYPE_CHECKING:
+    from src.services.rss_service import RSSService
+
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class CachedHash:
+    """缓存的 Hash 条目。"""
+    hash_id: str
+    timestamp: float
+
+
+class HashExtractor:
+    """
+    Hash 提取服务，支持缓存和并行批量获取。
+
+    用于 RSS 预览时快速获取 torrent hash，优化用户体验。
+
+    Example:
+        >>> extractor = HashExtractor(rss_service)
+        >>> hashes = extractor.batch_extract(['url1', 'url2', 'url3'])
+        >>> print(hashes)  # {'url1': 'hash1', 'url2': 'hash2', ...}
+    """
+
+    def __init__(
+        self,
+        rss_service: 'RSSService',
+        cache_ttl: int = 3600,
+        max_workers: int = 10,
+        fetch_timeout: int = 10
+    ):
+        """
+        初始化 HashExtractor。
+
+        Args:
+            rss_service: RSS 服务实例，用于调用底层提取方法。
+            cache_ttl: 缓存过期时间（秒），默认 1 小时。
+            max_workers: 并行下载的最大线程数，默认 10。
+            fetch_timeout: 单个下载超时时间（秒），默认 10 秒。
+        """
+        self._rss_service = rss_service
+        self._cache: dict[str, CachedHash] = {}
+        self._cache_lock = threading.Lock()
+        self._cache_ttl = cache_ttl
+        self._max_workers = max_workers
+        self._fetch_timeout = fetch_timeout
+
+    def batch_extract(
+        self,
+        urls: list[str],
+        skip_slow_fetch: bool = False
+    ) -> dict[str, str]:
+        """
+        批量提取多个 URL 的 hash。
+
+        优先使用缓存和快速 URL 解析，对需要下载的 URL 并行处理。
+
+        Args:
+            urls: 需要提取 hash 的 URL 列表。
+            skip_slow_fetch: 是否跳过需要下载 torrent 的慢速提取。
+
+        Returns:
+            URL 到 hash 的映射字典。
+        """
+        results: dict[str, str] = {}
+        urls_to_fetch: list[str] = []
+        current_time = time()
+
+        # 统计计数
+        stats = {'cache': 0, 'fast': 0, 'fetch': 0, 'skipped': 0}
+
+        # 1. 先从缓存和 URL 模式中快速提取
+        for url in urls:
+            if not url:
+                continue
+
+            # 检查缓存
+            cached = self._get_from_cache(url, current_time)
+            if cached:
+                results[url] = cached
+                stats['cache'] += 1
+                logger.debug(f'📦 [cache] hash={cached[:8]}... url={url[:50]}...')
+                continue
+
+            # 快速 URL 模式提取
+            fast_hash = self._rss_service.extract_hash_from_url(url)
+            if fast_hash:
+                results[url] = fast_hash
+                self._add_to_cache(url, fast_hash, current_time)
+                stats['fast'] += 1
+                logger.debug(f'⚡ [fast] hash={fast_hash[:8]}... url={url[:50]}...')
+            elif not skip_slow_fetch and url.endswith('.torrent'):
+                urls_to_fetch.append(url)
+            else:
+                stats['skipped'] += 1
+
+        # 2. 对需要下载的 URL 并行处理
+        if urls_to_fetch:
+            logger.debug(f'🔄 开始并行下载 {len(urls_to_fetch)} 个 torrent 文件提取 hash')
+            fetched = self._parallel_fetch(urls_to_fetch)
+            for url, hash_id in fetched.items():
+                results[url] = hash_id
+                self._add_to_cache(url, hash_id, current_time)
+                stats['fetch'] += 1
+                logger.debug(f'🌐 [fetch] hash={hash_id[:8]}... url={url[:50]}...')
+
+        # 输出统计信息
+        logger.debug(
+            f'📊 HashExtractor 统计: '
+            f'cache={stats["cache"]}, fast={stats["fast"]}, '
+            f'fetch={stats["fetch"]}, skipped={stats["skipped"]}, '
+            f'total={len(results)}'
+        )
+
+        return results
+
+    def _get_from_cache(self, url: str, current_time: float) -> str | None:
+        """从缓存获取 hash，检查 TTL。"""
+        with self._cache_lock:
+            cached = self._cache.get(url)
+            if cached and (current_time - cached.timestamp) < self._cache_ttl:
+                return cached.hash_id
+            return None
+
+    def _add_to_cache(self, url: str, hash_id: str, current_time: float) -> None:
+        """添加 hash 到缓存。"""
+        with self._cache_lock:
+            self._cache[url] = CachedHash(hash_id=hash_id, timestamp=current_time)
+
+    def _parallel_fetch(self, urls: list[str]) -> dict[str, str]:
+        """并行下载 torrent 文件并提取 hash。"""
+        results: dict[str, str] = {}
+
+        with ThreadPoolExecutor(max_workers=self._max_workers) as executor:
+            future_to_url = {
+                executor.submit(
+                    self._rss_service._fetch_hash_from_torrent_file, url
+                ): url
+                for url in urls
+            }
+
+            for future in as_completed(future_to_url, timeout=30):
+                url = future_to_url[future]
+                try:
+                    hash_id = future.result(timeout=self._fetch_timeout)
+                    if hash_id:
+                        results[url] = hash_id
+                except Exception as e:
+                    logger.debug(f'⚠️ [fetch] 失败: {url[:50]}... - {e}')
+
+        return results
+
+    def clear_cache(self) -> None:
+        """清空缓存。"""
+        with self._cache_lock:
+            self._cache.clear()
+            logger.debug('🧹 HashExtractor 缓存已清空')
+
+    def get_cache_stats(self) -> dict[str, int]:
+        """获取缓存统计信息。"""
+        with self._cache_lock:
+            return {
+                'size': len(self._cache),
+                'ttl': self._cache_ttl
+            }
 
 
 class RSSService(IRSSParser):
@@ -64,6 +233,7 @@ class RSSService(IRSSParser):
             'User-Agent': self.DEFAULT_USER_AGENT
         })
         self._timeout = timeout
+        self._hash_extractor = HashExtractor(self)
 
     def parse_feed(self, rss_url: str) -> list[RSSItem]:
         """
@@ -172,6 +342,40 @@ class RSSService(IRSSParser):
 
         # Handle torrent URLs
         return self._extract_hash_from_torrent_url(url)
+
+    def batch_extract_hashes(
+        self,
+        items: list[RSSItem],
+        skip_slow_fetch: bool = False
+    ) -> dict[str, str]:
+        """
+        批量提取 RSS 项目的 hash。
+
+        使用缓存和并行处理优化性能。
+
+        Args:
+            items: RSS 项目列表。
+            skip_slow_fetch: 是否跳过需要下载 torrent 文件的慢速提取。
+
+        Returns:
+            URL 到 hash 的映射。
+        """
+        urls = []
+        for item in items:
+            if not item.hash:
+                effective_url = item.torrent_url or item.link
+                if effective_url:
+                    urls.append(effective_url)
+
+        return self._hash_extractor.batch_extract(urls, skip_slow_fetch)
+
+    def get_hash_extractor_stats(self) -> dict[str, int]:
+        """获取 hash 提取器的缓存统计。"""
+        return self._hash_extractor.get_cache_stats()
+
+    def clear_hash_extractor_cache(self) -> None:
+        """清空 hash 提取器的缓存。"""
+        self._hash_extractor.clear_cache()
 
     def ensure_valid_hash(self, hash_id: str, torrent_url: str) -> str:
         """

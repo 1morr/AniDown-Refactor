@@ -371,6 +371,12 @@ def preview_filters_api(
     if not rss_items:
         return APIResponse.bad_request('无法解析RSS feed或feed为空')
 
+    # 批量提取缺失的 hash (并行 + 缓存)
+    url_to_hash = rss_service.batch_extract_hashes(
+        rss_items,
+        skip_slow_fetch=False  # 预览时也获取需要下载的 hash
+    )
+
     # 应用过滤器
     results = []
     stats = {
@@ -383,6 +389,12 @@ def preview_filters_api(
     for item in rss_items:
         title = item.title
         hash_id = item.hash
+
+        # 如果 hash 为空，从批量提取结果中获取
+        if not hash_id:
+            effective_url = item.torrent_url or item.link
+            if effective_url:
+                hash_id = url_to_hash.get(effective_url, '')
 
         # 检查是否已在数据库中
         exists_in_db = False
