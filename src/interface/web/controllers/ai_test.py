@@ -27,12 +27,17 @@ from src.infrastructure.ai.prompts import (
 )
 from src.infrastructure.metadata.tvdb_adapter import TVDBAdapter
 from src.interface.web.utils import APIResponse, WebLogger, handle_api_errors, validate_json
-from src.services.ai_debug_service import ai_debug_service
 from src.services.metadata_service import MetadataService
 from src.services.rss_service import RSSService
 
 ai_test_bp = Blueprint('ai_test', __name__)
 logger = WebLogger(__name__)
+
+
+def _get_ai_debug_service():
+    """延迟导入 container 以避免循环导入。"""
+    from src.container import container
+    return _get_ai_debug_service()
 
 
 @ai_test_bp.route('/ai_test')
@@ -237,10 +242,10 @@ def process_ai_test(
     # 记录到AI debug日志
     if enable_logging:
         try:
-            was_enabled = ai_debug_service.enabled
-            ai_debug_service.enable()
+            was_enabled = _get_ai_debug_service().enabled
+            _get_ai_debug_service().enable()
 
-            ai_debug_service.log_ai_interaction(
+            _get_ai_debug_service().log_ai_interaction(
                 system_prompt=system_prompt,
                 user_prompt=f"输入模式: {input_type}\n内容:\n{user_message}",
                 ai_response={'results': results},
@@ -257,7 +262,7 @@ def process_ai_test(
             )
 
             if not was_enabled:
-                ai_debug_service.disable()
+                _get_ai_debug_service().disable()
 
         except Exception as log_error:
             logger.api_error_msg(
@@ -515,10 +520,10 @@ def process_ai_test_stream(
 
                 if enable_logging:
                     try:
-                        was_enabled = ai_debug_service.enabled
-                        ai_debug_service.enable()
+                        was_enabled = _get_ai_debug_service().enabled
+                        _get_ai_debug_service().enable()
 
-                        ai_debug_service.log_ai_interaction(
+                        _get_ai_debug_service().log_ai_interaction(
                             system_prompt=system_prompt,
                             user_prompt=f"输入模式: {input_type}\n标题列表:\n{user_message}",
                             ai_response={
@@ -538,7 +543,7 @@ def process_ai_test_stream(
                         )
 
                         if not was_enabled:
-                            ai_debug_service.disable()
+                            _get_ai_debug_service().disable()
 
                     except Exception as log_error:
                         logger.api_error_msg(
@@ -565,10 +570,10 @@ def process_ai_test_stream(
 
                 if enable_logging:
                     try:
-                        was_enabled = ai_debug_service.enabled
-                        ai_debug_service.enable()
+                        was_enabled = _get_ai_debug_service().enabled
+                        _get_ai_debug_service().enable()
 
-                        ai_debug_service.log_ai_interaction(
+                        _get_ai_debug_service().log_ai_interaction(
                             system_prompt=system_prompt,
                             user_prompt=f"输入模式: {input_type}\n内容: {content[:500]}...",
                             ai_response=None,
@@ -583,7 +588,7 @@ def process_ai_test_stream(
                         )
 
                         if not was_enabled:
-                            ai_debug_service.disable()
+                            _get_ai_debug_service().disable()
 
                     except Exception:
                         pass
@@ -667,11 +672,11 @@ def get_ai_test_logs():
     """获取AI测试日志列表"""
     try:
         count = request.args.get('count', 10, type=int)
-        logs = ai_debug_service.get_latest_logs(count)
+        logs = _get_ai_debug_service().get_latest_logs(count)
 
         log_list = []
         for log_path in logs:
-            log_data = ai_debug_service.read_log(log_path)
+            log_data = _get_ai_debug_service().read_log(log_path)
             if log_data:
                 log_list.append({
                     'path': log_path,
@@ -691,7 +696,7 @@ def get_ai_test_logs():
 def get_ai_test_log_detail(log_file):
     """获取单个AI测试日志详情"""
     try:
-        log_data = ai_debug_service.read_log(log_file)
+        log_data = _get_ai_debug_service().read_log(log_file)
 
         if log_data:
             return APIResponse.success(log=log_data)

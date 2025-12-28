@@ -247,23 +247,3 @@ class AIDebugService:
         logger.info(f'🗑️ 已清除 {count} 个AI debug日志')
         return count
 
-
-# Global AI debug service instance
-_ai_debug_service: AIDebugService | None = None
-
-
-def get_ai_debug_service() -> AIDebugService:
-    """
-    Get the global AI debug service instance.
-
-    Returns:
-        AIDebugService instance.
-    """
-    global _ai_debug_service
-    if _ai_debug_service is None:
-        _ai_debug_service = AIDebugService()
-    return _ai_debug_service
-
-
-# 全局实例 (向后兼容)
-ai_debug_service = get_ai_debug_service()

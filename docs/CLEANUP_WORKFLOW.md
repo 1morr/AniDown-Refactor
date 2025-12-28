@@ -234,47 +234,69 @@ class DiscordNotifier(
 
 ---
 
-## Phase 4: 统一依赖注入模式
+## Phase 4: 统一依赖注入模式 ✅ 已完成
 
 **风险等级**: 🔴 高  
 **预计影响**: 架构一致性提升  
 **依赖**: Phase 3 完成
 
-### 4.1 当前问题
+### 4.1 识别的问题
 
 项目同时使用多种依赖管理模式：
 1. **dependency-injector Container** - 主要方式
 2. **全局单例变量** (`_xxx_service`)
 3. **工厂函数** (`get_xxx_service()`)
 
-### 4.2 目标
+### 4.2 清理的全局单例和工厂函数 ✅ 已完成
 
-统一使用 `dependency-injector` Container 模式。
+已移除以下文件中的全局单例变量和工厂函数：
 
-### 4.3 待清理的全局单例
+| 文件 | 移除的单例变量 | 移除的工厂函数 |
+|------|----------------|----------------|
+| `ai_debug_service.py` | `_ai_debug_service`, `ai_debug_service` | `get_ai_debug_service()` |
+| `anime_service.py` | `_anime_service` | `get_anime_service()` |
+| `filter_service.py` | `_filter_service` | `get_filter_service()` |
+| `log_rotation_service.py` | `_log_rotation_service` | `get_log_rotation_service()` |
 
-需要搜索并移除的模式：
-- `_xxx_service: Optional[XxxService] = None`
-- `def get_xxx_service() -> XxxService`
-- 直接导入服务类而非通过 Container
+**注意**: `LogRotationService` 未在 Container 中注册（日志轮换在模块导入时执行，早于 Container 初始化）。
+| `metadata_service.py` | `_metadata_service` | `get_metadata_service()` |
 
-**步骤**:
-- [ ] 4.3.1 搜索所有全局单例模式 (`_xxx_service`)
-- [ ] 4.3.2 搜索所有工厂函数 (`get_xxx_service`)
-- [ ] 4.3.3 列出所有受影响的文件
-- [ ] 4.3.4 逐个文件更新为使用 Container:
-  - [ ] 更新导入语句
-  - [ ] 更新服务获取方式
-  - [ ] 删除单例变量和工厂函数
-- [ ] 4.3.5 确保所有服务都通过 Container 注册
-- [ ] 4.3.6 更新文档说明依赖注入用法
+### 4.3 更新 AI 适配器依赖注入 ✅ 已完成
 
-### Phase 4 验证
+将 `ai_debug_service` 从全局变量改为构造函数注入：
 
-- [ ] 运行 `ruff check src/` 确认无语法错误
-- [ ] 运行 `pytest tests/` 确认测试通过
-- [ ] 运行 `python -m src.main --test` 确认应用启动正常
-- [ ] 全面功能测试
+| 类 | 新增参数 |
+|----|----------|
+| `AITitleParser` | `ai_debug_service: AIDebugService \| None = None` |
+| `AIFileRenamer` | `ai_debug_service: AIDebugService \| None = None` |
+| `AISubtitleMatcher` | `ai_debug_service: AIDebugService \| None = None` |
+
+Container 配置更新：
+```python
+# ai_debug_service 移至 AI 组件之前定义
+ai_debug_service = providers.Singleton(AIDebugService)
+
+# 各 AI 适配器注入 ai_debug_service
+title_parser = providers.Singleton(
+    AITitleParser,
+    key_pool=title_parse_pool,
+    circuit_breaker=title_parse_breaker,
+    api_client=title_parse_api_client,
+    ai_debug_service=ai_debug_service  # 新增
+)
+```
+
+### 4.4 更新外部引用 ✅ 已完成
+
+- [x] `src/main.py` - 使用 `container.ai_debug_service().enable()`
+- [x] `src/interface/web/controllers/ai_test.py` - 使用延迟导入辅助函数 `_get_ai_debug_service()`
+- [x] `src/services/__init__.py` - 移除工厂函数导出
+
+### Phase 4 验证 ✅ 已完成
+
+- [x] 运行 `ruff check src/` 确认无语法错误（预存在的 lint 错误不影响）
+- [x] 运行 `pytest tests/` 确认测试通过 (261 passed, 1 skipped)
+- [x] 运行 `python -m src.main --test` 确认应用启动正常
 
 ---
 

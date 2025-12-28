@@ -16,7 +16,7 @@ from src.core.exceptions import (
 )
 from src.core.interfaces.adapters import IFileRenamer, RenameResult
 from src.infrastructure.repositories.ai_key_repository import ai_key_repository
-from src.services.ai_debug_service import ai_debug_service
+from src.services.ai_debug_service import AIDebugService
 
 from .api_client import OpenAIClient
 from .circuit_breaker import CircuitBreaker
@@ -61,7 +61,8 @@ class AIFileRenamer(IFileRenamer):
         circuit_breaker: CircuitBreaker,
         api_client: OpenAIClient | None = None,
         max_retries: int = 3,
-        batch_size: int = DEFAULT_BATCH_SIZE
+        batch_size: int = DEFAULT_BATCH_SIZE,
+        ai_debug_service: AIDebugService | None = None
     ):
         """
         初始化文件重命名器。
@@ -72,12 +73,14 @@ class AIFileRenamer(IFileRenamer):
             api_client: API 客户端（可选，默认创建新实例）
             max_retries: 最大重试次数
             batch_size: 批量处理文件数
+            ai_debug_service: AI 调试服务（可选）
         """
         self._key_pool = key_pool
         self._circuit_breaker = circuit_breaker
         self._api_client = api_client or OpenAIClient(timeout=360)
         self._max_retries = max_retries
         self._batch_size = batch_size
+        self._ai_debug_service = ai_debug_service
 
     def generate_rename_mapping(
         self,
@@ -424,8 +427,8 @@ class AIFileRenamer(IFileRenamer):
                 )
 
                 # 记录 AI 调试日志
-                if ai_debug_service.enabled:
-                    ai_debug_service.log_ai_interaction(
+                if self._ai_debug_service and self._ai_debug_service.enabled:
+                    self._ai_debug_service.log_ai_interaction(
                         operation='multi_file_rename',
                         input_data={
                             'files': files,
@@ -476,8 +479,8 @@ class AIFileRenamer(IFileRenamer):
                 )
 
                 # 记录 AI 调试日志（失败）
-                if ai_debug_service.enabled:
-                    ai_debug_service.log_ai_interaction(
+                if self._ai_debug_service and self._ai_debug_service.enabled:
+                    self._ai_debug_service.log_ai_interaction(
                         operation='multi_file_rename',
                         input_data={
                             'files': files,

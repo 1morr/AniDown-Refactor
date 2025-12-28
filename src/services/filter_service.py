@@ -193,19 +193,3 @@ class FilterService:
         self._compiled_regex_cache.clear()
         logger.debug('🧹 已清除正则表达式缓存')
 
-
-# Global filter service instance
-_filter_service: FilterService = None
-
-
-def get_filter_service() -> FilterService:
-    """
-    Get the global filter service instance.
-
-    Returns:
-        FilterService instance.
-    """
-    global _filter_service
-    if _filter_service is None:
-        _filter_service = FilterService()
-    return _filter_service

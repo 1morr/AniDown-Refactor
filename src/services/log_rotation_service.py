@@ -158,24 +158,3 @@ class LogRotationService:
 
         return total_size / (1024 * 1024)
 
-
-# Global log rotation service instance
-_log_rotation_service: LogRotationService | None = None
-
-
-def get_log_rotation_service(
-    log_file: str = 'anidown.log'
-) -> LogRotationService:
-    """
-    Get the global log rotation service instance.
-
-    Args:
-        log_file: Path to the main log file.
-
-    Returns:
-        LogRotationService instance.
-    """
-    global _log_rotation_service
-    if _log_rotation_service is None:
-        _log_rotation_service = LogRotationService(log_file)
-    return _log_rotation_service

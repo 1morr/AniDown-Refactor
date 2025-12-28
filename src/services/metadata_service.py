@@ -161,22 +161,3 @@ class MetadataService:
             logger.info(f'📦 TVDB数据大小: {len(json_str)} 字符')
             return ai_data
 
-
-# Global metadata service instance
-_metadata_service: MetadataService | None = None
-
-
-def get_metadata_service() -> MetadataService:
-    """
-    Get the global metadata service instance.
-
-    Creates the instance on first call.
-
-    Returns:
-        MetadataService instance.
-    """
-    global _metadata_service
-    if _metadata_service is None:
-        from src.infrastructure.metadata import TVDBAdapter
-        _metadata_service = MetadataService(TVDBAdapter())
-    return _metadata_service
