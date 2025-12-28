@@ -217,13 +217,6 @@ class AnimeRepository(IAnimeRepository):
                 return self._to_entity(anime)
             return None
 
-    def get_by_title(self, title: str) -> AnimeInfoEntity | None:
-        """根据标题查找动漫信息（模糊匹配）"""
-        with db_manager.session() as session:
-            anime = session.query(AnimeInfo).filter_by(original_title=title).first()
-            if anime:
-                return self._to_entity(anime)
-            return None
 
     def get_by_core_info(
         self,
@@ -290,6 +283,49 @@ class AnimeRepository(IAnimeRepository):
                     return self._to_entity(anime)
 
             logger.debug(f'📭 未找到匹配: 标题="{title[:50]}..." 季数={detected_season}')
+            return None
+
+    def find_exact_match(
+        self,
+        short_title: str,
+        subtitle_group: str,
+        season: int
+    ) -> AnimeInfoEntity | None:
+        """根据短标题、字幕组、季数精确匹配动漫
+
+        用于 AI 处理后检查是否已存在相同动漫，防止重复创建。
+
+        Args:
+            short_title: 短标题（精确匹配，不区分大小写）
+            subtitle_group: 字幕组（精确匹配，不区分大小写）
+            season: 季数（精确匹配）
+
+        Returns:
+            匹配的动漫实体，未找到返回 None
+        """
+        if not short_title or not subtitle_group:
+            return None
+
+        # 标准化引号
+        clean_short_title = self._normalize_quotes(short_title).lower()
+        clean_subtitle_group = self._normalize_quotes(subtitle_group).lower()
+
+        with db_manager.session() as session:
+            # 获取相同季数的所有动漫
+            candidates = session.query(AnimeInfo).filter_by(season=season).all()
+
+            for anime in candidates:
+                db_short_title = self._normalize_quotes(anime.short_title or '').lower()
+                db_subtitle_group = self._normalize_quotes(anime.subtitle_group or '').lower()
+
+                # 精确匹配（不区分大小写）
+                if db_short_title == clean_short_title and db_subtitle_group == clean_subtitle_group:
+                    logger.info(
+                        f'🔍 找到精确匹配: {anime.short_title} S{anime.season} '
+                        f'[{anime.subtitle_group}] (ID={anime.id})'
+                    )
+                    return self._to_entity(anime)
+
             return None
 
     def get_all(self, limit: int = 100, offset: int = 0) -> list[AnimeInfoEntity]:

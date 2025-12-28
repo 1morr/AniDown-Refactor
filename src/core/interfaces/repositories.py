@@ -30,18 +30,6 @@ class IAnimeRepository(ABC):
         """
         pass
 
-    @abstractmethod
-    def get_by_title(self, title: str) -> AnimeInfo | None:
-        """
-        Get anime by title (fuzzy match).
-
-        Args:
-            title: The title to search for.
-
-        Returns:
-            AnimeInfo if found, None otherwise.
-        """
-        pass
 
     @abstractmethod
     def get_by_core_info(
@@ -57,6 +45,28 @@ class IAnimeRepository(ABC):
             title: The anime title.
             subtitle_group: Optional subtitle group name.
             season: Optional season number.
+
+        Returns:
+            AnimeInfo if found, None otherwise.
+        """
+        pass
+
+    @abstractmethod
+    def find_exact_match(
+        self,
+        short_title: str,
+        subtitle_group: str,
+        season: int
+    ) -> AnimeInfo | None:
+        """
+        Find anime by exact match of short_title, subtitle_group, and season.
+
+        用于 AI 处理后检查是否已存在相同动漫，防止重复创建。
+
+        Args:
+            short_title: 短标题（精确匹配）
+            subtitle_group: 字幕组（精确匹配）
+            season: 季数（精确匹配）
 
         Returns:
             AnimeInfo if found, None otherwise.

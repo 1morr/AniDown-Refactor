@@ -212,14 +212,6 @@ class Container(containers.DeclarativeContainer):
     file_classifier = providers.Singleton(FileClassifier)
     filename_formatter = providers.Singleton(FilenameFormatter)
 
-    rename_service = providers.Singleton(
-        RenameService,
-        file_classifier=file_classifier,
-        filename_formatter=filename_formatter,
-        anime_repo=anime_repo,
-        ai_file_renamer=file_renamer
-    )
-
     # ===== Core Services =====
     filter_service = providers.Singleton(FilterService)
 
@@ -258,6 +250,16 @@ class Container(containers.DeclarativeContainer):
     download_notifier = providers.Singleton(
         DownloadNotifier,
         discord_notifier=discord_notifier
+    )
+
+    # rename_service 放在 download_notifier 之后，以便注入 notifier
+    rename_service = providers.Singleton(
+        RenameService,
+        file_classifier=file_classifier,
+        filename_formatter=filename_formatter,
+        anime_repo=anime_repo,
+        ai_file_renamer=file_renamer,
+        notifier=download_notifier
     )
 
     rss_processor = providers.Singleton(

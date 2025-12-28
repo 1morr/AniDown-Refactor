@@ -22,6 +22,7 @@ from src.services.rename.filename_formatter import FilenameFormatter
 if TYPE_CHECKING:
     from src.core.interfaces.adapters import IFileRenamer as IAIFileRenamer
     from src.core.interfaces.repositories import IAnimeRepository
+    from src.services.download.download_notifier import DownloadNotifier
 
 logger = logging.getLogger(__name__)
 
@@ -46,8 +47,8 @@ class RenameService(IFileRenamer):
         filename_formatter: FilenameFormatter | None = None,
         anime_repo: Optional['IAnimeRepository'] = None,
         ai_file_renamer: Optional['IAIFileRenamer'] = None,
-        on_ai_usage: Callable[[str, str], None] | None = None,
-        path_converter: Callable[[str], str] | None = None
+        path_converter: Callable[[str], str] | None = None,
+        notifier: Optional['DownloadNotifier'] = None
     ):
         """
         Initialize the rename service.
@@ -57,15 +58,15 @@ class RenameService(IFileRenamer):
             filename_formatter: Filename formatter instance.
             anime_repo: Anime repository for pattern storage.
             ai_file_renamer: AI file renamer for processing.
-            on_ai_usage: Callback when AI is used (reason, project_name).
             path_converter: Callback to convert paths (e.g., Windows to Docker).
+            notifier: Download notifier for AI usage notifications.
         """
         self._classifier = file_classifier or FileClassifier()
         self._formatter = filename_formatter or FilenameFormatter()
         self._anime_repo = anime_repo
         self._ai_file_renamer = ai_file_renamer
-        self._on_ai_usage = on_ai_usage
         self._path_converter = path_converter
+        self._notifier = notifier
         # AI 使用跟踪
         self._last_ai_used: bool = False
         self._last_ai_reason: str = ''
@@ -90,19 +91,27 @@ class RenameService(IFileRenamer):
 
     def _set_ai_used(self, reason: str) -> None:
         """
-        Set AI usage flag and immediately trigger notification callback.
+        Set AI usage flag and immediately trigger notification.
+
+        在 AI 调用前发送通知，让用户知道正在等待 AI 处理。
 
         Args:
             reason: Reason for using AI.
         """
         self._last_ai_used = True
         self._last_ai_reason = reason
-        # 立即触发 AI 使用通知
-        if self._on_ai_usage and self._current_anime_title:
+
+        # 立即发送 AI 使用通知
+        if self._notifier and self._current_anime_title:
             try:
-                self._on_ai_usage(reason, self._current_anime_title)
+                self._notifier.notify_ai_usage(
+                    reason=f'正在处理: {reason}',
+                    project_name=self._current_anime_title,
+                    context='webhook',
+                    operation='file_renaming'
+                )
             except Exception as e:
-                logger.warning(f'⚠️ AI 使用通知回调失败: {e}')
+                logger.warning(f'⚠️ AI 使用通知失败: {e}')
 
     def generate_rename_mapping(
         self,
@@ -699,7 +708,8 @@ class RenameService(IFileRenamer):
         """
         # Windows filesystem illegal characters - replace with fullwidth equivalents
         illegal_chars = {
-            '<': '＜', '>': '＞', ':': '：', '"': "'", '"': "'", '"': "'",
+            '<': '＜', '>': '＞', ':': '：', '"': "'",
+            '\u201c': "'", '\u201d': "'",  # Left/right double quotation marks
             '|': '｜', '?': '？', '*': '＊', '/': '／', '\\': '＼'
         }
 

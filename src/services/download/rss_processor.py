@@ -579,25 +579,43 @@ class RSSProcessor:
         hash_id = self._rss_service.ensure_valid_hash(hash_id, torrent_url)
 
         try:
+            # Send AI usage notification (在 AI 调用前发送，让用户知道正在等待)
+            self._notifier.notify_ai_usage(
+                reason='正在解析新动漫标题',
+                project_name=title[:50] + '...' if len(title) > 50 else title,
+                context='rss',
+                operation='title_parsing'
+            )
+
             # AI title parsing
             parse_result = self._title_parser.parse(title)
             if not parse_result:
                 raise AnimeInfoExtractionError('AI解析失败')
 
-            # Send AI usage notification
-            self._notifier.notify_ai_usage(
-                reason='新动漫标题解析',
-                project_name=parse_result.clean_title,
-                context='rss',
-                operation='title_parsing'
+            # 二次校验：检查 AI 解析结果是否已存在于数据库
+            # 防止因首次匹配失败但 AI 返回相同信息而创建重复条目
+            existing = self._anime_repo.find_exact_match(
+                short_title=parse_result.clean_title,
+                subtitle_group=parse_result.subtitle_group or '',
+                season=parse_result.season
             )
+
+            if existing:
+                logger.info(
+                    f'🔄 AI 解析后发现已存在相同动漫，使用现有记录: '
+                    f'{existing.title.short} S{existing.season.number} '
+                    f'[{existing.subtitle_group.name if existing.subtitle_group else ""}]'
+                )
+                # 使用现有记录处理（需要重新设置 hash）
+                item['hash'] = hash_id
+                return self._process_existing_anime(item=item, anime_info=existing)
 
             # Save anime info
             anime_id = self._save_anime_info(
                 original_title=parse_result.original_title,
                 short_title=parse_result.clean_title,
                 long_title=parse_result.full_title,
-                subtitle_group=parse_result.subtitle_group,
+                subtitle_group=parse_result.subtitle_group or '',
                 season=parse_result.season,
                 category=parse_result.category,
                 media_type=media_type
@@ -628,7 +646,7 @@ class RSSProcessor:
                 hash_id=hash_id,
                 original_filename=title,
                 anime_title=parse_result.clean_title,
-                subtitle_group=parse_result.subtitle_group,
+                subtitle_group=parse_result.subtitle_group or '',
                 season=parse_result.season,
                 download_directory=save_path,
                 anime_id=anime_id,
@@ -734,12 +752,11 @@ class RSSProcessor:
         return True
 
     def _find_existing_anime(self, title: str) -> AnimeInfo | None:
-        """Find existing anime by title."""
-        # Try improved matching first
-        existing = self._anime_repo.get_by_core_info(title)
-        if not existing:
-            existing = self._anime_repo.get_by_title(title)
-        return existing
+        """Find existing anime by core info (season + title + subtitle_group).
+
+        使用三要素匹配逻辑，不使用 fallback。
+        """
+        return self._anime_repo.get_by_core_info(title)
 
     def _save_anime_info(
         self,

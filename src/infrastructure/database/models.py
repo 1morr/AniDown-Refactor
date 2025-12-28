@@ -29,9 +29,9 @@ class AnimeInfo(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     original_title = Column(Text, nullable=False)
-    short_title = Column(Text)
+    short_title = Column(Text, nullable=False, default='')  # 不能为空，用于匹配
     long_title = Column(Text)
-    subtitle_group = Column(Text)
+    subtitle_group = Column(Text, nullable=False, default='')  # 不能为空，用于匹配
     season = Column(Integer, default=1)
     category = Column(Text, default='tv')  # tv: 剧集, movie: 电影
     media_type = Column(Text, default='anime')  # anime: 动漫, live_action: 真人
