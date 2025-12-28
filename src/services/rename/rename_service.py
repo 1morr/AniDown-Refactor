@@ -288,7 +288,8 @@ class RenameService(IFileRenamer):
             can_extract_all = True
 
             for video in video_files:
-                episode = self._extract_episode_from_db_patterns(video.name, db_patterns)
+                episode_str = self._extract_from_regex(video.name, db_patterns.get('episode_regex'))
+                episode = int(episode_str) if episode_str else None
                 if episode is not None:
                     extracted_episodes[video.name] = episode
                 else:
@@ -331,37 +332,6 @@ class RenameService(IFileRenamer):
             torrent_hash=torrent_hash
         )
 
-    def _extract_episode_from_db_patterns(
-        self,
-        filename: str,
-        patterns: dict[str, str]
-    ) -> int | None:
-        """
-        Extract episode number using database patterns.
-
-        Args:
-            filename: File name to extract from.
-            patterns: Pattern dictionary from database.
-
-        Returns:
-            Episode number or None if extraction failed.
-        """
-        if not patterns or not patterns.get('episode_regex'):
-            return None
-
-        episode_regex = patterns.get('episode_regex')
-        if episode_regex == '无' or not episode_regex:
-            return None
-
-        try:
-            match = re.search(episode_regex, filename)
-            if match:
-                episode_str = match.group(1) if match.groups() else match.group(0)
-                return int(episode_str)
-        except Exception as e:
-            logger.error(f'使用正则提取集数失败: {e}')
-
-        return None
 
     def _build_names_from_db_patterns(
         self,
@@ -756,7 +726,8 @@ class RenameService(IFileRenamer):
                 logger.info(f'⏭️ 跳过非正片文件: {video.name}')
                 continue
 
-            episode = self._extract_episode_from_db_patterns(video.name, db_patterns)
+            episode_str = self._extract_from_regex(video.name, db_patterns.get('episode_regex'))
+            episode = int(episode_str) if episode_str else None
             if episode is None and category != 'movie':
                 logger.warning(f'⚠️ 无法提取集数，跳过: {video.name}')
                 continue

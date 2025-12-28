@@ -908,7 +908,10 @@ class RSSProcessor:
         anime_id: int | None = None
     ) -> int | None:
         """
-        Extract episode number from title.
+        Extract episode number from title using database regex only.
+
+        仅使用数据库正则提取集数，不使用硬编码 fallback。
+        如果无 anime_id 或数据库无正则，返回 None。
 
         Args:
             title: Original title string.
@@ -917,35 +920,25 @@ class RSSProcessor:
         Returns:
             Episode number or None.
         """
-        # First try using database-stored episode_regex if anime_id provided
-        if anime_id:
-            try:
-                patterns = self._anime_repo.get_patterns(anime_id)
-                if patterns and patterns.get('episode_regex'):
-                    episode_regex = patterns['episode_regex']
-                    match = re.search(episode_regex, title, re.IGNORECASE)
-                    if match:
-                        try:
-                            return int(match.group(1))
-                        except (ValueError, IndexError):
-                            pass
-                    logger.debug(f'📺 数据库正则 "{episode_regex}" 未匹配到集数')
-            except Exception as e:
-                logger.warning(f'⚠️ 获取数据库正则失败: {e}')
+        if not anime_id:
+            return None
 
-        # Fallback to default patterns
-        default_patterns = [
-            r'[\[\s](\d{1,3})[\]\s]',  # [01] or 01
-            r'E(\d{1,3})',  # E01
-            r'第(\d{1,3})[话集]',  # 第01话
-            r'- (\d{1,3}) ',  # - 01
-        ]
+        try:
+            patterns = self._anime_repo.get_patterns(anime_id)
+            if patterns and patterns.get('episode_regex'):
+                episode_regex = patterns['episode_regex']
+                # 跳过无效的正则标记
+                if episode_regex == '无' or not episode_regex:
+                    return None
 
-        for pattern in default_patterns:
-            match = re.search(pattern, title, re.IGNORECASE)
-            if match:
-                try:
-                    return int(match.group(1))
-                except ValueError:
-                    pass
+                match = re.search(episode_regex, title, re.IGNORECASE)
+                if match:
+                    try:
+                        return int(match.group(1))
+                    except (ValueError, IndexError):
+                        pass
+                logger.debug(f'📺 数据库正则 "{episode_regex}" 未匹配到集数')
+        except Exception as e:
+            logger.warning(f'⚠️ 获取数据库正则失败: {e}')
+
         return None
