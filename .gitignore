@@ -46,3 +46,4 @@ config.json
 docker_push.ps1
 .env
 
+src/services/download_manager_legacy.py

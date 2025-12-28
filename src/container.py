@@ -38,6 +38,15 @@ from src.infrastructure.repositories.subtitle_repository import SubtitleReposito
 # Utility Services
 from src.services.ai_debug_service import AIDebugService
 from src.services.anime_service import AnimeService
+
+# Download Manager Services
+from src.services.download import (
+    CompletionHandler,
+    DownloadNotifier,
+    RSSProcessor,
+    StatusService,
+    UploadHandler,
+)
 from src.services.download_manager import DownloadManager
 
 # File Services
@@ -241,22 +250,63 @@ class Container(containers.DeclarativeContainer):
         subtitle_matcher=subtitle_matcher
     )
 
-    # ===== Core Orchestrator =====
-    download_manager = providers.Singleton(
-        DownloadManager,
+    # ===== Download Sub-Services =====
+    download_notifier = providers.Singleton(
+        DownloadNotifier,
+        discord_notifier=discord_notifier
+    )
+
+    rss_processor = providers.Singleton(
+        RSSProcessor,
         anime_repo=anime_repo,
         download_repo=download_repo,
         history_repo=history_repo,
         title_parser=title_parser,
-        file_renamer=file_renamer,
         download_client=qb_client,
         rss_service=rss_service,
         filter_service=filter_service,
+        path_builder=path_builder,
+        notifier=download_notifier
+    )
+
+    upload_handler = providers.Singleton(
+        UploadHandler,
+        anime_repo=anime_repo,
+        download_repo=download_repo,
+        history_repo=history_repo,
+        download_client=qb_client,
+        path_builder=path_builder,
+        notifier=download_notifier
+    )
+
+    completion_handler = providers.Singleton(
+        CompletionHandler,
+        anime_repo=anime_repo,
+        download_repo=download_repo,
+        download_client=qb_client,
         rename_service=rename_service,
-        hardlink_service=file_service,
+        file_service=file_service,
         path_builder=path_builder,
         metadata_service=metadata_service,
-        notifier=discord_notifier
+        notifier=download_notifier
+    )
+
+    status_service = providers.Singleton(
+        StatusService,
+        download_repo=download_repo,
+        history_repo=history_repo,
+        download_client=qb_client,
+        hardlink_service=file_service
+    )
+
+    # ===== Core Orchestrator (Facade) =====
+    download_manager = providers.Singleton(
+        DownloadManager,
+        rss_processor=rss_processor,
+        upload_handler=upload_handler,
+        completion_handler=completion_handler,
+        status_service=status_service,
+        notifier=download_notifier
     )
 
 

@@ -5,15 +5,15 @@ Tests torrent file upload and magnet link processing.
 """
 
 import base64
-import os
 import uuid
-import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from tests.fixtures.test_data import (
-    TORRENT_FILE_CONFIG,
     MAGNET_CONFIG,
+    TORRENT_FILE_CONFIG,
 )
 
 
@@ -36,15 +36,21 @@ class TestManualUploadService:
         mock_file_renamer
     ):
         """Create DownloadManager with mocked dependencies."""
+        from src.services.download import (
+            CompletionHandler,
+            DownloadNotifier,
+            RSSProcessor,
+            StatusService,
+            UploadHandler,
+        )
         from src.services.download_manager import DownloadManager
-        from src.services.rss_service import RSSService
-        from src.services.filter_service import FilterService
-        from src.services.rename.rename_service import RenameService
-        from src.services.file_service import FileService
         from src.services.file.path_builder import PathBuilder
+        from src.services.file_service import FileService
+        from src.services.filter_service import FilterService
         from src.services.rename.file_classifier import FileClassifier
-        from src.services.rename.pattern_matcher import PatternMatcher
         from src.services.rename.filename_formatter import FilenameFormatter
+        from src.services.rename.rename_service import RenameService
+        from src.services.rss_service import RSSService
 
         rss_service = RSSService(download_repo=download_repo)
         filter_service = FilterService()
@@ -66,19 +72,54 @@ class TestManualUploadService:
         )
         metadata_service = MagicMock()
 
-        return DownloadManager(
+        # Create sub-services for the facade
+        download_notifier = DownloadNotifier(discord_notifier=None)
+
+        rss_processor = RSSProcessor(
             anime_repo=anime_repo,
             download_repo=download_repo,
             history_repo=history_repo,
             title_parser=mock_title_parser,
-            file_renamer=mock_file_renamer,
             download_client=mock_qbit_client,
             rss_service=rss_service,
             filter_service=filter_service,
+            path_builder=path_builder,
+            notifier=download_notifier
+        )
+
+        upload_handler = UploadHandler(
+            anime_repo=anime_repo,
+            download_repo=download_repo,
+            history_repo=history_repo,
+            download_client=mock_qbit_client,
+            path_builder=path_builder,
+            notifier=download_notifier
+        )
+
+        completion_handler = CompletionHandler(
+            anime_repo=anime_repo,
+            download_repo=download_repo,
+            download_client=mock_qbit_client,
             rename_service=rename_service,
-            hardlink_service=file_service,
+            file_service=file_service,
             path_builder=path_builder,
             metadata_service=metadata_service,
+            notifier=download_notifier
+        )
+
+        status_service = StatusService(
+            download_repo=download_repo,
+            history_repo=history_repo,
+            download_client=mock_qbit_client,
+            hardlink_service=file_service
+        )
+
+        return DownloadManager(
+            rss_processor=rss_processor,
+            upload_handler=upload_handler,
+            completion_handler=completion_handler,
+            status_service=status_service,
+            notifier=download_notifier
         )
 
 
@@ -393,6 +434,7 @@ class TestQBitAdapter:
     def test_get_torrent_hash_from_file(self, tmp_path):
         """Test extracting hash from torrent file."""
         import bencodepy
+
         from src.infrastructure.downloader.qbit_adapter import get_torrent_hash_from_file
 
         # Create torrent with known info dict

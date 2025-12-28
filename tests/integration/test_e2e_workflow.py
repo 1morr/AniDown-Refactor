@@ -6,16 +6,18 @@ Tests complete workflows from RSS parsing to download completion.
 
 import base64
 import uuid
-import pytest
+from datetime import UTC
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from tests.fixtures.test_data import (
+    MAGNET_CONFIG,
+    RSS_MIKAN_BLOCKED_KEYWORDS,
     RSS_MIKAN_MY_BANGUMI,
     RSS_MIKAN_SINGLE_ANIME,
-    RSS_MIKAN_BLOCKED_KEYWORDS,
     TORRENT_FILE_CONFIG,
-    MAGNET_CONFIG,
 )
 
 
@@ -39,15 +41,21 @@ class TestCompleteWorkflow:
         mock_file_renamer
     ):
         """Create DownloadManager with mocked external dependencies."""
+        from src.services.download import (
+            CompletionHandler,
+            DownloadNotifier,
+            RSSProcessor,
+            StatusService,
+            UploadHandler,
+        )
         from src.services.download_manager import DownloadManager
-        from src.services.rss_service import RSSService
-        from src.services.filter_service import FilterService
-        from src.services.rename.rename_service import RenameService
-        from src.services.file_service import FileService
         from src.services.file.path_builder import PathBuilder
+        from src.services.file_service import FileService
+        from src.services.filter_service import FilterService
         from src.services.rename.file_classifier import FileClassifier
-        from src.services.rename.pattern_matcher import PatternMatcher
         from src.services.rename.filename_formatter import FilenameFormatter
+        from src.services.rename.rename_service import RenameService
+        from src.services.rss_service import RSSService
 
         rss_service = RSSService(download_repo=download_repo)
         filter_service = FilterService()
@@ -69,19 +77,54 @@ class TestCompleteWorkflow:
         )
         metadata_service = MagicMock()
 
-        return DownloadManager(
+        # Create sub-services for the facade
+        download_notifier = DownloadNotifier(discord_notifier=None)
+
+        rss_processor = RSSProcessor(
             anime_repo=anime_repo,
             download_repo=download_repo,
             history_repo=history_repo,
             title_parser=mock_title_parser,
-            file_renamer=mock_file_renamer,
             download_client=mock_qbit_client,
             rss_service=rss_service,
             filter_service=filter_service,
+            path_builder=path_builder,
+            notifier=download_notifier
+        )
+
+        upload_handler = UploadHandler(
+            anime_repo=anime_repo,
+            download_repo=download_repo,
+            history_repo=history_repo,
+            download_client=mock_qbit_client,
+            path_builder=path_builder,
+            notifier=download_notifier
+        )
+
+        completion_handler = CompletionHandler(
+            anime_repo=anime_repo,
+            download_repo=download_repo,
+            download_client=mock_qbit_client,
             rename_service=rename_service,
-            hardlink_service=file_service,
+            file_service=file_service,
             path_builder=path_builder,
             metadata_service=metadata_service,
+            notifier=download_notifier
+        )
+
+        status_service = StatusService(
+            download_repo=download_repo,
+            history_repo=history_repo,
+            download_client=mock_qbit_client,
+            hardlink_service=file_service
+        )
+
+        return DownloadManager(
+            rss_processor=rss_processor,
+            upload_handler=upload_handler,
+            completion_handler=completion_handler,
+            status_service=status_service,
+            notifier=download_notifier
         )
 
     @pytest.mark.slow
@@ -110,7 +153,7 @@ class TestCompleteWorkflow:
                 trigger_type='测试触发'
             )
 
-            print(f'\n📊 Workflow Results:')
+            print('\n📊 Workflow Results:')
             print(f'   Total items found: {result.total_items}')
             print(f'   New items processed: {result.new_items}')
             print(f'   Skipped items: {result.skipped_items}')
@@ -133,16 +176,17 @@ class TestCompleteWorkflow:
         2. Process RSS feed with matching anime
         3. Verify AI was not called for existing anime
         """
+        from datetime import datetime
+
         from src.core.config import RSSFeed
         from src.core.domain.entities import AnimeInfo
         from src.core.domain.value_objects import (
             AnimeTitle,
-            SubtitleGroup,
-            SeasonInfo,
             Category,
             MediaType,
+            SeasonInfo,
+            SubtitleGroup,
         )
-        from datetime import datetime, timezone
 
         # Add existing anime to database
         anime = AnimeInfo(
@@ -155,7 +199,7 @@ class TestCompleteWorkflow:
             season=SeasonInfo(number=1, category=Category.TV),
             category=Category.TV,
             media_type=MediaType.ANIME,
-            created_at=datetime.now(timezone.utc)
+            created_at=datetime.now(UTC)
         )
         anime_repo.save(anime)
 
@@ -175,7 +219,7 @@ class TestCompleteWorkflow:
             )
 
             # This test's behavior depends on whether items match existing anime
-            print(f'\n📊 Existing Anime Skip Test:')
+            print('\n📊 Existing Anime Skip Test:')
             print(f'   AI parser called: {mock_title_parser.parse.call_count} times')
             print(f'   Items processed: {result.new_items}')
 
@@ -231,7 +275,7 @@ class TestCompleteWorkflow:
         assert result == (True, '')
         mock_qbit_client.add_torrent_file.assert_called_once()
 
-        print(f'\n✅ Manual torrent upload workflow completed')
+        print('\n✅ Manual torrent upload workflow completed')
 
     def test_manual_magnet_workflow(self, download_manager, mock_qbit_client):
         """
@@ -264,7 +308,7 @@ class TestCompleteWorkflow:
         assert result == (True, '')
         mock_qbit_client.add_magnet.assert_called_once()
 
-        print(f'\n✅ Manual magnet upload workflow completed')
+        print('\n✅ Manual magnet upload workflow completed')
 
     def test_torrent_completion_workflow(
         self,
@@ -280,10 +324,11 @@ class TestCompleteWorkflow:
         2. Simulate torrent completion
         3. Handle completion (create hardlinks)
         """
-        from src.core.domain.entities import DownloadRecord
-        from src.core.domain.value_objects import TorrentHash, DownloadStatus, DownloadMethod
-        from datetime import datetime, timezone
         import uuid
+        from datetime import datetime
+
+        from src.core.domain.entities import DownloadRecord
+        from src.core.domain.value_objects import DownloadMethod, DownloadStatus, TorrentHash
 
         # Use unique hash to avoid conflicts
         test_hash = f'test_{uuid.uuid4().hex[:30]}'
@@ -299,7 +344,7 @@ class TestCompleteWorkflow:
             download_directory='/downloads/AniDown/Anime/TV/金牌得主/Season 1',
             status=DownloadStatus.PENDING,
             download_method=DownloadMethod.RSS_AI,
-            download_time=datetime.now(timezone.utc)
+            download_time=datetime.now(UTC)
         )
         download_repo.save(record)
 
@@ -313,7 +358,7 @@ class TestCompleteWorkflow:
 
         assert result.get('success') is True
 
-        print(f'\n✅ Torrent completion workflow completed')
+        print('\n✅ Torrent completion workflow completed')
 
 
 @pytest.mark.integration
@@ -344,7 +389,7 @@ class TestRealQBitWorkflow:
             trigger_type='集成测试'
         )
 
-        print(f'\n📊 Real qBit Workflow Results:')
+        print('\n📊 Real qBit Workflow Results:')
         print(f'   Total items: {result.total_items}')
         print(f'   New items: {result.new_items}')
         print(f'   Skipped: {result.skipped_items}')
@@ -404,7 +449,7 @@ class TestRealQBitWorkflow:
         result = download_manager.process_manual_upload(upload_data)
 
         assert result == (True, '')
-        print(f'\n✅ Real torrent upload successful')
+        print('\n✅ Real torrent upload successful')
 
 
 @pytest.mark.integration
@@ -413,16 +458,17 @@ class TestDatabaseConsistency:
 
     def test_anime_repo_consistency(self, anime_repo):
         """Test anime repository consistency."""
+        import uuid
+        from datetime import datetime
+
         from src.core.domain.entities import AnimeInfo
         from src.core.domain.value_objects import (
             AnimeTitle,
-            SubtitleGroup,
-            SeasonInfo,
             Category,
             MediaType,
+            SeasonInfo,
+            SubtitleGroup,
         )
-        from datetime import datetime, timezone
-        import uuid
 
         # Use unique title to avoid conflicts
         unique_suffix = str(uuid.uuid4())[:8]
@@ -438,7 +484,7 @@ class TestDatabaseConsistency:
             season=SeasonInfo(number=1, category=Category.TV),
             category=Category.TV,
             media_type=MediaType.ANIME,
-            created_at=datetime.now(timezone.utc)
+            created_at=datetime.now(UTC)
         )
 
         # Save
@@ -455,14 +501,15 @@ class TestDatabaseConsistency:
         count = anime_repo.count_all()
         assert count >= 1
 
-        print(f'\n✅ Anime repository consistency verified')
+        print('\n✅ Anime repository consistency verified')
 
     def test_download_repo_consistency(self, download_repo):
         """Test download repository consistency."""
-        from src.core.domain.entities import DownloadRecord
-        from src.core.domain.value_objects import TorrentHash, DownloadStatus, DownloadMethod
-        from datetime import datetime, timezone
         import uuid
+        from datetime import datetime
+
+        from src.core.domain.entities import DownloadRecord
+        from src.core.domain.value_objects import DownloadMethod, DownloadStatus, TorrentHash
 
         # Use unique hash to avoid conflicts
         unique_suffix = uuid.uuid4().hex[:26]
@@ -479,7 +526,7 @@ class TestDatabaseConsistency:
             download_directory='/test',
             status=DownloadStatus.PENDING,
             download_method=DownloadMethod.RSS_AI,
-            download_time=datetime.now(timezone.utc)
+            download_time=datetime.now(UTC)
         )
 
         # Save
@@ -494,4 +541,4 @@ class TestDatabaseConsistency:
         count = download_repo.count_all()
         assert count >= 1
 
-        print(f'\n✅ Download repository consistency verified')
+        print('\n✅ Download repository consistency verified')

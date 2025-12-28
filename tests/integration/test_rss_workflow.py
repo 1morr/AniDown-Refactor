@@ -5,13 +5,14 @@ Tests the complete RSS processing workflow with real Mikan RSS feeds.
 These tests require network access and may take longer to run.
 """
 
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import MagicMock, patch
 
 from tests.fixtures.test_data import (
+    RSS_MIKAN_BLOCKED_KEYWORDS,
     RSS_MIKAN_MY_BANGUMI,
     RSS_MIKAN_SINGLE_ANIME,
-    RSS_MIKAN_BLOCKED_KEYWORDS,
 )
 
 
@@ -108,7 +109,7 @@ class TestRSSWorkflowIntegration:
                 else:
                     passed_count += 1
 
-            print(f'\n📊 Filter results:')
+            print('\n📊 Filter results:')
             print(f'   Total items: {len(items)}')
             print(f'   Filtered: {filtered_count}')
             print(f'   Passed: {passed_count}')
@@ -136,7 +137,7 @@ class TestRSSWorkflowIntegration:
             # First filter - all should be new (empty database)
             new_items = rss_service.filter_new_items(items)
 
-            print(f'\n📊 New items filter:')
+            print('\n📊 New items filter:')
             print(f'   Total items: {len(items)}')
             print(f'   New items: {len(new_items)}')
 
@@ -164,17 +165,21 @@ class TestRSSWithAIProcessing:
         mock_file_renamer
     ):
         """Create DownloadManager with mocked dependencies."""
+        from src.services.download import (
+            CompletionHandler,
+            DownloadNotifier,
+            RSSProcessor,
+            StatusService,
+            UploadHandler,
+        )
         from src.services.download_manager import DownloadManager
-        from src.services.rss_service import RSSService
-        from src.services.filter_service import FilterService
-        from src.services.rename.rename_service import RenameService
-        from src.services.file_service import FileService
         from src.services.file.path_builder import PathBuilder
-        from src.services.metadata_service import MetadataService
+        from src.services.file_service import FileService
+        from src.services.filter_service import FilterService
         from src.services.rename.file_classifier import FileClassifier
-        from src.services.rename.pattern_matcher import PatternMatcher
         from src.services.rename.filename_formatter import FilenameFormatter
-        from unittest.mock import MagicMock
+        from src.services.rename.rename_service import RenameService
+        from src.services.rss_service import RSSService
 
         # Create services
         rss_service = RSSService(download_repo=download_repo)
@@ -184,7 +189,6 @@ class TestRSSWithAIProcessing:
             anime_tv_root='/library/TV Shows'
         )
         file_classifier = FileClassifier()
-        pattern_matcher = PatternMatcher()
         filename_formatter = FilenameFormatter()
         rename_service = RenameService(
             file_classifier=file_classifier,
@@ -196,19 +200,54 @@ class TestRSSWithAIProcessing:
         )
         metadata_service = MagicMock()
 
-        return DownloadManager(
+        # Create sub-services for the facade
+        download_notifier = DownloadNotifier(discord_notifier=None)
+
+        rss_processor = RSSProcessor(
             anime_repo=anime_repo,
             download_repo=download_repo,
             history_repo=history_repo,
             title_parser=mock_title_parser,
-            file_renamer=mock_file_renamer,
             download_client=mock_qbit_client,
             rss_service=rss_service,
             filter_service=filter_service,
+            path_builder=path_builder,
+            notifier=download_notifier
+        )
+
+        upload_handler = UploadHandler(
+            anime_repo=anime_repo,
+            download_repo=download_repo,
+            history_repo=history_repo,
+            download_client=mock_qbit_client,
+            path_builder=path_builder,
+            notifier=download_notifier
+        )
+
+        completion_handler = CompletionHandler(
+            anime_repo=anime_repo,
+            download_repo=download_repo,
+            download_client=mock_qbit_client,
             rename_service=rename_service,
-            hardlink_service=file_service,
+            file_service=file_service,
             path_builder=path_builder,
             metadata_service=metadata_service,
+            notifier=download_notifier
+        )
+
+        status_service = StatusService(
+            download_repo=download_repo,
+            history_repo=history_repo,
+            download_client=mock_qbit_client,
+            hardlink_service=file_service
+        )
+
+        return DownloadManager(
+            rss_processor=rss_processor,
+            upload_handler=upload_handler,
+            completion_handler=completion_handler,
+            status_service=status_service,
+            notifier=download_notifier
         )
 
     @pytest.mark.slow
@@ -234,7 +273,7 @@ class TestRSSWithAIProcessing:
                 trigger_type='测试触发'
             )
 
-            print(f'\n📊 RSS Processing Results:')
+            print('\n📊 RSS Processing Results:')
             print(f'   Total items: {result.total_items}')
             print(f'   New items: {result.new_items}')
             print(f'   Skipped: {result.skipped_items}')
