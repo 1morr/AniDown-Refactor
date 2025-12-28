@@ -61,7 +61,6 @@ from src.services.metadata.metadata_service import MetadataService
 
 # Rename Services
 from src.services.rename.file_classifier import FileClassifier
-from src.services.rename.filename_formatter import FilenameFormatter
 from src.services.rename.rename_service import RenameService
 
 # RSS Services
@@ -210,7 +209,6 @@ class Container(containers.DeclarativeContainer):
 
     # ===== Rename Services =====
     file_classifier = providers.Singleton(FileClassifier)
-    filename_formatter = providers.Singleton(FilenameFormatter)
 
     # ===== Core Services =====
     filter_service = providers.Singleton(FilterService)
@@ -256,7 +254,6 @@ class Container(containers.DeclarativeContainer):
     rename_service = providers.Singleton(
         RenameService,
         file_classifier=file_classifier,
-        filename_formatter=filename_formatter,
         anime_repo=anime_repo,
         ai_file_renamer=file_renamer,
         notifier=download_notifier

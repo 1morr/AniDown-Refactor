@@ -1092,9 +1092,30 @@ def main():
         # 清理未完成的 processing 状态历史记录
         from src.infrastructure.repositories.history_repository import HistoryRepository
         history_repo = HistoryRepository()
+
+        # 先获取处理中的记录详情，再标记为中断
+        processing_records = history_repo.get_processing_records()
         interrupted_count = history_repo.mark_processing_as_interrupted()
+
         if interrupted_count > 0:
             logger.info(f'🧹 标记了 {interrupted_count} 条未完成的记录为已中断')
+            # 发送中断通知（为每个被中断的处理发送通知）
+            try:
+                from src.core.interfaces.notifications import RSSInterruptedNotification
+                rss_notifier = container.discord_notifier()
+                for record in processing_records:
+                    rss_notifier.notify_processing_interrupted(
+                        RSSInterruptedNotification(
+                            trigger_type=record.get('triggered_by', '系统关闭'),
+                            rss_url=record.get('rss_url', ''),
+                            processed_count=record.get('items_processed', 0),
+                            total_count=record.get('items_attempted', 0),
+                            reason='用户手动停止系统 (Ctrl+C)'
+                        )
+                    )
+                logger.info('📤 已发送系统中断通知')
+            except Exception as e:
+                logger.warning(f'⚠️ 发送中断通知失败: {e}')
 
         logger.info('✅ 已优雅关闭')
     except Exception as e:
@@ -1104,7 +1125,28 @@ def main():
         # 清理未完成的 processing 状态历史记录
         from src.infrastructure.repositories.history_repository import HistoryRepository
         history_repo = HistoryRepository()
-        history_repo.mark_processing_as_interrupted()
+
+        # 先获取处理中的记录详情，再标记为中断
+        processing_records = history_repo.get_processing_records()
+        interrupted_count = history_repo.mark_processing_as_interrupted()
+
+        # 发送中断通知
+        if interrupted_count > 0:
+            try:
+                from src.core.interfaces.notifications import RSSInterruptedNotification
+                rss_notifier = container.discord_notifier()
+                for record in processing_records:
+                    rss_notifier.notify_processing_interrupted(
+                        RSSInterruptedNotification(
+                            trigger_type=record.get('triggered_by', '系统错误'),
+                            rss_url=record.get('rss_url', ''),
+                            processed_count=record.get('items_processed', 0),
+                            total_count=record.get('items_attempted', 0),
+                            reason=f'系统发生未预期错误: {e}'
+                        )
+                    )
+            except Exception as notify_error:
+                logger.warning(f'⚠️ 发送中断通知失败: {notify_error}')
 
 
 if __name__ == '__main__':

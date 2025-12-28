@@ -135,67 +135,6 @@ class EmbedBuilder:
 
         return self._add_fields(embed, fields)
 
-    def build_rss_complete_embed(
-        self,
-        success_count: int,
-        total_count: int,
-        failed_items: list[dict[str, Any]]
-    ) -> dict[str, Any]:
-        """
-        构建 RSS 处理完成通知 Embed。
-
-        Args:
-            success_count: 成功数量
-            total_count: 总数量
-            failed_items: 失败项目列表
-
-        Returns:
-            Embed 字典
-        """
-        if success_count == total_count:
-            color = self.COLOR_SUCCESS
-            title = '✅ RSS 处理完成'
-        elif success_count > 0:
-            color = self.COLOR_WARNING
-            title = '⚠️ RSS 处理部分完成'
-        else:
-            color = self.COLOR_ERROR
-            title = '❌ RSS 处理失败'
-
-        embed = self._base_embed(title=title, color=color)
-
-        fields = [
-            {
-                'name': '📊 处理结果',
-                'value': f'成功: {success_count}/{total_count}',
-                'inline': True
-            }
-        ]
-
-        if failed_items:
-            # 最多显示 5 个失败项，包含错误原因
-            failed_lines = []
-            for item in failed_items[:5]:
-                title = item.get('title', '未知')[:30]
-                reason = item.get('reason', '')
-                if reason:
-                    # 截断过长的错误原因
-                    reason_text = reason[:60] + '...' if len(reason) > 60 else reason
-                    failed_lines.append(f'• {title}... | {reason_text}')
-                else:
-                    failed_lines.append(f'• {title}...')
-            failed_text = '\n'.join(failed_lines)
-            if len(failed_items) > 5:
-                failed_text += f'\n... 还有 {len(failed_items) - 5} 个'
-
-            fields.append({
-                'name': '❌ 失败项目',
-                'value': failed_text or '无',
-                'inline': False
-            })
-
-        return self._add_fields(embed, fields)
-
     # === 下载通知 ===
 
     def build_download_start_embed(
@@ -313,47 +252,6 @@ class EmbedBuilder:
         return self._add_fields(embed, fields)
 
     # === 硬链接通知 ===
-
-    def build_hardlink_created_embed(
-        self,
-        anime_title: str,
-        season: int,
-        video_count: int,
-        subtitle_count: int,
-        target_dir: str,
-        rename_method: str
-    ) -> dict[str, Any]:
-        """
-        构建硬链接创建通知 Embed。
-
-        Args:
-            anime_title: 动漫标题
-            season: 季度
-            video_count: 视频文件数量
-            subtitle_count: 字幕文件数量
-            target_dir: 目标目录
-            rename_method: 重命名方式
-
-        Returns:
-            Embed 字典
-        """
-        embed = self._base_embed(
-            title='🔗 硬链接创建完成',
-            description=f'**{anime_title}** 第 {season} 季' if season > 0 else f'**{anime_title}**',
-            color=self.COLOR_SUCCESS
-        )
-
-        # 截断目录路径
-        display_dir = target_dir if len(target_dir) <= 40 else '...' + target_dir[-37:]
-
-        fields = [
-            {'name': '🎬 视频文件', 'value': f'{video_count} 个', 'inline': True},
-            {'name': '💬 字幕文件', 'value': f'{subtitle_count} 个', 'inline': True},
-            {'name': '✏️ 重命名方式', 'value': rename_method, 'inline': True},
-            {'name': '📁 目标目录', 'value': f'`{display_dir}`', 'inline': False}
-        ]
-
-        return self._add_fields(embed, fields)
 
     def build_hardlink_failed_embed(
         self,

@@ -41,7 +41,6 @@ from src.services.queue.webhook_queue import WebhookQueueWorker
 
 # Rename services
 from src.services.rename.file_classifier import FileClassifier
-from src.services.rename.filename_formatter import FilenameFormatter
 from src.services.rename.rename_service import RenameService
 
 # RSS services
@@ -76,7 +75,6 @@ __all__ = [
     # Rename services
     'RenameService',
     'FileClassifier',
-    'FilenameFormatter',
     # RSS services
     'RSSService',
     'FilterService',

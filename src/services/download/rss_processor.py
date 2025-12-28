@@ -176,6 +176,14 @@ class RSSProcessor:
             except Exception as e:
                 logger.error(f'❌ RSS解析失败 [{feed.url}]: {e}')
                 result.errors.append({'url': feed.url, 'error': str(e)})
+                # Send interruption notification for this feed
+                self._notifier.notify_interrupted(
+                    trigger_type=trigger_type,
+                    rss_url=feed.url,
+                    processed_count=0,
+                    total_count=0,
+                    reason=f'RSS解析失败: {e}'
+                )
 
         result.total_items = total_items_found
 
@@ -445,6 +453,14 @@ class RSSProcessor:
             result.errors.append({'error': str(e)})
             self._history_repo.update_rss_history_stats(
                 history_id, status='failed'
+            )
+            # Send interruption notification
+            self._notifier.notify_interrupted(
+                trigger_type=trigger_type,
+                rss_url=rss_url,
+                processed_count=result.new_items,
+                total_count=result.total_items,
+                reason=str(e)
             )
 
         return result

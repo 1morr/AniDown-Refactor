@@ -256,78 +256,6 @@ class TestPathBuilderMultiLibrary:
         assert builder.library_root == '/library/anime_tv'
 
 
-class TestFilenameFormatter:
-    """Tests for FilenameFormatter class."""
-
-    @pytest.fixture
-    def formatter(self):
-        """Create FilenameFormatter instance."""
-        from src.services.rename.filename_formatter import FilenameFormatter
-
-        return FilenameFormatter()
-
-    def test_formatter_initialization(self):
-        """Test FilenameFormatter initializes correctly."""
-        from src.services.rename.filename_formatter import FilenameFormatter
-
-        formatter = FilenameFormatter()
-
-        assert formatter is not None
-
-    @pytest.mark.parametrize('input_str,expected', FILENAME_SANITIZE_CASES)
-    def test_sanitize_special_characters(self, formatter, input_str, expected):
-        """Test sanitizing special characters in filenames."""
-        # FilenameFormatter uses _sanitize_title internally
-        result = formatter._sanitize_title(input_str)
-
-        # Result should be sanitized (exact output may vary by implementation)
-        # Check that problematic characters are handled
-        assert result is not None
-        assert len(result) > 0
-
-    def test_format_episode_filename(self, formatter):
-        """Test formatting episode filename."""
-        from src.services.rename.pattern_matcher import EpisodeMatch
-
-        episode_match = EpisodeMatch(episode=1, season=1)
-        result = formatter.format_tv_episode(
-            title='金牌得主',
-            episode_match=episode_match,
-            extension='.mkv'
-        )
-
-        assert '金牌得主' in result
-        assert '.mkv' in result
-        # Should contain season/episode info
-        assert 'S01' in result or 'Season' in result or '01' in result
-
-    def test_format_episode_with_subtitle_group(self, formatter):
-        """Test formatting with different episode."""
-        from src.services.rename.pattern_matcher import EpisodeMatch
-
-        episode_match = EpisodeMatch(episode=5, season=2)
-        result = formatter.format_tv_episode(
-            title='金牌得主',
-            episode_match=episode_match,
-            extension='.mkv'
-        )
-
-        assert '金牌得主' in result
-        assert '.mkv' in result
-        assert 'S02' in result or '02' in result
-
-    def test_format_movie_filename(self, formatter):
-        """Test formatting movie filename."""
-        result = formatter.format_movie(
-            title='Test Movie',
-            year=2024,
-            extension='.mkv'
-        )
-
-        assert 'Test Movie' in result
-        assert '.mkv' in result
-
-
 class TestFileClassifier:
     """Tests for FileClassifier class."""
 
@@ -392,57 +320,6 @@ class TestFileClassifier:
             assert classifier.is_subtitle(f'file{ext}') is True
 
 
-class TestPatternMatcher:
-    """Tests for PatternMatcher class."""
-
-    @pytest.fixture
-    def matcher(self):
-        """Create PatternMatcher instance."""
-        from src.services.rename.pattern_matcher import PatternMatcher
-
-        return PatternMatcher()
-
-    def test_matcher_initialization(self):
-        """Test PatternMatcher initializes correctly."""
-        from src.services.rename.pattern_matcher import PatternMatcher
-
-        matcher = PatternMatcher()
-
-        assert matcher is not None
-
-    def test_extract_episode_number(self, matcher):
-        """Test extracting episode number from filename."""
-        test_cases = [
-            ('[Group] Anime - 01 [1080p].mkv', 1),
-            ('[Group] Anime - 12 [1080p].mkv', 12),
-            ('Anime S01E05.mkv', 5),
-            ('Anime EP03.mkv', 3),
-        ]
-
-        for filename, expected_episode in test_cases:
-            result = matcher.extract_episode(filename)
-            if result is not None:
-                # extract_episode returns EpisodeMatch object
-                assert result.episode == expected_episode, \
-                    f'Expected {expected_episode} for "{filename}", got {result.episode}'
-
-    def test_extract_episode_with_season(self, matcher):
-        """Test extracting episode with season from filename."""
-        test_cases = [
-            ('Anime S02E01.mkv', 2, 1),
-            ('[Group] Anime S01E01.mkv', 1, 1),
-        ]
-
-        for filename, expected_season, expected_episode in test_cases:
-            result = matcher.extract_episode(filename)
-            if result is not None:
-                assert result.episode == expected_episode, \
-                    f'Expected episode {expected_episode} for "{filename}", got {result.episode}'
-                if result.season is not None:
-                    assert result.season == expected_season, \
-                        f'Expected season {expected_season} for "{filename}", got {result.season}'
-
-
 class TestRenameService:
     """Tests for RenameService class."""
 
@@ -451,11 +328,9 @@ class TestRenameService:
         """Create RenameService instance."""
         from src.services.rename.rename_service import RenameService
         from src.services.rename.file_classifier import FileClassifier
-        from src.services.rename.filename_formatter import FilenameFormatter
 
         return RenameService(
-            file_classifier=FileClassifier(),
-            filename_formatter=FilenameFormatter()
+            file_classifier=FileClassifier()
         )
 
     def test_rename_service_initialization(self, rename_service):

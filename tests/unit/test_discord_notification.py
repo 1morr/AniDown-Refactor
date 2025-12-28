@@ -127,22 +127,6 @@ class TestEmbedBuilder:
 
         assert 'title' in embed or 'description' in embed
 
-    def test_build_hardlink_embed(self):
-        """Test building hardlink notification embed."""
-        from src.infrastructure.notification.discord.embed_builder import EmbedBuilder
-
-        builder = EmbedBuilder()
-        embed = builder.build_hardlink_created_embed(
-            anime_title='金牌得主',
-            season=1,
-            video_count=10,
-            subtitle_count=10,
-            target_dir='/library/TV Shows/金牌得主/Season 1',
-            rename_method='pattern_match'
-        )
-
-        assert 'title' in embed or 'description' in embed
-
     def test_build_error_embed(self):
         """Test building error notification embed."""
         from src.infrastructure.notification.discord.embed_builder import EmbedBuilder

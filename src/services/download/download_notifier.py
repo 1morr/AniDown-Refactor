@@ -211,6 +211,45 @@ class DownloadNotifier:
         except Exception as e:
             logger.warning(f'⚠️ 发送完成通知失败: {e}')
 
+    def notify_interrupted(
+        self,
+        trigger_type: str,
+        rss_url: str,
+        processed_count: int,
+        total_count: int,
+        reason: str
+    ) -> None:
+        """
+        Send RSS processing interrupted notification.
+
+        Args:
+            trigger_type: Type of trigger (e.g., 'scheduled', 'manual').
+            rss_url: URL of the RSS feed being processed.
+            processed_count: Number of items processed before interruption.
+            total_count: Total number of items in the feed.
+            reason: Reason for interruption.
+        """
+        logger.info(f'📤 准备发送RSS中断通知: {reason}')
+
+        if not self._notifier:
+            logger.warning('⚠️ RSS通知器未配置，无法发送中断通知')
+            return
+
+        try:
+            from src.core.interfaces.notifications import RSSInterruptedNotification
+            self._notifier.notify_processing_interrupted(
+                RSSInterruptedNotification(
+                    trigger_type=trigger_type,
+                    rss_url=rss_url,
+                    processed_count=processed_count,
+                    total_count=total_count,
+                    reason=reason
+                )
+            )
+            logger.debug('✅ RSS中断通知发送成功')
+        except Exception as e:
+            logger.warning(f'⚠️ 发送中断通知失败: {e}')
+
     def notify_webhook_received(
         self,
         torrent_id: str,

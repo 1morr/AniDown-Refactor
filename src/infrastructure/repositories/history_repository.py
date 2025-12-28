@@ -313,6 +313,30 @@ class HistoryRepository(IHardlinkRepository):
             logger.info(f'📋 标记了 {result} 条 processing 状态的历史记录为 interrupted')
             return result
 
+    def get_processing_records(self) -> list[dict]:
+        """
+        获取所有 processing 状态的历史记录详情。
+
+        用于在标记为 interrupted 之前获取详细信息以发送通知。
+
+        Returns:
+            包含 rss_url, items_found, items_processed, triggered_by 的字典列表
+        """
+        with db_manager.session() as session:
+            records = session.query(RssProcessingHistory).filter_by(
+                status='processing'
+            ).all()
+            return [
+                {
+                    'rss_url': r.rss_url,
+                    'items_found': r.items_found or 0,
+                    'items_attempted': r.items_attempted or 0,
+                    'items_processed': r.items_processed or 0,
+                    'triggered_by': r.triggered_by
+                }
+                for r in records
+            ]
+
     def mark_history_interrupted(self, history_ids: list[int]) -> int:
         """
         将指定的历史记录标记为 interrupted。

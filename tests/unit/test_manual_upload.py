@@ -48,7 +48,6 @@ class TestManualUploadService:
         from src.services.file.file_service import FileService
         from src.services.rss.filter_service import FilterService
         from src.services.rename.file_classifier import FileClassifier
-        from src.services.rename.filename_formatter import FilenameFormatter
         from src.services.rename.rename_service import RenameService
         from src.services.rss.rss_service import RSSService
 
@@ -59,10 +58,8 @@ class TestManualUploadService:
             anime_tv_root='/library/TV Shows'
         )
         file_classifier = FileClassifier()
-        filename_formatter = FilenameFormatter()
         rename_service = RenameService(
             file_classifier=file_classifier,
-            filename_formatter=filename_formatter,
             anime_repo=anime_repo,
             ai_file_renamer=mock_file_renamer
         )

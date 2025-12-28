@@ -17,7 +17,6 @@ from src.services.rename.file_classifier import (
     ClassifiedFile,
     FileClassifier,
 )
-from src.services.rename.filename_formatter import FilenameFormatter
 
 if TYPE_CHECKING:
     from src.core.interfaces.adapters import IFileRenamer as IAIFileRenamer
@@ -44,7 +43,6 @@ class RenameService(IFileRenamer):
     def __init__(
         self,
         file_classifier: FileClassifier | None = None,
-        filename_formatter: FilenameFormatter | None = None,
         anime_repo: Optional['IAnimeRepository'] = None,
         ai_file_renamer: Optional['IAIFileRenamer'] = None,
         path_converter: Callable[[str], str] | None = None,
@@ -55,14 +53,12 @@ class RenameService(IFileRenamer):
 
         Args:
             file_classifier: File classifier instance.
-            filename_formatter: Filename formatter instance.
             anime_repo: Anime repository for pattern storage.
             ai_file_renamer: AI file renamer for processing.
             path_converter: Callback to convert paths (e.g., Windows to Docker).
             notifier: Download notifier for AI usage notifications.
         """
         self._classifier = file_classifier or FileClassifier()
-        self._formatter = filename_formatter or FilenameFormatter()
         self._anime_repo = anime_repo
         self._ai_file_renamer = ai_file_renamer
         self._path_converter = path_converter
@@ -915,11 +911,9 @@ class RenameService(IFileRenamer):
             # Find matching subtitle
             matched_sub = self._classifier.get_main_subtitle(video, subtitle_files)
             if matched_sub:
-                # Generate subtitle name based on video name
-                new_sub_name = self._formatter.format_subtitle(
-                    video_filename=new_video_name,
-                    subtitle_extension=matched_sub.extension
-                )
+                # Generate subtitle name based on video name (inline format_subtitle logic)
+                base_name = os.path.splitext(new_video_name)[0]
+                new_sub_name = f'{base_name}{matched_sub.extension}'
                 subtitle_mapping[matched_sub.name] = new_sub_name
 
         return subtitle_mapping
